@@ -15,5 +15,9 @@ function(cge_setup_dependencies)
     CPMAddPackage("gh:fmtlib/fmt#9.1.0")
   endif()
 
+  if(NOT TARGET tl::optional)
+    CPMAddPackage("gh:TartanLlama/optional@1.1.0")
+  endif()
+
   #TODO add glad from our repo
 endfunction()

@@ -37,7 +37,7 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 
-# Define installation folder and the module path (this one required by conan)
+# Define installation folder and the module path
 set(CMAKE_INSTALL_PREFIX ${CMAKE_BINARY_DIR}/install)
 set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR} ${CMAKE_MODULE_PATH})
 set(CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR} ${CMAKE_PREFIX_PATH})
@@ -87,8 +87,8 @@ include(CTest)
 
 if(BUILD_TESTING)
   message(AUTHOR_WARNING "Building Tests...")
-  # add_subdirectory(testbed)
   # add_subdirectory(test)
+  add_subdirectory(testbed)
 endif()
 
 if(cge_BUILD_FUZZ_TESTS)
@@ -123,7 +123,7 @@ include(cmake/PackageProject.cmake)
 # we know we want to ship
 cge_package_project(
   TARGETS
-  exc
+  cge-cge
   cge_options
   cge_warnings
 )
