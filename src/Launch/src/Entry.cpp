@@ -2,17 +2,118 @@
 
 #include "Entry.h"
 
+#include "Core/Alloc.h"
+#include "Core/Containers.h"
 #include "Core/Module.h"
+#include "Core/TimeUtils.h"
 #include "Core/Type.h"
 
-// change in ISceneModule
-IModule *g_startupModule = nullptr;
+#include <Render/Window.h>
+#include <cstdio>
 
-template<std::derived_from<IModule> T> void declareStartupModule() {}
+inline U32_t constexpr timeWindowPower = 2u;
+inline U32_t constexpr timeWindowSize  = 1u << timeWindowPower;
+
+// change in ISceneModule
+IModule       *g_startupModule = nullptr;
+Memory_s       g_memory;
+Pool_t         g_pool;
+DoubleBuffer_t g_doublebuffer;
+
+EErr_t g_initializerStatus;
+
+namespace detail
+{
+
+EErr_t initMemory()
+{
+    static U64_t constexpr memoryPower     = 30; // 2^30 = 1 GiB
+    static U64_t constexpr memoryBytes     = 1 << memoryPower;
+    static U64_t constexpr memQuarterBytes = memoryBytes >> 2;
+
+    // allocate system memory
+    g_initializerStatus = g_memory.init(memoryBytes, 16);
+    if (g_initializerStatus != EErr_t::eSuccess) { return g_initializerStatus; }
+    printf("allocated memory\n");
+
+    // initialize pool
+    g_pool.init(g_memory.atOffset(0), memQuarterBytes);
+    printf("created pool\n");
+
+    // initialize memory structures
+    g_doublebuffer.init(g_memory.atOffset(memQuarterBytes), memQuarterBytes);
+    printf("created double buffer\n");
+
+    return g_initializerStatus;
+}
+
+} // namespace detail
+
+struct AppStatus_t
+{
+    bool all() const { return windowStayOpen; }
+
+    bool windowStayOpen;
+};
+
+bool appShouldRun(AppStatus_t const &status) { return status.all(); }
 
 I32_t main(I32_t argc, Char8_t **argv)
 {
+    if (!(g_initializerStatus == EErr_t::eSuccess)) { return 1; }
+    printf("past pre initialization\n");
+
     ModuleInitParams const params{};
     g_startupModule->onInit(params);
+    printf("past initialization\n");
+
+    Array<U32_t, timeWindowSize> timeWindow{timeUnitsIn60FPS};
+
+    U32_t timeWindowIndex = 0;
+    U32_t elapsedTime     = timeUnitsIn60FPS;
+    F32_t ElapsedTimeF    = oneOver60FPS;
+
+    WindowSpec_t windowSpec{.title = "window", .width = 600, .height = 480};
+    Window_s     window;
+    AppStatus_t  appStatus{true};
+
+    window.init(windowSpec);
+
+    while (appShouldRun(appStatus))
+    {
+        U64_t startTime = hiResTimer();
+
+        // Do stuff...
+
+        U64_t endTime = hiResTimer();
+
+        U32_t measuredElapsedTime = elapsedTimeUnits(endTime, startTime);
+#if defined(CGE_DEBUG)
+        // if the elapsed time is too big, we must have had a breakpoint.  Set
+        // elapsed time to ideal
+        if (measuredElapsedTime > timeUnit32) { measuredElapsedTime = 5; }
+#endif
+        // perform time average
+        timeWindowIndex             = (timeWindowIndex + 1) >> timeWindowPower;
+        timeWindow[timeWindowIndex] = measuredElapsedTime;
+
+        measuredElapsedTime = 0;
+        for (U32_t i = 0; i != timeWindowSize; ++i)
+        {
+            measuredElapsedTime += timeWindow[i];
+        }
+        measuredElapsedTime >>= timeWindowPower;
+
+        elapsedTime  = measuredElapsedTime;
+        ElapsedTimeF = elapsedTime / timeUnit32;
+
+        // swap buffers and poll events
+        window.swapBuffers();
+        window.pollEvents(min(timeUnitsIn60FPS - elapsedTime, 0));
+
+        // if grows move into dedicated function
+        appStatus.windowStayOpen = !window.shouldClose();
+    }
+
     return 0;
 }

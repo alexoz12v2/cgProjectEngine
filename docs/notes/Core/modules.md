@@ -85,5 +85,8 @@ Ciascun modulo aggiunto alla applicazione puo' richiedere i servizi di un altro
 modulo, dunque deve essere inizializzato prima del richiedente.
 Si va logicamente a generare un grafo aciclico direizionato di dipendenze di ciascun modulo.
 
+## Dove sono i moduli memorizzati
+Nel Pool Allocator
+
 # Sincronizzazione tra moduli
 boh

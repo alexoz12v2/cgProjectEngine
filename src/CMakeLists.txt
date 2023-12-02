@@ -4,10 +4,14 @@ include(GNUInstallDirs)
 add_library(cge-cge INTERFACE)
 
 add_subdirectory(Core/)
+add_subdirectory(Resource/)
+add_subdirectory(Render/)
 add_subdirectory(Launch/)
 
-target_link_libraries(cge-cge INTERFACE
+target_link_libraries(cge-cge INTERFACE 
     cge::core
+    cge::res
+    cge::renderer
     cge::launch
 )
 
@@ -16,7 +20,7 @@ install(EXPORT cgeTargets
   DESTINATION lib/cmake
   FILE cgeTargets.cmake
   NAMESPACE cge::
-  COMPONENT math_Development)
+  COMPONENT cge_Development)
 
 # export to build tree
 export(EXPORT cgeTargets

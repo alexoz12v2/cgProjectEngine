@@ -1,15 +1,15 @@
 #pragma once
-// MIT License. Copyright (c) 2023
 
 // TODO: Add logging
-#include "Type.h"
+#include "Core/Type.h"
 
-union ModuleInitParams {
+union ModuleInitParams
+{
     Byte_t *p[2];
-    I64_t i64[2];
-    I32_t i32[4];
-    I16_t i16[8];
-    I8_t i8[16];
+    I64_t   i64[2];
+    I32_t   i32[4];
+    I16_t   i16[8];
+    I8_t    i8[16];
 };
 static_assert(sizeof(ModuleInitParams) == 16);
 

@@ -1,26 +1,46 @@
 include(GenerateExportHeader)
 include(GNUInstallDirs)
 
-# main target definition (TODO remove INTERFACE when cpp files are added)
-add_library(cge-core INTERFACE)
+# main target definition
+add_library(cge-core STATIC)
 target_sources(cge-core
-  # PRIVATE
-  # PUBLIC
-  INTERFACE
-    FILE_SET public_headers
-    TYPE HEADERS
-    FILES
-    include/Core/Type.h
-    include/Core/MacroDefs.h
-    include/Core/Module.h
+  PRIVATE
+    src/Alloc.cpp
+    src/StringUtils.cpp
+    src/Event.cpp
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/Type.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/Type.h>
+
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/MacroDefs.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/MacroDefs.h>
+
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/StringUtils.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/StringUtils.h>
+
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/Module.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/Module.h>
+
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/Alloc.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/Alloc.h>
+
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/Containers.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/Containers.h>
+
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/Event.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/Event.h>
+
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/TimeUtils.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/TimeUtils.h>
 )
 
 target_compile_features(cge-core INTERFACE cxx_std_20)
 
 target_include_directories(cge-core
-  #PRIVATE
-  #  src
-  #  include/Core
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/Core
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
   INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
@@ -30,14 +50,14 @@ target_include_directories(cge-core
 # target_link_libraries()
 
 # external dependencies
-# target_link_system_libraries()
+target_link_system_libraries(cge-core PUBLIC Microsoft.GSL::GSL glfw)
 
 add_library(cge::core ALIAS cge-core)
 
 # export library interface
 set_target_properties(cge-core PROPERTIES LINKER_LANGUAGE CXX)
 install(TARGETS
-  cge-core
+  cge-core GSL glfw
   EXPORT cgeTargets
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   COMPONENT cge_Runtime
@@ -47,5 +67,4 @@ install(TARGETS
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   COMPONENT cge_Runtime
   INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-  FILE_SET public_headers DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
