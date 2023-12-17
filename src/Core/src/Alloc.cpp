@@ -1,7 +1,12 @@
 #include "Alloc.h"
 
+#include <algorithm>
 #include <cassert>
+#include <cstdlib>
 #include <cstring>
+
+namespace cge
+{
 
 U64_t alignAddress(U64_t addr, U64_t align)
 {
@@ -130,7 +135,7 @@ void DoubleBuffer_t::clearCurrent() { m_offset[extractCurrent()] = 0; }
 
 void DoubleBuffer_t::clearNext() { m_offset[extractNext()] = 0; }
 
-void Pool_t::init(Byte_t* CGE_restrict pMemory, U64_t size)
+void PoolDBG_t::init(Byte_t* CGE_restrict pMemory, U64_t size)
 {
     // assert it is a power of 2
     assert((size & (size - 1)) == 0);
@@ -147,20 +152,20 @@ void Pool_t::init(Byte_t* CGE_restrict pMemory, U64_t size)
     m_size = size;
 
     // initialize all chunks in the index as nullptr
-    auto const node = IndexNode_t{.chunk = nullptr, .bits = 0};
+    auto const node = IndexNode_t{ .chunk = nullptr, .bits = 0 };
     for (U32_t i = 0; i != m_indexSize; i += sizeof(IndexNode_t))
     {
         std::memcpy(m_ptr + i, &node, sizeof(node));
     }
 }
 
-void Pool_t::scratchPad(Byte_t** pOut, U32_t* pOutSize)
+void PoolDBG_t::scratchPad(Byte_t** pOut, U32_t* pOutSize)
 {
     *pOut     = m_ptr + m_indexSize;
     *pOutSize = m_scratchPadSize;
 }
 
-U32_t Pool_t::chooseChunkSize([[maybe_unused]] U64_t objSize) const
+U32_t PoolDBG_t::chooseChunkSize([[maybe_unused]] U64_t objSize) const
 {
     // decrement to handle case in which power of 2
     objSize--;
@@ -183,7 +188,10 @@ U32_t Pool_t::chooseChunkSize([[maybe_unused]] U64_t objSize) const
     return static_cast<U32_t>(objSize);
 }
 
-U32_t Pool_t::indexCount() const { return m_indexSize / sizeof(IndexNode_t); }
+U32_t PoolDBG_t::indexCount() const
+{
+    return m_indexSize / sizeof(IndexNode_t);
+}
 
 
 void StackBuffer_t::init(Byte_t* CGE_restrict pMemory, U32_t size)
@@ -221,3 +229,58 @@ EErr_t StackBuffer_t::push(Byte_t* CGE_restrict pMemory, U64_t sizeAlign)
 }
 
 void StackBuffer_t::clear() { m_offset = 0; }
+
+// TODO: delete once not necessary
+namespace detail
+{
+    void poolDeleter(Byte_t* ptr) { _aligned_free(ptr); }
+} // namespace detail
+void Pool_t::free(Byte_t* CGE_restrict pObj, Sid_t blkId)
+{
+    // find the index of this pointer in the vector
+    auto it = std::ranges::find_if(
+      m_ptrs,
+      [pObj, blkId](std::pair<Sid_t const, AllocTuple_t> const& keyVal) -> bool
+      {
+          auto const& tuple = keyVal.second;
+          U32_t const disp  = tuple.spec.size;
+
+          if (tuple.spec.count == 1)
+          {
+              return pObj == tuple.ptr.get() && blkId == tuple.spec.tag;
+          }
+          for (U32_t i = 0; i != tuple.spec.count; ++i)
+          {
+              if (tuple.ptr.get() + i * disp == pObj && blkId == tuple.spec.tag)
+              {
+                  return true;
+              }
+          }
+
+          return false;
+      });
+
+    // if you could't find it, do nothing
+    if (it == m_ptrs.cend()) { return; }
+
+    // possibly execute the destructor
+    auto const& tuple = it->second;
+    if (tuple.destroy)
+    {
+        U32_t const disp = tuple.spec.size;
+        auto const& ptr  = tuple.ptr.get();
+
+        if (tuple.spec.count == 1) { tuple.destroy(ptr); }
+        else
+        {
+            for (U32_t i = 0; i != tuple.spec.count; ++i)
+            {
+                tuple.destroy(tuple.ptr.get() + i * disp);
+            }
+        }
+    }
+
+    // remove corresponding element in the map
+    m_ptrs.erase(it);
+}
+} // namespace cge

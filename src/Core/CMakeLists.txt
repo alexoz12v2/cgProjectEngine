@@ -32,9 +32,15 @@ target_sources(cge-core
 
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/TimeUtils.h>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/TimeUtils.h>
+
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/Events.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/Events.h>
+
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/KeyboardKeys.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/KeyboardKeys.h>
 )
 
-target_compile_features(cge-core INTERFACE cxx_std_20)
+target_compile_features(cge-core INTERFACE cxx_std_20 c_std_11)
 
 target_include_directories(cge-core
   PRIVATE
@@ -50,7 +56,7 @@ target_include_directories(cge-core
 # target_link_libraries()
 
 # external dependencies
-target_link_system_libraries(cge-core PUBLIC Microsoft.GSL::GSL glfw)
+target_link_system_libraries(cge-core PUBLIC Microsoft.GSL::GSL glfw OpenGL::GL)
 
 add_library(cge::core ALIAS cge-core)
 

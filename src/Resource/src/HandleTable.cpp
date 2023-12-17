@@ -3,21 +3,22 @@
 #include "Core/Alloc.h"
 
 #include <cassert>
-#include <functional> // std::hash
-// TODO atomic operations
 
-HandleTable_t g_HandleTable;
+namespace cge
+{
+
+HandleTable_t g_handleTable;
 
 void onRefDestroy(Byte_t* CGE_restrict hTabFinger)
 {
-    g_HandleTable.decCnt(hTabFinger);
+    g_handleTable.decCnt(hTabFinger);
 }
 
 bool onRefWriteAccess(
   Byte_t* CGE_restrict hTabFinger,
   U32_t* CGE_restrict  outLock)
 {
-    return g_HandleTable.tryLock(hTabFinger, outLock);
+    return g_handleTable.tryLock(hTabFinger, outLock);
 }
 
 void onRefCopy(Byte_t* CGE_restrict hTabFinger)
@@ -30,26 +31,21 @@ void onRefRelease(Byte_t* CGE_restrict hTabFinger, U32_t* CGE_restrict outLock)
     g_handleTable.release(hTabFinger, outLock);
 }
 
-template<> struct std::hash<Sid_t>
-{
-    std::size_t operator()(Sid_t s) const noexcept
-    {
-        std::size_t h = std::hash<U64_t>{}(s.id);
-        return h;
-    }
-};
-
 EErr_t HandleTable_t::init(U32_t capacityPerPoolBytes)
 {
     EErr_t error = EErr_t::eSuccess;
     // adjust capacityPerPoolBytes and round it up to a multiple of
     // sizeof(Entry_t)
-    capacityPerPoolBytes =
-      ((capacityPerPoolBytes / Entry_t::size) + 1) * Entry_t::size;
+    U32_t count          = (capacityPerPoolBytes / Entry_t::size) + 1;
+    capacityPerPoolBytes = count * Entry_t::size;
 
     Entry_t** pPtr = &m_ptrs[0];
     // try to allocate
-    error = g_pool.allocateN(pPtr, capacityPerPoolBytes, HANDLETABLE_SID);
+    PoolAllocationSpec_t spec{ .tag       = HANDLETABLE_SID,
+                               .alignment = alignof(Entry_t),
+                               .size      = sizeof(Entry_t),
+                               .count     = count };
+    error = g_pool.allocateN<Entry_t>(spec, (Byte_t**)pPtr);
 
     // if ok, then zero out memory, otherwise return status
     if (error != EErr_t::eSuccess) { return error; }
@@ -64,82 +60,13 @@ EErr_t HandleTable_t::init(U32_t capacityPerPoolBytes)
     return error;
 }
 
-template<typename T>
-EErr_t HandleTable_t::insert(Sid_t sid, Byte_t* ptr, Ref<T>* outRef)
-{
-    static std::hash<Sid_t> constexpr hasher;
-
-    EErr_t status            = EErr_t::eSuccess;
-    U32_t  position          = hasher(sid) % m_capacityPerPool;
-    U32_t  availablePosition = npos;
-    U32_t  availablePool     = m_poolCount;
-
-    // find available entry in one of current pool, checking them in decreasing
-    // order
-    for (U32_t i = m_poolCount - 1; i < m_poolCount; --i)
-    {
-        availablePosition = checkAvailable(i, position);
-        if (availablePosition != npos)
-        {
-            availablePool = i;
-            // if we have the position, place the entry there and return
-            Entry_t* curptr = m_ptrs[availablePool];
-
-            U32_t expected = 0;
-            bool cmpxchg = ptr[availablePosition].f.cnt.compare_exchange_strong(
-              expected, 1, std::memory_order_acquire);
-
-            if (expected)
-            {
-                curptr[availablePosition].f.sid = sid;
-                curptr[availablePosition].f.ptr = ptr;
-                ++m_sizes[availablePool];
-                break;
-            }
-        }
-    }
-
-    if (availablePosition == npos)
-    {
-        if (m_poolCount < MAX_POOL_COUNT)
-        {
-            // if we don't have a position, and we have space left, allocate a
-            // new pool
-            status = insertInNewPool(sid, ptr);
-        }
-        else
-        {
-            // if we don't have a position, and there's no space left, error
-            status = EErr_t::eMemory;
-        }
-    }
-
-    outRef->sid   = sid;
-    outRef->m_ptr = ptr;
-    return status;
-}
-
-template<typename T> WeakRef_t<T> HandleTable_t::find(Sid_t sid) const
-{
-    static std::hash<Sid_t> constexpr hasher;
-
-    for (U32_t i = 0; i != m_poolCount; ++i)
-    {
-        Entry_t* ptr     = m_ptrs[i];
-        U32_t    initial = hasher(sid);
-
-        U32_t j = initial;
-        do {
-            if (sid.id == ptr[j].f.sid.id) { ++ptr[j].f.cnt; }
-        } while (j != initial);
-    }
-}
-
 EErr_t HandleTable_t::incCnt(Byte_t* CGE_restrict hTabFinger) const
 {
     Entry_t* pEntry = (Entry_t*)hTabFinger;
     assert(!pEntry->free() && !pEntry->tomb());
     ++(pEntry->f.cnt);
+
+    return EErr_t::eSuccess;
 }
 
 void HandleTable_t::decCnt(Byte_t* CGE_restrict hTabFinger)
@@ -214,10 +141,15 @@ U32_t HandleTable_t::checkAvailable(U32_t poolIndex, U32_t position)
 
 EErr_t HandleTable_t::insertInNewPool(Sid_t sid, Byte_t* ptr)
 {
+    Entry_t** pPtr = &m_ptrs[m_poolCount];
     if (m_poolCount >= MAX_POOL_COUNT) { return EErr_t::eMemory; }
 
-    Entry_t** pPtr = &m_ptrs[m_poolCount];
-    EErr_t status  = g_pool.allocateN(pPtr, m_capacityPerPool, HANDLETABLE_SID);
+    PoolAllocationSpec_t spec{ .tag       = HANDLETABLE_SID,
+                               .alignment = alignof(Entry_t),
+                               .size      = sizeof(Entry_t),
+                               .count     = m_poolCount };
+
+    EErr_t status = g_pool.allocateN(spec, (Byte_t**)pPtr);
 
     if (status != EErr_t::eSuccess) { return status; }
 
@@ -225,7 +157,7 @@ EErr_t HandleTable_t::insertInNewPool(Sid_t sid, Byte_t* ptr)
     m_sizes[m_poolCount] = 1;
     m_poolCount++;
 
-    U8_t* byteptr = (U8_t*)pPool;
+    auto byteptr = (U8_t*)pPool;
     for (U32_t i = 0; i != m_capacityPerPool; ++i) { byteptr[i] = 0; }
 
     pPool[0].f.sid = sid;
@@ -234,3 +166,4 @@ EErr_t HandleTable_t::insertInNewPool(Sid_t sid, Byte_t* ptr)
 
     return status;
 }
+} // namespace cge

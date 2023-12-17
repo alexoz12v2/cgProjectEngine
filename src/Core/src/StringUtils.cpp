@@ -1,6 +1,9 @@
 #include "StringUtils.h"
 
 #include "MacroDefs.h"
+namespace cge
+{
+
 
 #if defined(CGE_DEBUG)
 StringIdTable const g_stringIdTable;
@@ -9,7 +12,7 @@ StringIdTable const g_stringIdTable;
 Sid_t dbg_internString([[maybe_unused]] Char8_t const *str)
 {
 #if defined(CGE_DEBUG)
-    Sid_t strId = {.id = hashCRC64(str)};
+    Sid_t strId = { .id = hashCRC64(str) };
     auto  table = g_stringIdTable.get();
 
     using It = std::unordered_map<U64_t, Char8_t const *>::iterator;
@@ -27,7 +30,7 @@ Sid_t dbg_internString([[maybe_unused]] Char8_t const *str)
 
     return strId;
 #else
-    return {.id = hashCRC64(str)};
+    return { .id = hashCRC64(str) };
 #endif
 }
 
@@ -50,3 +53,4 @@ Char8_t const *dbg_lookupString(Sid_t sid)
     return "";
 #endif
 }
+} // namespace cge

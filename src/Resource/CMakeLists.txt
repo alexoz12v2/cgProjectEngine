@@ -6,6 +6,10 @@ add_library(cge-res STATIC)
 target_sources(cge-res
   PRIVATE
     src/HandleTable.cpp
+    src/Rendering/Buffer.cpp
+    src/Rendering/GpuProgram.cpp
+    src/Rendering/Mesh.cpp
+    src/Rendering/Texture.cpp
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Resource/HandleTable.h>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Resource/HandleTable.h>
@@ -51,17 +55,17 @@ target_include_directories(cge-res
 )
 
 # project wise dependencies
-target_link_libraries(cge-res PUBLIC cge-core)
+target_link_libraries(cge-res PUBLIC cge::core cge::render-utils glad::glad glm::glm)
 
 # external dependencies
-target_link_system_libraries(cge-res PUBLIC tl::optional)
+target_link_system_libraries(cge-res PUBLIC tl::optional PRIVATE assimp::assimp)
 
 add_library(cge::res ALIAS cge-res)
 
 # export library interface 
 set_target_properties(cge-res PROPERTIES LINKER_LANGUAGE CXX)
 install(TARGETS
-  cge-res optional
+  cge-res optional assimp zlibstatic
   EXPORT cgeTargets
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   COMPONENT cge_Runtime

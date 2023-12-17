@@ -13,6 +13,10 @@
 
 #include "MacroDefs.h"
 
+namespace cge
+{
+
+
 /// @typedef built-in types
 using U8_t  = uint8_t;
 using U16_t = uint16_t;
@@ -143,45 +147,45 @@ template<typename F, typename... Ts> struct ReturnTypeConst
 
 namespace detail
 {
-template<typename F, typename R, typename T>
-R dispatch(F &&func, void const *ptr, I32_t index)
-{
-    return func((T const *)ptr);
-}
-
-template<typename F, typename R, typename T0, typename T1>
-R dispatch(F &&func, void const *ptr, I32_t index)
-{
-    switch (index)
+    template<typename F, typename R, typename T>
+    R dispatch(F &&func, void const *ptr, I32_t index)
     {
-    case 0:
-        return func((T0 const *)ptr);
-    case 1:
-        return func((T1 const *)ptr);
+        return func((T const *)ptr);
     }
 
-    CGE_unreachable();
-}
-
-template<
-  typename F,
-  typename R,
-  typename T0,
-  typename T1,
-  typename T2,
-  typename... Ts>
-R dispatch(F &&func, void const *ptr, I32_t index)
-{
-    switch (index)
+    template<typename F, typename R, typename T0, typename T1>
+    R dispatch(F &&func, void const *ptr, I32_t index)
     {
-    case 0:
-        return func((T0 const *)ptr);
-    case 1:
-        return func((T1 const *)ptr);
-    default:
-        return dispatch<F, R, Ts...>(func, ptr, index);
+        switch (index)
+        {
+        case 0:
+            return func((T0 const *)ptr);
+        case 1:
+            return func((T1 const *)ptr);
+        }
+
+        CGE_unreachable();
     }
-}
+
+    template<
+      typename F,
+      typename R,
+      typename T0,
+      typename T1,
+      typename T2,
+      typename... Ts>
+    R dispatch(F &&func, void const *ptr, I32_t index)
+    {
+        switch (index)
+        {
+        case 0:
+            return func((T0 const *)ptr);
+        case 1:
+            return func((T1 const *)ptr);
+        default:
+            return dispatch<F, R, Ts...>(func, ptr, index);
+        }
+    }
 } // namespace detail
 
 /** @class TaggedPointer from pbrt-v4
@@ -350,3 +354,4 @@ concept Monad = requires(M m) {
         } -> std::same_as<M>;
     };
 };
+} // namespace cge

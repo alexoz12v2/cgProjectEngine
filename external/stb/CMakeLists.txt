@@ -1,0 +1,31 @@
+include(GenerateExportHeader)
+include(GNUInstallDirs)
+
+add_library(stb INTERFACE)
+target_sources(stb
+  INTERFACE
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/stb/stb_image.h>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/stb/stb_image.h>
+)
+
+target_include_directories(stb
+  INTERFACE
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
+
+add_library(stb::stb ALIAS stb)
+
+set_target_properties(stb PROPERTIES LINKER_LANGUAGE CXX)
+install(TARGETS
+  stb
+  EXPORT cgeTargets
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  COMPONENT cge_Runtime
+  NAMELINK_COMPONENT cge_Development
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  COMPONENT cge_Development
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  COMPONENT cge_Runtime
+  INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)

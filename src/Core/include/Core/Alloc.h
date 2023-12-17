@@ -12,9 +12,12 @@
 #define CGE_DOUBLEBUFFER_SIZEALIGN(size, align) (((size) << 32) | (align))
 
 /** @file Alloc.h
- *  @brief contains declarations of allocators DoubleBuffer_t, Pool_t and
+ *  @brief contains declarations of allocators DoubleBuffer_t, PoolDBG_t and
  * routines for the 1GB Huge Page allocation File Sections:
  */
+
+namespace cge
+{
 
 U64_t alignAddress(U64_t addr, U64_t align);
 
@@ -142,11 +145,103 @@ class DoubleBuffer_t
                     // U1_t    m_curStack;
 };
 
-/** @class Pool_t.
+/**
+ *  temporary substitution.
+ */
+namespace detail
+{
+    void poolDeleter(Byte_t *ptr);
+}
+struct PoolAllocationSpec_t
+{
+    Sid_t tag;
+    U32_t alignment;
+    U32_t size;
+    U32_t count; // ignored if allocation function allocateds only 1
+};
+class Pool_t
+{
+  public:
+    void init(Byte_t *CGE_restrict pMemory, U64_t size)
+    {
+        m_ptrs.reserve(1024);
+    }
+
+    template<typename T = void>
+    EErr_t
+      allocateN(PoolAllocationSpec_t const &spec, Byte_t **CGE_restrict ppOut)
+    {
+        *ppOut =
+          (Byte_t *)_aligned_malloc(spec.size * spec.count, spec.alignment);
+        if (!*ppOut) { return EErr_t::eMemory; }
+        auto uptr = std::unique_ptr<Byte_t[], decltype(&detail::poolDeleter)>(
+          (*ppOut), &detail::poolDeleter);
+
+        if constexpr (
+          std::is_same_v<T, void> || std::is_trivially_destructible_v<T>)
+        {
+            m_ptrs.try_emplace(spec.tag, spec, std::move(uptr), nullptr);
+        }
+        else
+        {
+            m_ptrs.try_emplace(
+              spec.tag,
+              spec,
+              std::move(uptr),
+              [](void *obj) { ((T *)obj)->~T(); });
+        }
+
+        return EErr_t::eSuccess;
+    }
+
+    template<typename T = void>
+    EErr_t
+      allocate(PoolAllocationSpec_t const &spec, Byte_t **CGE_restrict ppOut)
+    {
+        *ppOut = (Byte_t *)_aligned_malloc(spec.size, spec.alignment);
+        if (!*ppOut) { return EErr_t::eMemory; }
+        auto localSpec  = spec;
+        localSpec.count = 1;
+
+        auto uptr = std::unique_ptr<Byte_t[], decltype(&detail::poolDeleter)>(
+          *ppOut, &detail::poolDeleter);
+
+        if constexpr (
+          std::is_same_v<T, void> || std::is_trivially_destructible_v<T>)
+        {
+            m_ptrs.try_emplace(
+              localSpec.tag, localSpec, std::move(uptr), nullptr);
+        }
+        else
+        {
+            m_ptrs.try_emplace(
+              localSpec.tag,
+              localSpec,
+              std::move(uptr),
+              [](void *obj) { ((T *)obj)->~T(); });
+        }
+
+        return EErr_t::eSuccess;
+    }
+    void free(Byte_t *CGE_restrict pObj, Sid_t blockId);
+
+  private:
+    using DestroyFunc_t = void (*)(void *);
+    struct AllocTuple_t
+    {
+        PoolAllocationSpec_t                                      spec;
+        std::unique_ptr<Byte_t[], decltype(&detail::poolDeleter)> ptr;
+        DestroyFunc_t                                             destroy;
+    };
+    std::unordered_map<Sid_t, AllocTuple_t> m_ptrs;
+};
+
+/** @class PoolDBG_t.
  *  @brief Represents a Pool allocator which is dynamically subdivided to create
  * pools of the requested size on demand
+ * @warning BUGGED! Solve it later
  */
-class Pool_t
+class PoolDBG_t
 {
     // HAS TO MEMORIZE SOME TAGS ON TYPES, eg if it is a IModule
   public:
@@ -224,16 +319,8 @@ class Pool_t
     }
 
     // TODO refactor to common, untempletized, method
-    template<typename T, typename... Args>
-        requires(
-          sizeof...(Args)
-          <= 2) // TODO move all arguments except args in a struct
-    EErr_t allocate(
-      T **CGE_restrict ppOutObj,
-      Sid_t            tag,
-      bool             bMatchTag,
-      bool             bConstruct,
-      Args &&...args)
+    template<typename T>
+    EErr_t allocate(T **CGE_restrict ppOutObj, Sid_t tag, bool bMatchTag)
     {
         // choose a chunk size depending on the size of the object
         U32_t const chunkSize = chooseChunkSize(sizeof(T));
@@ -285,10 +372,6 @@ class Pool_t
             auto ptr =
               reinterpret_cast<T *>(pFirstFree + sizeof(ChunkRecord_t));
 
-            if (bConstruct)
-            {
-                std::construct_at(ptr, std::forward<Args...>(args...));
-            }
             *ppOutObj = ptr;
         }
         else if (i == indexCount()) // !pChunkFound and full
@@ -376,10 +459,6 @@ class Pool_t
               pEnd);
             assert((Byte_t *)pPrevChunk <= pEnd);
 
-            if (bConstruct)
-            {
-                std::construct_at(ptr, std::forward<Args...>(args...));
-            }
             *ppOutObj = ptr;
 
             // appropriately tag the chunk
@@ -428,8 +507,8 @@ class Pool_t
     // LACKS A CLEAR METHOD
 
     /// @note no need for a destructor as the memory resource outlasts the
-    /// Pool_t
-    // ~Pool_t();
+    /// PoolDBG_t
+    // ~PoolDBG_t();
 
   private:
     union BlockRecord_t
@@ -488,6 +567,8 @@ class Pool_t
 
 static_assert(
   sizeof(Memory_s) == 16 && sizeof(DoubleBuffer_t) == 24
-    && sizeof(Pool_t) == 16,
+    && sizeof(PoolDBG_t) == 16,
   "");
 extern Pool_t g_pool;
+
+} // namespace cge

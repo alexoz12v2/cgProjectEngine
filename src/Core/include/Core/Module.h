@@ -3,6 +3,9 @@
 // TODO: Add logging
 #include "Core/Type.h"
 
+namespace cge
+{
+
 union ModuleInitParams
 {
     Byte_t *p[2];
@@ -25,5 +28,8 @@ class IModule
      */
     virtual void onInit(ModuleInitParams params) = 0;
 
+    virtual void onTick(float deltaTime) = 0;
+
     virtual ~IModule() = default;
 };
+} // namespace cge

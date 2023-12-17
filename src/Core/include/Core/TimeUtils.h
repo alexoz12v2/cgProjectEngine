@@ -8,6 +8,10 @@
 #error "platform not supported"
 #endif
 
+namespace cge
+{
+
+
 /**
  * @fn hiResTimer.
  * @brief gets an unsigned integer by reading the time-stamp counter by using,
@@ -69,3 +73,4 @@ inline CGE_forceinline F32_t elapsedTimeFloat(U64_t end, U64_t start)
 {
     return static_cast<F32_t>((end - start) / hiResFrequency());
 }
+} // namespace cge

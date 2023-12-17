@@ -1,13 +1,23 @@
 include(GenerateExportHeader)
 include(GNUInstallDirs)
 
-add_library(glad INTERFACE)
+add_library(glad STATIC)
 target_sources(glad
-  INTERFACE
+  PRIVATE
+    src/gl.c
+  PUBLIC 
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/glad/gl.h>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/glad/gl.h>)
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/glad/gl.h>
+
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/glad/wgl.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/glad/wgl.h>
+
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/KHR/khrplatform.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/KHR/khrplatform.h>)
 
 target_include_directories(glad
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
   INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
@@ -29,3 +39,4 @@ install(TARGETS
   COMPONENT cge_Runtime
   INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
+message(STATUS added glad)

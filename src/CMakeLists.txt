@@ -4,12 +4,14 @@ include(GNUInstallDirs)
 add_library(cge-cge INTERFACE)
 
 add_subdirectory(Core/)
+add_subdirectory(RenderUtils/)
 add_subdirectory(Resource/)
 add_subdirectory(Render/)
 add_subdirectory(Launch/)
 
 target_link_libraries(cge-cge INTERFACE 
     cge::core
+    cge::render-utils
     cge::res
     cge::renderer
     cge::launch

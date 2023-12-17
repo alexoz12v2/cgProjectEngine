@@ -6,6 +6,7 @@ add_library(cge-renderer STATIC)
 target_sources(cge-renderer
   PRIVATE
     src/Window.cpp
+    src/Renderer.cpp
   PUBLIC 
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Render/SceneView.h>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Render/SceneView.h>
@@ -30,17 +31,24 @@ target_include_directories(cge-renderer
 )
 
 # project wise dependencies
-target_link_libraries(cge-renderer PUBLIC cge-core glad::glad)
+target_link_libraries(cge-renderer 
+  PUBLIC 
+    cge::core cge::render-utils glad::glad
+)
 
 # external dependencies
-target_link_system_libraries(cge-renderer PUBLIC glfw Microsoft.GSL::GSL)
+target_link_system_libraries(cge-renderer 
+  PUBLIC 
+    glfw Microsoft.GSL::GSL
+    glm::glm
+)
 
 add_library(cge::renderer ALIAS cge-renderer)
 
 # export library interface 
 set_target_properties(cge-renderer PROPERTIES LINKER_LANGUAGE CXX)
 install(TARGETS
-  cge-renderer
+  cge-renderer glm
   EXPORT cgeTargets
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   COMPONENT cge_Runtime
