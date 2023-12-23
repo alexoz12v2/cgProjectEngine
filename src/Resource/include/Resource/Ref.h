@@ -31,7 +31,7 @@ template<typename T> class Ref_s
 {
   public:
     using Self = Ref_s<T>;
-    friend class HandleTable_t;
+    friend class HandleTable_s;
 
     Ref_s() = default;
     Ref_s(Self const &other)

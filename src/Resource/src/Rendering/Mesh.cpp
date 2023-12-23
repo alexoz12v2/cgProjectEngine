@@ -30,7 +30,8 @@ Mesh_s Scene_s::getMesh() const
     // https://stackoverflow.com/questions/72075776/assimp-mnummeshes-is-0
     if (count != 0)
     {
-        aiMesh const *mesh = m_scene->mMeshes[0];
+        aiMesh const *mesh =
+          m_scene->mMeshes[m_scene->mRootNode->mChildren[0]->mMeshes[0]];
         assert(
           mesh->HasPositions() && mesh->HasNormals() && mesh->HasFaces()
           && mesh->HasTextureCoords(0));

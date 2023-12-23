@@ -81,6 +81,7 @@ EErr_t Texture_s::transferData(TexTransferSpec_t const &spec)
           spec.format,
           spec.type,
           spec.data));
+        if (m_genMips) { GL_CHECK(glGenerateMipmap(GL_TEXTURE_2D)); }
         break;
     case e3D:
         GL_CHECK(glTexSubImage3D(

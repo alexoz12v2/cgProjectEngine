@@ -16,6 +16,7 @@ namespace cge
 struct Sid_t
 {
     Sid_t &operator=(Sid_t const &other) = default;
+    bool   operator<(Sid_t const &other) const { return id < other.id; }
 
     U64_t           id;
     Char8_t const **pStr = nullptr;
@@ -155,7 +156,7 @@ inline U64_t constexpr hashCRC64(Char8_t const *str)
     return crc;
 }
 
-inline bool constexpr operator==(Sid_t a, Sid_t b) { return a.id == b.id; }
+bool constexpr operator==(Sid_t a, Sid_t b) { return a.id == b.id; }
 
 inline Sid_t constexpr operator""_sid(Char8_t const *str, U64_t size)
 {

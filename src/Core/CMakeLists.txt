@@ -56,7 +56,7 @@ target_include_directories(cge-core
 # target_link_libraries()
 
 # external dependencies
-target_link_system_libraries(cge-core PUBLIC Microsoft.GSL::GSL glfw OpenGL::GL)
+target_link_system_libraries(cge-core PUBLIC Microsoft.GSL::GSL glfw glm::glm OpenGL::GL)
 
 add_library(cge::core ALIAS cge-core)
 

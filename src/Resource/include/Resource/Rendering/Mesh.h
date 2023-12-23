@@ -2,7 +2,6 @@
 
 #include "Core/Containers.h"
 #include "Core/Type.h"
-#include "Resource/HandleTable.h"
 
 #include <glm/glm.hpp>
 #include <tl/optional.hpp>
@@ -18,9 +17,9 @@ namespace cge
 
 struct Vertex_t
 {
-    F32_t pos[3];
-    F32_t norm[3];
-    F32_t texCoords[3];
+    glm::vec3 pos;
+    glm::vec3 norm;
+    glm::vec3 texCoords;
 };
 
 // necessary to use offsetof macro

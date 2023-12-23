@@ -39,6 +39,7 @@ layout (location = 1) in vec3 aNorm;
 layout (location = 2) in vec3 aTexCoord;
 
 layout (location = 0) out vec3 vertColor;
+layout (location = 1) out vec3 texCoord;
 
 uniform Uniforms {
     vec3 color;
@@ -49,6 +50,7 @@ uniform Uniforms {
 void main() 
 {
     vertColor = color;
+    texCoord = aTexCoord;
     gl_Position = modelViewProjection * vec4(aPos, 1.f);
 }
 )a";
@@ -56,6 +58,7 @@ void main()
 static Char8_t const *const fragSource = R"a(
 #version 460 core
 layout (location = 0) in vec3 vertColor;
+layout (location = 1) in vec3 texCoord;
 
 uniform sampler2D sampler;
 
@@ -63,7 +66,8 @@ layout (location = 0) out vec4 fragColor;
 
 void main()
 {
-    fragColor = texture(sampler, vec2(0.5, 0.5)) * vec4(vertColor, 1.f);
+    vec3 color = texture(sampler, texCoord.xy).xyz * vertColor;
+    fragColor = vec4(color, 1.f);
 }
 )a";
 
@@ -168,9 +172,6 @@ inline void TestbedModule::onInit(ModuleInitParams params)
     assert(scene.has_value());
     cubeMesh = scene->getMesh();
 
-    // clear color
-    glClearColor(0.f, 0.f, 0.f, 1.f);
-
     // create shader program
     shaderProgram.bind();
     shaderProgram.addShader({ vertShader, GL_VERTEX_SHADER, vertexSource });
@@ -184,12 +185,12 @@ inline void TestbedModule::onInit(ModuleInitParams params)
     I32_t texHeight     = 0;
     I32_t texChannelCnt = 0;
     m_texData           = stbi_load(
-      ASSET_PATH "testImage.png",
+      ASSET_PATH "TCom_Gore_2K_albedo.png",
       &texWidth,
       &texHeight,
       &texChannelCnt,
       3 /*RGB*/);
-    assert(texWidth == 1024);
+    assert(texWidth != 0);
 
     glActiveTexture(GL_TEXTURE0 + 0);
     texture.bind(ETexture_t::e2D);
@@ -237,7 +238,7 @@ inline void TestbedModule::onInit(ModuleInitParams params)
 
     // create vertex buffer and index buffer
     U32_t vbBytes = (U32_t)cubeMesh.vertices.size() * sizeof(Vertex_t);
-    U32_t ibBytes = (U32_t)cubeMesh.indices.size() * sizeof(Vertex_t);
+    U32_t ibBytes = (U32_t)cubeMesh.indices.size() * sizeof(Array<U32_t, 3>);
 
     // fill buffers
     va.bind();
@@ -302,6 +303,7 @@ void TestbedModule::onMouseButton(I32_t key, I32_t action, F32_t deltaTime) {}
 
 void TestbedModule::onMouseMovement(F32_t xpos, F32_t ypos)
 {
+    static F32_t yaw = 0, pitch = 0;
     if (!isCursorEnabled)
     {
         lastCursorPosition = { xpos, ypos };
@@ -309,10 +311,12 @@ void TestbedModule::onMouseMovement(F32_t xpos, F32_t ypos)
         return;
     }
 
-    F32_t deltaX = xpos - lastCursorPosition.x;
+    F32_t deltaX = lastCursorPosition.x - xpos;
     F32_t deltaY = ypos - lastCursorPosition.y;
+    yaw += deltaX * mouseSensitivity;
+    pitch += deltaY * mouseSensitivity;
 
-    yawPitchRotate(deltaX * mouseSensitivity, deltaY * mouseSensitivity);
+    yawPitchRotate(yaw, pitch);
 
     lastCursorPosition = { xpos, ypos };
 }
@@ -336,7 +340,14 @@ void TestbedModule::onTick(float deltaTime)
     // Update the camera position
     camera.position += velocity * direction;
 
-    glClear(GL_COLOR_BUFFER_BIT);
+    glCullFace(GL_BACK);
+    glFrontFace(GL_CCW);
+    glClearColor(0.f, 0.f, 0.f, 1.f);
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+
     shaderProgram.bind();
     va.bind();
 
@@ -378,7 +389,8 @@ void TestbedModule::setupUniforms()
       outUniforms.uniformSize[1] * typeSize(outUniforms.uniformType[1]));
 
     glm::mat4 modelViewProjection =
-      glm::perspective(45.f, aspectRatio(), 0.1f, 100.f) * modelView;
+      glm::perspective(45.f, aspectRatio(), 0.1f, 100.f);
+    modelViewProjection = modelViewProjection * modelView;
     std::memcpy(
       (Byte_t *)(uniformData) + outUniforms.uniformOffset[2],
       glm::value_ptr(modelViewProjection),
@@ -399,17 +411,17 @@ void TestbedModule::yawPitchRotate(F32_t yaw, F32_t pitch)
     yaw   = glm::radians(yaw);
     pitch = glm::radians(glm::clamp(pitch, -89.f, 89.f));
 
-    glm::quat yawQ   = glm::angleAxis(yaw, glm::vec3(0.f, -1.f, 0.f));
-    glm::quat pitchQ = glm::angleAxis(pitch, glm::vec3(1.f, 0.f, 0.f));
+    if (pitch > 89.0f) pitch = 89.0f;
+    if (pitch < -89.0f) pitch = -89.0f;
 
-    // Apply pitch first, then yaw
-    glm::quat rotQ = yawQ * pitchQ;
-
-    glm::mat3 rotate = glm::mat3_cast(rotQ);
-    camera.forward   = glm::normalize(rotate * camera.forward);
-    camera.right =
-      glm::normalize(glm::cross(glm::vec3(0.f, 1.f, 0.f), camera.forward));
-    camera.up = glm::normalize(glm::cross(camera.forward, camera.right));
+    glm::vec3 direction;
+    direction.x    = cos(yaw) * cos(pitch);
+    direction.y    = sin(pitch);
+    direction.z    = sin(yaw) * cos(pitch);
+    camera.forward = glm::normalize(direction);
+    camera.up      = glm::vec3(0.f, 1.f, 0.f);
+    camera.right   = glm::normalize(glm::cross(camera.forward, camera.up));
+    camera.up      = glm::normalize(glm::cross(camera.forward, camera.right));
 }
 
 void KeyCallback(EventArg_t eventData, EventArg_t listenerData)
