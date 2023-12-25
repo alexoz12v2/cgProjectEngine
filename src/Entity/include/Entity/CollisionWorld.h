@@ -1,9 +1,10 @@
 #pragma once
 
+#include "Core/StringUtils.h"
 #include "Core/Type.h"
-#include "Resource/HandleTable.h"
 
 #include <span>
+#include <vector>
 
 // collision world is a BVH containing Sids which all index into an array of
 // collision bodies through tables, which are simplified meshes associated with
@@ -45,9 +46,7 @@ class CollisionWorld_s
     static U32_t constexpr maxCap         = 1024;
     static U32_t constexpr maxPrimsInNode = 2u;
 
-    CollisionWorld_s(
-      std::pmr::vector<BVHNode_t>      nodes,
-      std::pmr::vector<CollisionObj_t> objects);
+    CollisionWorld_s();
 
     void addObject(CollisionObj_t const &obj);
 
@@ -72,11 +71,13 @@ class CollisionWorld_s
     // stackAllocator, hoping to never have to reallocate
     // the capacity is checked at every insertion
     // node[0] = root
-    std::pmr::vector<BVHNode_t> nodes;
-    U32_t                       nodesUsed = 0;
+    std::vector<BVHNode_t> m_bnodes;
+    U32_t                  nodesUsed = 0;
 
     // collects updates and then distirbutes to nodes?
-    std::pmr::vector<CollisionObj_t> objs;
+    std::vector<CollisionObj_t> objs;
 };
+
+extern CollisionWorld_s g_world;
 
 } // namespace cge

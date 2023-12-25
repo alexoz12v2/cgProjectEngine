@@ -3,7 +3,8 @@
 #include "Core/Containers.h"
 #include "Core/StringUtils.h"
 #include "Core/Type.h"
-#include "Resource/Rendering/Mesh.h"
+#include "Resource/Rendering/cgeLight.h"
+#include "Resource/Rendering/cgeMesh.h"
 
 #include <atomic>
 #include <map>
@@ -12,37 +13,72 @@
 namespace cge
 {
 
+
 enum class EResourceType_t
 {
     eInvalid = 0,
     eMesh,
     eTexture,
+    eLight,
     eByteArray
-};
-
-struct Resource_s
-{
-    union ResourceValue_t
-    {
-        void   *p;
-        Mesh_s *pMesh;
-        Byte_t *pByteArray;
-    };
-
-    // value is supposed to be dynamically allocated
-    Resource_s(EResourceType_t type, void *value)
-      : type(type), value{ .p = value }
-    {
-    }
-
-    EResourceType_t type;
-    ResourceValue_t value;
 };
 
 class HandleTable_s
 {
+  private:
+    struct Value_t
+    {
+        explicit Value_t(Mesh_s const &m) : type(EResourceType_t::eMesh), res(m)
+        {
+        }
+        explicit Value_t(Light_t l) : type(EResourceType_t::eLight), res(l) {}
+
+        Value_t(const Value_t &other) : type(other.type), res()
+        {
+            using enum EResourceType_t;
+            switch (type)
+            {
+            case eMesh:
+                new (&res.mesh) Mesh_s(other.res.mesh);
+                break;
+            case eLight:
+                new (&res.light) Light_t(other.res.light);
+                break;
+            }
+        }
+        Value_t(Value_t &&other)                     = default;
+        Value_t &operator=(Value_t const &other)     = default;
+        Value_t &operator=(Value_t &&other) noexcept = default;
+
+        ~Value_t() noexcept
+        {
+            using enum EResourceType_t;
+            switch (type)
+            {
+            case eMesh:
+                res.mesh.~Mesh_s();
+                break;
+            case eLight:
+                res.light.~Light_t();
+                break;
+            }
+        }
+        EResourceType_t type;
+        union U
+        {
+            U(){};
+            U(Mesh_s const &m) : mesh(m) {}
+            U(Light_t l) : light(l) {}
+            ~U() {}
+            Mesh_s  mesh;
+            Light_t light;
+        };
+        U res;
+    };
+
+  public:
     // using map for iterator stability
-    using HandleMap_s = std::map<Sid_t, std::pair<U32_t, Resource_s>>;
+    using HandleMap_s = std::pmr::map<Sid_t, std::pair<U32_t, Value_t>>;
 
   public:
     class Ref_s
@@ -80,17 +116,13 @@ class HandleTable_s
             return *this;
         }
 
-        template<typename T> T &getAs()
-        {
-            return *(T *)m_ptr->second.second.value.p;
-        }
+        Mesh_s  &getAsMesh() { return m_ptr->second.second.res.mesh; }
+        Light_t &getAsLight() { return m_ptr->second.second.res.light; }
 
         B8_t hasValue()
         {
             return m_pTable != nullptr && m_ptr != m_pTable->m_map.cend();
         }
-
-        ~Ref_s() noexcept { m_pTable->remove(m_ptr); }
 
         Sid_t sid() const { return m_sid; }
 
@@ -100,10 +132,9 @@ class HandleTable_s
         HandleMap_s::iterator m_ptr;
         HandleTable_s        *m_pTable;
     };
-    void insert(Sid_t sid, Resource_s const &ref);
 
-    B8_t remove(Sid_t sid);
-
+    void                 insertMesh(Sid_t sid, Mesh_s const &mesh);
+    B8_t                 remove(Sid_t sid);
     HandleTable_s::Ref_s get(Sid_t sid);
 
   private:

@@ -1,25 +1,28 @@
 #include "CollisionWorld.h"
 
 #include "Resource/HandleTable.h"
-#include "Resource/Rendering/Mesh.h"
+#include "Resource/Rendering/cgeMesh.h"
+#include "Resource/Rendering/cgeScene.h"
 
 namespace cge
 {
+
+CollisionWorld_s g_world;
+
 B8_t intersectObj(Ray_t const &ray, CollisionObj_t const &obj, Hit_t &outHit);
 
-CollisionWorld_s::CollisionWorld_s(
-  std::pmr::vector<BVHNode_t>      nodes,
-  std::pmr::vector<CollisionObj_t> objects)
-  : nodes(std::move(nodes)), objs(std::move(objects))
+CollisionWorld_s::CollisionWorld_s()
 {
-    this->nodes.reserve(maxCap);
+    this->m_bnodes.reserve(maxCap);
+    this->objs.reserve(maxCap);
 }
 
 void CollisionWorld_s::build()
 {
     static U32_t constexpr rootIdx = 0;
 
-    BVHNode_t &root      = nodes[rootIdx];
+    m_bnodes.resize(maxCap);
+    BVHNode_t &root      = m_bnodes[rootIdx];
     root.children[0]     = nullIdx;
     root.children[1]     = nullIdx;
     root.primitivesCount = (U32_t)objs.size();
@@ -34,7 +37,7 @@ bool CollisionWorld_s::intersect(Ray_t const &ray, U32_t nodeIdx, Hit_t &outHit)
   const
 {
     // Phase 1: Terminate if the ray misses the AABB of this node
-    BVHNode_t const &node = nodes[nodeIdx];
+    BVHNode_t const &node = m_bnodes[nodeIdx];
     if (!testOverlap(ray, node.ebox)) { return false; }
 
     if (node.isLeaf())
@@ -59,7 +62,7 @@ void CollisionWorld_s::addObject(CollisionObj_t const &obj)
 
 void CollisionWorld_s::subdivide(U32_t nodeIdx)
 {
-    BVHNode_t &node = nodes[nodeIdx];
+    BVHNode_t &node = m_bnodes[nodeIdx];
 
     // retursion termination
     if (node.primitivesCount <= maxPrimsInNode) { return; }
@@ -93,10 +96,11 @@ void CollisionWorld_s::subdivide(U32_t nodeIdx)
         node.children[0]    = leftChildIdx;
         node.children[1]    = rightChildIdx;
 
-        nodes[leftChildIdx].firstPrimOffset  = node.firstPrimOffset;
-        nodes[leftChildIdx].primitivesCount  = leftCount;
-        nodes[rightChildIdx].firstPrimOffset = i;
-        nodes[rightChildIdx].primitivesCount = node.primitivesCount - leftCount;
+        m_bnodes[leftChildIdx].firstPrimOffset  = node.firstPrimOffset;
+        m_bnodes[leftChildIdx].primitivesCount  = leftCount;
+        m_bnodes[rightChildIdx].firstPrimOffset = i;
+        m_bnodes[rightChildIdx].primitivesCount =
+          node.primitivesCount - leftCount;
 
         node.primitivesCount = 0; // this is internal
 
@@ -112,7 +116,7 @@ void CollisionWorld_s::subdivide(U32_t nodeIdx)
 void CollisionWorld_s::updateNodeBounds(U32_t nodeIdx)
 {
     //
-    BVHNode_t &node = nodes[nodeIdx];
+    BVHNode_t &node = m_bnodes[nodeIdx];
 
     node.ebox = { .min = glm::vec3(std::numeric_limits<float>::max()),
                   .max = glm::vec3(std::numeric_limits<float>::epsilon()) };
@@ -128,8 +132,8 @@ B8_t CollisionWorld_s::intersectLeaf(
   U32_t        objCount,
   Hit_t       &outHit) const
 {
-    std::span primsInNode(&objs[firstObjIdx], objCount);
-    B8_t      bIsect = false;
+    std::span<CollisionObj_t const> primsInNode(&objs[firstObjIdx], objCount);
+    B8_t                            bIsect = false;
     for (U32_t i = 0; i != primsInNode.size(); i++)
     {
         Hit_t hit;
@@ -149,15 +153,17 @@ B8_t intersectObj(Ray_t const &ray, CollisionObj_t const &obj, Hit_t &outHit)
     bool found = false;
     if (ref.hasValue())
     {
-        for (Mesh_s const &mesh = ref.getAs<Mesh_s>();
+        for (Mesh_s const &mesh = ref.getAsMesh();
              auto const   &face : mesh.indices)
         {
+            glm::mat4 const &transform =
+              g_scene.getNodeBySid(obj.sid)->transform;
             glm::vec3 v0 =
-              mesh.transform * glm::vec4(mesh.vertices[face[0]].pos, 1.f);
+              transform * glm::vec4(mesh.vertices[face[0]].pos, 1.f);
             glm::vec3 v1 =
-              mesh.transform * glm::vec4(mesh.vertices[face[1]].pos, 1.f);
+              transform * glm::vec4(mesh.vertices[face[1]].pos, 1.f);
             glm::vec3 v2 =
-              mesh.transform * glm::vec4(mesh.vertices[face[2]].pos, 1.f);
+              transform * glm::vec4(mesh.vertices[face[2]].pos, 1.f);
 
             glm::vec3 edge1 = v1 - v0;
             glm::vec3 edge2 = v2 - v0;

@@ -8,8 +8,9 @@ target_sources(cge-res
     src/HandleTable.cpp
     src/Rendering/Buffer.cpp
     src/Rendering/GpuProgram.cpp
-    src/Rendering/Mesh.cpp
-    src/Rendering/Texture.cpp
+    src/Rendering/cgeMesh.cpp
+    src/Rendering/cgeScene.cpp
+    src/Rendering/cgeTexture.cpp
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Resource/HandleTable.h>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Resource/HandleTable.h>
@@ -26,17 +27,20 @@ target_sources(cge-res
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Resource/Rendering/GpuProgram.h>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Resource/Rendering/GpuProgram.h>
 
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Resource/Rendering/Light.h>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Resource/Rendering/Light.h>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Resource/Rendering/cgeLight.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Resource/Rendering/cgeLight.h>
 
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Resource/Rendering/Material.h>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Resource/Rendering/Material.h>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Resource/Rendering/cgeMaterial.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Resource/Rendering/cgeMaterial.h>
 
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Resource/Rendering/Mesh.h>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Resource/Rendering/Mesh.h>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Resource/Rendering/cgeMesh.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Resource/Rendering/cgeMesh.h>
 
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Resource/Rendering/Texture.h>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Resource/Rendering/Texture.h>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Resource/Rendering/cgeScene.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Resource/Rendering/cgeScene.h>
+
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Resource/Rendering/cgeTexture.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Resource/Rendering/cgeTexture.h>
 
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Resource/Rendering/TextureView.h>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Resource/Rendering/TextureView.h>

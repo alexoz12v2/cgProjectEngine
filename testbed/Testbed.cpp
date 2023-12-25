@@ -6,10 +6,12 @@
 #include "Launch/Entry.h"
 #include "Render/Renderer.h"
 #include "RenderUtils/GLutils.h"
+#include "Resource/HandleTable.h"
 #include "Resource/Rendering/Buffer.h"
 #include "Resource/Rendering/GpuProgram.h"
-#include "Resource/Rendering/Mesh.h"
-#include "Resource/Rendering/Texture.h"
+#include "Resource/Rendering/cgeMesh.h"
+#include "Resource/Rendering/cgeScene.h"
+#include "Resource/Rendering/cgeTexture.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <fmt/core.h>
@@ -21,6 +23,7 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <Entity/CollisionWorld.h>
 #include <filesystem>
 
 #define ASSET_PATH \
@@ -82,6 +85,7 @@ class TestbedModule : public IModule
     static F32_t constexpr mouseSensitivity = 0.1f;
     static Sid_t constexpr vertShader       = "VERTEX"_sid;
     static Sid_t constexpr fragShader       = "FRAG"_sid;
+    static Sid_t constexpr cubeMeshSid      = "Cube"_sid;
 
   public:
     void onInit(ModuleInitParams params) override;
@@ -110,7 +114,6 @@ class TestbedModule : public IModule
     glm::vec2      lastCursorPosition{ -1.0f, -1.0f };
     B8_t           isCursorEnabled = false;
     Camera_t       camera;
-    Mesh_s         cubeMesh;
     GpuProgram_s   shaderProgram;
     Buffer_s       uniformBuffer;
     VertexBuffer_s vb;
@@ -168,9 +171,9 @@ inline void TestbedModule::onInit(ModuleInitParams params)
     camera.forward  = glm::vec3(0.f, 0.f, 1.f);
 
     // open mesh file
-    auto scene = Scene_s::open(ASSET_PATH "cube.obj");
+    auto scene = Scene_s::fromObj(ASSET_PATH "cube.obj");
     assert(scene.has_value());
-    cubeMesh = scene->getMesh();
+    g_scene = *scene;
 
     // create shader program
     shaderProgram.bind();
@@ -223,9 +226,17 @@ inline void TestbedModule::onInit(ModuleInitParams params)
     U32_t samplerLoc = glGetUniformLocation(fragId, "sampler");
     glUniform1i(samplerLoc, 0);
 
-    // uniform data declaration
-    cubeMesh.transform = glm::mat4(1.f);
+    // scene setup
+    glm::mat4 &cubeMeshTransform = g_scene.getNodeBySid(cubeMeshSid)->transform;
+    Mesh_s    &cubeMesh          = g_handleTable.get(cubeMeshSid).getAsMesh();
+    cubeMeshTransform =
+      glm::translate(cubeMeshTransform, glm::vec3(0.f, 0.f, 2.f));
 
+    CollisionObj_t cubeCollisionMesh{ .ebox = computeAABB(cubeMesh),
+                                      .sid  = cubeMeshSid };
+    g_world.addObject(cubeCollisionMesh);
+
+    // uniform data declaration
     static U32_t constexpr uniformCount = 3;
     Char8_t const *names[uniformCount]{ "color",
                                         "modelView",
@@ -270,9 +281,6 @@ inline void TestbedModule::onInit(ModuleInitParams params)
     va.addBuffer(vb, layout);
 }
 
-
-// TODO refactor to use view transform and not model
-
 inline void TestbedModule::onKey(I32_t key, I32_t action, F32_t deltaTime)
 {
     I32_t dirMult = 0;
@@ -299,7 +307,6 @@ inline void TestbedModule::onKey(I32_t key, I32_t action, F32_t deltaTime)
 }
 
 void TestbedModule::onMouseButton(I32_t key, I32_t action, F32_t deltaTime) {}
-
 
 void TestbedModule::onMouseMovement(F32_t xpos, F32_t ypos)
 {
@@ -351,10 +358,14 @@ void TestbedModule::onTick(float deltaTime)
     shaderProgram.bind();
     va.bind();
 
+    g_world.build();
+
     U32_t fragId     = shaderProgram.id(fragShader);
     U32_t samplerLoc = glGetUniformLocation(fragId, "sampler");
     glUniform1i(samplerLoc, 0);
     setupUniforms();
+
+    Mesh_s const &cubeMesh = g_handleTable.get(cubeMeshSid).getAsMesh();
 
     glDrawElements(
       GL_TRIANGLES,
@@ -365,6 +376,7 @@ void TestbedModule::onTick(float deltaTime)
 
 void TestbedModule::setupUniforms()
 {
+    glm::mat4 &cubeMeshTransform = g_scene.getNodeBySid(cubeMeshSid)->transform;
 
     // uniform data declaration
     static U32_t constexpr uniformCount = 3;
@@ -382,7 +394,7 @@ void TestbedModule::setupUniforms()
       color,
       outUniforms.uniformSize[0] * typeSize(outUniforms.uniformType[0]));
 
-    glm::mat4 modelView = camera.viewTransform() * cubeMesh.transform;
+    glm::mat4 modelView = camera.viewTransform() * cubeMeshTransform;
     std::memcpy(
       (Byte_t *)(uniformData) + outUniforms.uniformOffset[1],
       glm::value_ptr(modelView),

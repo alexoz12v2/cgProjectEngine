@@ -1,4 +1,5 @@
-#include "Rendering/Texture.h"
+#include "Rendering/cgeTexture.h"
+
 #include "RenderUtils/GLutils.h"
 #include "glad/gl.h"
 

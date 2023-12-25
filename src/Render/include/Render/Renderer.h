@@ -19,9 +19,4 @@ struct Camera_t
     glm::vec3 position;
 };
 
-struct Light_t
-{
-    //
-};
-
 } // namespace cge

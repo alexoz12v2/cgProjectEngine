@@ -9,21 +9,17 @@ namespace cge
 
 HandleTable_s g_handleTable;
 
-void HandleTable_s::insert(Sid_t sid, Resource_s const &ref)
+void HandleTable_s::insertMesh(Sid_t sid, Mesh_s const &mesh)
 {
-    auto const [it, wasInserted] = m_map.try_emplace(sid, 1, ref);
-
-    assert(wasInserted && "ID collision!");
+    std::pair<U32_t, Value_t> p = std::make_pair(1u, Value_t(mesh));
+    auto [it, wasInserted]      = m_map.insert({ sid, p });
+    assert(wasInserted && "ID collision");
 }
 
 B8_t HandleTable_s::remove(Sid_t sid)
 {
     auto it = m_map.find(sid);
-    if (it != m_map.cend())
-    {
-        --it->second.first;
-        if (it->second.first == 0) { m_map.erase(it); }
-    }
+    return remove(it);
 }
 
 HandleTable_s::Ref_s HandleTable_s::get(Sid_t sid)
