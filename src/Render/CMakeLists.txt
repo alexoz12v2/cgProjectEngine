@@ -33,7 +33,7 @@ target_include_directories(cge-renderer
 # project wise dependencies
 target_link_libraries(cge-renderer 
   PUBLIC 
-    cge::core cge::render-utils glad::glad
+    cge::core cge::res cge::render-utils glad::glad
 )
 
 # external dependencies

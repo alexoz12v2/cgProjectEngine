@@ -3,8 +3,8 @@
 #include "Core/Containers.h"
 #include "Core/Type.h"
 
+#include <Resource/Rendering/cgeScene.h>
 #include <glm/glm.hpp>
-#include <glm/gtc/type_ptr.hpp>
 
 namespace cge
 {
@@ -18,5 +18,16 @@ struct Camera_t
     glm::vec3 right;
     glm::vec3 position;
 };
+
+class Renderer_s
+{
+  public:
+    void renderScene(
+      Scene_s const   &scene,
+      glm::mat4 const &view,
+      glm::mat4 const &proj) const;
+};
+
+extern Renderer_s g_renderer;
 
 } // namespace cge

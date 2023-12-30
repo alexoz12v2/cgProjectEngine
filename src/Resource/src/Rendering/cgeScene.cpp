@@ -6,16 +6,84 @@
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
+#include <glad/gl.h>
+#include <stb/stb_image.h>
 
 #include <cassert>
 
 namespace cge
 {
-
 Scene_s g_scene;
-Mesh_s  processMesh(aiMesh *aMesh, aiScene const *aScene)
+
+struct STBIDeleter
 {
-    Mesh_s outMesh;
+    void operator()(Byte_t *data) const { stbi_image_free(data); }
+};
+
+// TODO more
+std::vector<Sid_t> loadMaterialTexture(aiMaterial const *mat)
+{
+    static char        buffer[1024];
+    std::vector<Sid_t> textures;
+
+    for (auto type : { aiTextureType_DIFFUSE, aiTextureType_SPECULAR })
+    {
+        for (U32_t i = 0; i != mat->GetTextureCount(type); i++)
+        {
+            aiString path;
+            mat->GetTexture(type, i, &path);
+
+            // check if texture has been already loaded
+            B8_t skip = false;
+            auto ref  = g_handleTable.get(CGE_SID(path.C_Str()));
+            if (ref.sid() != nullSid)
+            {
+                textures.push_back(ref.sid());
+                skip = true;
+                break;
+            }
+
+            // otherwise load it
+            if (!skip)
+            {
+                I32_t texWidth      = 0;
+                I32_t texHeight     = 0;
+                I32_t texChannelCnt = 0;
+
+                // build the absolute path
+                U32_t pathCnt = strlen(ASSET_PATH); // strlen does't count null
+                memcpy(buffer, ASSET_PATH, pathCnt);
+                memcpy(buffer + pathCnt, path.C_Str(), path.length);
+                buffer[pathCnt + path.length] = '\0';
+
+                // TODO not handling RGBA
+                Byte_t *texData =
+                  stbi_load(buffer, &texWidth, &texHeight, &texChannelCnt, 3);
+
+                assert(texWidth != 0);
+                auto data = std::shared_ptr<Byte_t>(texData, STBIDeleter{});
+
+                TextureData_s tex{ .data   = data,
+                                   .width  = (U32_t)texWidth,
+                                   .height = (U32_t)texHeight,
+                                   .depth  = 1,
+                                   .format = GL_UNSIGNED_BYTE,
+                                   .type   = GL_RGB };
+                textures.push_back(CGE_SID(path.C_Str()));
+                g_handleTable.insertTexture(CGE_SID(path.C_Str()), tex);
+            }
+        }
+    }
+
+    return textures;
+}
+
+void processMesh(
+  aiMesh const  *aMesh,
+  aiScene const *aScene,
+  aiNode const  *aNode,
+  Mesh_s        *outMesh)
+{
     assert(
       aMesh->HasPositions() && aMesh->HasNormals() && aMesh->HasFaces()
       && aMesh->HasTextureCoords(0));
@@ -28,7 +96,7 @@ Mesh_s  processMesh(aiMesh *aMesh, aiScene const *aScene)
     aiVector3D const *normals   = aMesh->mNormals;
     aiVector3D const *texCoords = aMesh->mTextureCoords[0]; /// @warning
 
-    outMesh.vertices.reserve(aMesh->mNumVertices);
+    outMesh->vertices.reserve(aMesh->mNumVertices);
     for (U32_t i = 0; i != aMesh->mNumVertices; ++i)
     {
         Vertex_t vertex;
@@ -44,10 +112,10 @@ Mesh_s  processMesh(aiMesh *aMesh, aiScene const *aScene)
         vertex.texCoords[1] = texCoords[i].y;
         vertex.texCoords[2] = texCoords[i].z;
 
-        outMesh.vertices.push_back(vertex);
+        outMesh->vertices.push_back(vertex);
     }
 
-    outMesh.indices.reserve(aMesh->mNumFaces * 3);
+    outMesh->indices.reserve(aMesh->mNumFaces * 3);
     for (U32_t i = 0; i != aMesh->mNumFaces; ++i)
     {
         assert(indices[i].mNumIndices == 3);
@@ -55,30 +123,81 @@ Mesh_s  processMesh(aiMesh *aMesh, aiScene const *aScene)
                                 indices[i].mIndices[1],
                                 indices[i].mIndices[2] };
         // tried emplace_back, couldn't make it compile
-        outMesh.indices.push_back(arr);
+        outMesh->indices.push_back(arr);
     }
 
-    return outMesh;
+    if (aMesh->mMaterialIndex < (U32_t)-1)
+    {
+        aiMaterial const *material = aScene->mMaterials[aMesh->mMaterialIndex];
+        outMesh->textures          = loadMaterialTexture(material);
+    }
+
+    // TODO set OpenGL related mesh information coming from another file?
+    // outMesh.allocateResrou
 }
 
 B8_t meshNotAllocated(Sid_t sid)
 {
-    auto meshRef = g_handleTable.get(sid); //
+    auto meshRef = g_handleTable.get(sid);
     return !meshRef.hasValue();
 }
 
-void processNode(
+void Scene_s::processNode(
   Sid_t          parent,
-  aiNode        *node,
+  aiNode const  *node,
   aiScene const *aScene,
   Scene_s       *outScene)
 {
+
+
+    static Sid_t constexpr vertShader     = "DEFAULT_VERTEX"_sid;
+    static Sid_t constexpr fragShader     = "DEFAULT_FRAG"_sid;
+    static char const *const vertexSource = R"a(
+#version 460 core
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec3 aNorm;
+layout (location = 2) in vec3 aTexCoord;
+
+layout (location = 0) out vec3 texCoord;
+
+layout (std140) uniform MeshUniforms {
+    mat4 modelView;
+    mat4 modelViewProj;
+};
+
+void main() 
+{
+    texCoord = aTexCoord;
+    gl_Position = modelViewProj * vec4(aPos, 1.f);
+}
+)a";
+
+    static char const *const fragSource = R"a(
+#version 460 core
+layout (location = 0) in vec3 texCoord;
+
+uniform sampler2D sampler;
+
+layout (location = 0) out vec4 fragColor;
+
+void main()
+{
+    vec3 color = texture(sampler, texCoord.xy).xyz;
+    fragColor = vec4(color, 1.f);
+}
+)a";
+
     Sid_t sid = CGE_SID(node->mName.C_Str());
     // load mesh
     assert(node->mNumMeshes <= 1 && "blender meshes should have 1 node");
     for (U32_t i = 0; i < node->mNumMeshes; ++i)
     {
-        aiMesh *aMesh = aScene->mMeshes[node->mMeshes[i]];
+        aiMesh const *aMesh = aScene->mMeshes[node->mMeshes[i]];
 
         // allocate all resources in handletable (materials tex) which
         // were not already allocated
@@ -87,11 +206,23 @@ void processNode(
         // nodes may refer to the same mesh
         if (meshNotAllocated(sid))
         {
-            // if the mesh is new
-            Mesh_s mesh = processMesh(aMesh, aScene);
+            // allocate mesh in the handle table Mesh_s mesh =
+            Mesh_s &mesh = g_handleTable.insertMesh(sid);
 
-            // allocate mesh in the handle table
-            g_handleTable.insertMesh(sid, mesh);
+            // if the mesh is new
+            processMesh(aMesh, aScene, node, &mesh);
+            mesh.allocateTexturesToGpu();
+
+            static U32_t constexpr stagesCount = 2;
+            char const *sources[stagesCount]   = { vertexSource, fragSource };
+            U32_t       stages[stagesCount]    = { GL_VERTEX_SHADER,
+                                                   GL_FRAGMENT_SHADER };
+            mesh.shaderProgram.build({ .sid          = "DEFAULT_PROG"_sid,
+                                       .pSources     = sources,
+                                       .pStages      = stages,
+                                       .sourcesCount = stagesCount });
+            mesh.setupUniforms();
+            mesh.allocateGeometryBuffersToGpu();
         }
 
         // create new node in scene
@@ -115,11 +246,18 @@ void processNode(
     }
 }
 
-tl::optional<Scene_s> Scene_s::fromObj(Char8_t const *path)
+tl::optional<Scene_s> Scene_s::fromObj(Char8_t const *relativePath)
 {
+    static char        buffer[1024]{ ASSET_PATH };
+    static U32_t const assetPathCnt = strlen(ASSET_PATH); // no '\0'
+
+    auto relPathCnt = (U32_t)strlen(relativePath);
+    memcpy(buffer + assetPathCnt, relativePath, relPathCnt);
+    buffer[assetPathCnt + relPathCnt] = '\0';
+
     Assimp::Importer importer;
     aiScene const   *scene = importer.ReadFile(
-      path,
+      buffer,
       aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace
         | aiProcess_ForceGenNormals);
     if (
@@ -130,15 +268,16 @@ tl::optional<Scene_s> Scene_s::fromObj(Char8_t const *path)
     Scene_s internalScene;
     Sid_t   rootId = CGE_SID(scene->mRootNode->mName.C_Str());
     internalScene.m_names.push_back(rootId);
-    processNode(rootId, scene->mRootNode, scene, &internalScene);
+    internalScene.processNode(rootId, scene->mRootNode, scene, &internalScene);
     return internalScene;
 }
 
 inline SceneNode_s &Scene_s::createNode(Sid_t sid, glm::mat4 const &transform)
 {
-    auto pair = m_bnodes.try_emplace(sid, sid, transform, nullptr);
-    assert(pair.second && "ID collision!!");
-    return pair.first->second;
+    auto const &[pairIt, bWasInserted] =
+      m_bnodes.try_emplace(sid, sid, transform, transform, nullptr, false);
+    assert(bWasInserted && "ID collision!!");
+    return pairIt->second;
 }
 
 inline B8_t Scene_s::addChild(Sid_t parent, Sid_t child)
@@ -149,6 +288,8 @@ inline B8_t Scene_s::addChild(Sid_t parent, Sid_t child)
     if (parentNode && childNode)
     {
         childNode->parent = parentNode; // Set the parent for the child
+        childNode->absoluteTransform =
+          childNode->relativeTransform * parentNode->absoluteTransform;
         parentNode->children.push_front(childNode);
         return true;
     }

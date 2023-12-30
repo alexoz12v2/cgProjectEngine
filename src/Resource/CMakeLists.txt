@@ -48,6 +48,11 @@ target_sources(cge-res
 
 target_compile_features(cge-res INTERFACE cxx_std_20)
 
+target_compile_definitions(cge-res
+  PRIVATE 
+    ASSET_PATH="${CMAKE_SOURCE_DIR}/assets/")
+message(STATUS ${ASSET_PATH})
+
 target_include_directories(cge-res
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
@@ -59,7 +64,9 @@ target_include_directories(cge-res
 )
 
 # project wise dependencies
-target_link_libraries(cge-res PUBLIC cge::core cge::render-utils glad::glad glm::glm)
+target_link_libraries(cge-res 
+  PUBLIC cge::core cge::render-utils glad::glad glm::glm
+  PRIVATE stb::stb)
 
 # external dependencies
 target_link_system_libraries(cge-res PUBLIC tl::optional PRIVATE assimp::assimp)

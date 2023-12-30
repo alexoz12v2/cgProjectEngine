@@ -5,6 +5,8 @@
 #include "Resource/Rendering/Buffer.h"
 
 #include <cmath>
+#include <memory>
+#include <utility>
 
 namespace cge
 {
@@ -28,6 +30,19 @@ struct TextureSpec_t
     U32_t      depth;
     U32_t      internalFormat;
     B8_t       genMips;
+};
+
+struct TextureData_s
+{
+    std::shared_ptr<Byte_t> data;
+
+    U32_t width;
+    U32_t height;
+    U32_t depth; // if 1 then 2D
+
+    // OpenGL related
+    U32_t format;
+    U32_t type;
 };
 
 struct TexTransferSpec_t

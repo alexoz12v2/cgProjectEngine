@@ -14,60 +14,54 @@ GLenum bitFromType(GLenum);
 
 GpuProgram_s::GpuProgram_s()
 {
-    GL_CHECK(glGenProgramPipelines(1, &m_id));
-    GL_CHECK(glBindProgramPipeline(m_id));
+    //
+    GL_CHECK(m_id = glCreateProgram());
 }
 
 GpuProgram_s::~GpuProgram_s()
 {
-    for (U32_t i = 0; i != m_shaderCount; ++i)
+    //
+    glDeleteProgram(m_id);
+}
+
+void GpuProgram_s::bind() const { GL_CHECK(glUseProgram(m_id)); }
+
+void GpuProgram_s::unbind() const { GL_CHECK(glUseProgram(0)); }
+
+void GpuProgram_s::build(ProgramSpec_t const &specs)
+{
+    U32_t static shaderBuffer[32]{};
+
+    GLint  success;
+    GLchar infoLog[512];
+
+    m_sid = specs.sid;
+    for (U32_t i = 0; i != specs.sourcesCount; i++)
     {
-        glDeleteProgram(m_shaders[i].glid);
+        shaderBuffer[i] = glCreateShader(specs.pStages[i]);
+        glShaderSource(shaderBuffer[i], 1, &specs.pSources[i], nullptr);
+        glCompileShader(shaderBuffer[i]);
+        glGetShaderiv(shaderBuffer[i], GL_COMPILE_STATUS, &success);
+        if (!success)
+        {
+            glGetShaderInfoLog(shaderBuffer[i], 512, nullptr, infoLog);
+            printf("%s", infoLog);
+        }
+        glAttachShader(m_id, shaderBuffer[i]);
     }
-    GL_CHECK(glDeleteProgramPipelines(1, &m_id));
-}
 
-void GpuProgram_s::bind() const
-{
-    GL_CHECK(glUseProgram(0)); // useprogram overrides pipeline
-    GL_CHECK(glBindProgramPipeline(m_id));
-}
-
-void GpuProgram_s::unbind() const { GL_CHECK(glBindProgramPipeline(0)); }
-
-// add some error handling
-// TODO add fucntions should return an identifier
-void GpuProgram_s::addShader(ShaderSpec_t const &spec)
-{
-    assert(
-      m_shaderCount + 1 <= maxShaderProgramCount
-      && "max shader program count exceeded");
-#if defined(CGE_DEBUG)
-    auto glidFunc = [&spec]()
+    glLinkProgram(m_id);
+    glGetProgramiv(m_id, GL_LINK_STATUS, &success);
+    if (!success)
     {
-        U32_t id;
-        GL_CHECK(id = glCreateShaderProgramv(spec.stage, 1, &spec.source));
-        return id;
-    };
-#endif
+        glGetProgramInfoLog(m_id, 512, nullptr, infoLog);
+        printf("%s", infoLog);
+    }
 
-    // compile and partially link in one shot
-    m_shaders[m_shaderCount++] = {
-        .sid = spec.sid,
-#if defined(CGE_DEBUG)
-        .glid = glidFunc(),
-#else
-        .glid = glCreateShaderProgramv(spec.stage, 1, &spec.source),
-#endif
-        .mask = bitFromType(spec.stage),
-    };
-} // namespace cge
-
-// add some error handling
-void GpuProgram_s::addProgram(U32_t id)
-{
-    // first make the program separable
-    GL_CHECK(glProgramParameteri(id, GL_PROGRAM_SEPARABLE, GL_TRUE));
+    for (U32_t i = 0; i != specs.sourcesCount; i++)
+    {
+        glDeleteShader(shaderBuffer[i]);
+    }
 }
 
 UniformBlockOut_t
@@ -78,7 +72,7 @@ UniformBlockOut_t
     U32_t uniformIndices[maxUniformPropertyCount];
 
     // get Uniform Block
-    U32_t pid = id(spec.program);
+    U32_t pid = m_id;
     GL_CHECK(out.blockIdx = glGetUniformBlockIndex(pid, spec.blockName));
     assert(out.blockIdx != GL_INVALID_INDEX);
     GL_CHECK(glGetActiveUniformBlockiv(
@@ -109,56 +103,6 @@ UniformBlockOut_t
       out.uniformSize));
 
     return out;
-}
-
-void GpuProgram_s::useStages(
-  std::initializer_list<Sid_t> const &programs,
-  std::initializer_list<U32_t> const &stagesPerProgram) const
-{
-    assert(
-      stagesPerProgram.size() <= m_shaderCount
-      && programs.size() == stagesPerProgram.size());
-
-    auto stagesIt = stagesPerProgram.begin();
-    for (auto const program : programs)
-    {
-        if (U32_t idx = findProgram(program); idx != (U32_t)-1)
-        {
-            Shader_t const &prog = m_shaders[idx];
-            U32_t const     mask = *stagesIt;
-            assert((prog.mask & mask) != 0 && "stages missing in program");
-            GL_CHECK(glUseProgramStages(m_id, mask, prog.glid));
-        }
-        else { std::printf("program not found"); }
-        ++stagesIt;
-    }
-
-#if 0
-    auto stagesIt = stagesPerProgram.begin();
-    for (auto progIt = programs.begin(); progIt != programs.end(); ++progIt)
-    {
-        auto const stage = *stagesIt;
-        auto const mask  = m_shaderMasks[*progIt];
-        assert((stage & mask) != 0 && "stages missing in program");
-
-        GL_CHECK(glUseProgramStages(m_id, *stagesIt, m_shaders[*progIt]));
-
-        ++stagesIt;
-    }
-#endif
-}
-
-U32_t GpuProgram_s::id(Sid_t sid) const
-{
-    return m_shaders[findProgram(sid)].glid;
-}
-
-U32_t GpuProgram_s::findProgram(Sid_t sid) const
-{
-    auto it = std::ranges::find_if(
-      m_shaders, [sid](auto const &shader) { return shader.sid == sid; });
-    if (it == m_shaders.cend()) { return (U32_t)-1; }
-    else { return (U32_t)std::distance(m_shaders.cbegin(), it); }
 }
 
 GLenum bitFromType(GLenum type)

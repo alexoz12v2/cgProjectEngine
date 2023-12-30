@@ -1,5 +1,3 @@
-// MIT License. Copyright (c) 2023
-
 #include "Entry.h"
 
 #include "Core/Alloc.h"
@@ -8,8 +6,8 @@
 #include "Core/Module.h"
 #include "Core/TimeUtils.h"
 #include "Core/Type.h"
+#include "Render/Window.h"
 
-#include <Render/Window.h>
 #include <cstdio>
 namespace cge
 {

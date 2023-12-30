@@ -26,12 +26,20 @@ enum class EResourceType_t
 class HandleTable_s
 {
   private:
+    struct Empty_t
+    {
+    };
     struct Value_t
     {
         explicit Value_t(Mesh_s const &m) : type(EResourceType_t::eMesh), res(m)
         {
         }
         explicit Value_t(Light_t l) : type(EResourceType_t::eLight), res(l) {}
+        explicit Value_t(TextureData_s const &t)
+          : type(EResourceType_t::eTexture), res(t)
+        {
+        }
+        explicit Value_t(Empty_t) : type(EResourceType_t::eInvalid) {}
 
         Value_t(const Value_t &other) : type(other.type), res()
         {
@@ -43,6 +51,11 @@ class HandleTable_s
                 break;
             case eLight:
                 new (&res.light) Light_t(other.res.light);
+                break;
+            case eTexture:
+                new (&res.texture) TextureData_s(other.res.texture);
+                break;
+            case eInvalid:
                 break;
             }
         }
@@ -61,24 +74,29 @@ class HandleTable_s
             case eLight:
                 res.light.~Light_t();
                 break;
+            case eTexture:
+                res.texture.~TextureData_s();
+                break;
+            case eInvalid:
+                break;
             }
         }
         EResourceType_t type;
         union U
         {
             U(){};
+            U(Empty_t){};
             U(Mesh_s const &m) : mesh(m) {}
             U(Light_t l) : light(l) {}
+            // a unique_ptr is not copyable
+            U(TextureData_s const &t) : texture(t) {}
             ~U() {}
-            Mesh_s  mesh;
-            Light_t light;
+            Mesh_s        mesh;
+            Light_t       light;
+            TextureData_s texture;
         };
         U res;
     };
-
-  public:
-    // using map for iterator stability
-    using HandleMap_s = std::pmr::map<Sid_t, std::pair<U32_t, Value_t>>;
 
   public:
     class Ref_s
@@ -86,61 +104,30 @@ class HandleTable_s
         friend HandleTable_s;
 
       public:
-        Ref_s(Ref_s const &other)
-          : m_sid(other.m_sid), m_ptr(other.m_ptr), m_pTable(other.m_pTable)
-        {
-            if (hasValue()) { ++m_ptr->second.first; }
-        }
+        Mesh_s        &getAsMesh() { return *(Mesh_s *)m_ptr; }
+        Light_t       &getAsLight() { return *(Light_t *)m_ptr; }
+        TextureData_s &getAsTexture() { return *(TextureData_s *)m_ptr; }
 
-        Ref_s(Ref_s &&other) noexcept
-          : m_sid(std::exchange(other.m_sid, nullSid)),
-            m_ptr(std::exchange(other.m_ptr, other.m_pTable->m_map.end())),
-            m_pTable(std::exchange(other.m_pTable, nullptr))
-        {
-        }
-
-        Ref_s &operator=(Ref_s const &other)
-        {
-            m_sid    = other.m_sid;
-            m_ptr    = other.m_ptr;
-            m_pTable = other.m_pTable;
-            ++m_ptr->second.first;
-            return *this;
-        }
-
-        Ref_s &operator=(Ref_s &&other) noexcept
-        {
-            m_sid    = std::exchange(other.m_sid, nullSid);
-            m_ptr    = std::exchange(other.m_ptr, other.m_pTable->m_map.end());
-            m_pTable = std::exchange(other.m_pTable, nullptr);
-            return *this;
-        }
-
-        Mesh_s  &getAsMesh() { return m_ptr->second.second.res.mesh; }
-        Light_t &getAsLight() { return m_ptr->second.second.res.light; }
-
-        B8_t hasValue()
-        {
-            return m_pTable != nullptr && m_ptr != m_pTable->m_map.cend();
-        }
+        B8_t hasValue() const { return m_ptr; }
 
         Sid_t sid() const { return m_sid; }
 
       private:
         Ref_s() = default;
-        Sid_t                 m_sid;
-        HandleMap_s::iterator m_ptr;
-        HandleTable_s        *m_pTable;
+        Sid_t           m_sid;
+        EResourceType_t m_type;
+        void           *m_ptr;
     };
-
-    void                 insertMesh(Sid_t sid, Mesh_s const &mesh);
+    Mesh_s              &insertMesh(Sid_t sid, Mesh_s mesh);
+    Mesh_s              &insertMesh(Sid_t sid);
+    TextureData_s       &insertTexture(Sid_t sid, TextureData_s const &texture);
     B8_t                 remove(Sid_t sid);
     HandleTable_s::Ref_s get(Sid_t sid);
 
-  private:
-    B8_t remove(HandleMap_s::iterator ptr);
-    // id -> { reference count, resource }
-    HandleMap_s m_map;
+    // using map for iterator stability
+    std::map<Sid_t, Mesh_s>        meshTable;
+    std::map<Sid_t, Light_t>       lightTable;
+    std::map<Sid_t, TextureData_s> textureTable;
 };
 
 extern HandleTable_s g_handleTable;

@@ -52,19 +52,19 @@ namespace detail
 
 // TODO: allocate properly
 // drawback: you need header memory
-#define CGE_DECLARE_STARTUP_MODULE(ModuleT, moduleStr)                       \
-    static Char8_t const *name_##ModuleT = (moduleStr);                      \
+#define CGE_DECLARE_STARTUP_MODULE(ModuleNS, ModuleT, moduleStr)             \
+    static ::cge::Char8_t const *name_##ModuleT = (moduleStr);               \
     union U##ModuleT;                                                        \
     void initModuleType(U##ModuleT *ptr);                                    \
     union U##ModuleT                                                         \
     {                                                                        \
         U##ModuleT()                                                         \
         {                                                                    \
-            g_constructStartupModule =                                       \
+            ::cge::g_constructStartupModule =                                \
               new std::function<void()>([this]() { initModuleType(this); }); \
         }                                                                    \
         ~U##ModuleT() {}                                                     \
-        detail::Initializer<ModuleT> m;                                      \
+        ::cge::detail::Initializer<::ModuleNS::ModuleT> m;                   \
     };                                                                       \
     U##ModuleT g_initModule;                                                 \
     void       initModuleType(U##ModuleT *ptr)                               \
