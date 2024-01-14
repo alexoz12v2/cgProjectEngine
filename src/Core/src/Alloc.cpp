@@ -233,7 +233,7 @@ void StackBuffer_t::clear() { m_offset = 0; }
 // TODO: delete once not necessary
 namespace detail
 {
-    void poolDeleter(Byte_t* ptr) { _aligned_free(ptr); }
+    void poolDeleter(Byte_t* ptr) { free(ptr); }
 } // namespace detail
 void Pool_t::free(Byte_t* CGE_restrict pObj, Sid_t blkId)
 {

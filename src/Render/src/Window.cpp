@@ -69,7 +69,9 @@ EErr_t Window_s::init(WindowSpec_t const& spec)
     glfwSetWindowUserPointer(handle, this);
 
     // set cursor mode
-    glfwSetInputMode(handle, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+//#if !defined(CGE_DEBUG)
+//    glfwSetInputMode(handle, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+//#endif
 
     // set member function callbacks
     glfwSetKeyCallback(handle, &Window_s::keyCallback);
@@ -199,6 +201,9 @@ void Window_s::emitFramebufferSize() const
     glfwGetFramebufferSize(handle, &width, &height);
 
     onFramebufferSize(width, height);
+}
+void* Window_s::internal() {
+    return handle;
 }
 
 } // namespace cge

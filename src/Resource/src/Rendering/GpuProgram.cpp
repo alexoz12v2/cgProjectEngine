@@ -9,7 +9,6 @@
 namespace cge
 {
 
-
 GLenum bitFromType(GLenum);
 
 GpuProgram_s::GpuProgram_s()
@@ -103,6 +102,36 @@ UniformBlockOut_t
       out.uniformSize));
 
     return out;
+}
+void GpuProgram_s::build(Char8_t const *name, const Shader_s **ppShaders, U32_t count) {
+    I32_t success = GL_FALSE;
+    Char8_t infoLog[512] {0};
+
+    std::span pShaders = std::span(ppShaders, count);
+    for (auto const *pShader : pShaders)
+    {
+        glAttachShader(m_id, pShader->glid);
+    }
+
+    // Link the program
+    glLinkProgram(m_id);
+
+    // Check for linking errors
+    glGetProgramiv(m_id, GL_LINK_STATUS, &success);
+    if (!success) {
+        glGetProgramInfoLog(m_id, 512, nullptr, infoLog);
+        printf("Program linking error:\n%s", infoLog);
+
+        assert(false);
+    }
+
+    // Detach shaders after linking (optional)
+    for (auto const *pShader : pShaders)
+    {
+        glDetachShader(m_id, pShader->glid);
+    }
+
+    m_sid = CGE_SID(name);
 }
 
 GLenum bitFromType(GLenum type)

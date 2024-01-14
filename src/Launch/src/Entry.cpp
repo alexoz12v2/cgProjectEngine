@@ -9,6 +9,7 @@
 #include "Render/Window.h"
 
 #include <cstdio>
+#include <GLFW/glfw3.h>
 namespace cge
 {
 
@@ -58,15 +59,36 @@ namespace detail
 
 struct AppStatus_t
 {
-    bool all() const { return windowStayOpen; }
+    [[nodiscard]] bool all() const { return windowStayOpen; }
 
     bool windowStayOpen;
 };
 
 bool appShouldRun(AppStatus_t const &status) { return status.all(); }
+
+void *windowPointer = nullptr;
+
+void enableCursor()
+{
+    assert(windowPointer);
+    auto *window = (GLFWwindow *)windowPointer;
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+}
+
+void disableCursor()
+{
+    assert(windowPointer);
+    auto *window = (GLFWwindow *)windowPointer;
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+}
+
 } // namespace cge
 
-
+template<std::integral T>
+constexpr T min(T a, T b)
+{
+    return a < b ? a : b;
+}
 using namespace cge;
 I32_t main(I32_t argc, Char8_t **argv)
 {
@@ -77,11 +99,14 @@ I32_t main(I32_t argc, Char8_t **argv)
     U32_t elapsedTime     = timeUnitsIn60FPS;
     F32_t elapsedTimeF    = oneOver60FPS;
 
-    WindowSpec_t windowSpec{ .title = "window", .width = 600, .height = 480 };
-    Window_s     window;
-    AppStatus_t  appStatus{ true };
+    WindowSpec_t windowSpec{
+        .title = "window", .width = 600, .height = 480
+    }; // TODO: read startup config from yaml
+    Window_s    window;
+    AppStatus_t appStatus{ true };
 
     window.init(windowSpec);
+    windowPointer = window.internal();
     printf("past pre initialization\n");
     (*g_constructStartupModule)();
 
@@ -127,7 +152,7 @@ I32_t main(I32_t argc, Char8_t **argv)
         // swap buffers and poll events (and queue them)
         window.setDeltaTime(elapsedTimeF);
         window.swapBuffers();
-        window.pollEvents(min(timeUnitsIn60FPS - elapsedTime, 0));
+        window.pollEvents(min(timeUnitsIn60FPS - elapsedTime, 0U));
 
         // dispatch events
         g_eventQueue.dispatch();

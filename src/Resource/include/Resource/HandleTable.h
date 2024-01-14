@@ -114,9 +114,10 @@ class HandleTable_s
 
       private:
         Ref_s() = default;
-        Sid_t           m_sid;
-        EResourceType_t m_type;
-        void           *m_ptr;
+
+        Sid_t           m_sid  = nullSid;
+        EResourceType_t m_type = EResourceType_t::eInvalid;
+        void           *m_ptr  = nullptr;
     };
     Mesh_s              &insertMesh(Sid_t sid, Mesh_s mesh);
     Mesh_s              &insertMesh(Sid_t sid);

@@ -4,8 +4,8 @@ include(GNUInstallDirs)
 add_library(cge-render-utils INTERFACE)
 target_sources(cge-render-utils
   INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/RenderUtils/GLUtils.h>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/RenderUtils/GLUtils.h>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/RenderUtils/GLutils.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/RenderUtils/GLutils.h>
 )
 
 target_compile_features(cge-render-utils INTERFACE cxx_std_20)

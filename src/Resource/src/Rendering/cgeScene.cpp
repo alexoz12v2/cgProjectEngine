@@ -21,7 +21,7 @@ struct STBIDeleter
 };
 
 // TODO more
-std::vector<Sid_t> loadMaterialTexture(aiMaterial const *mat)
+std::vector<Sid_t> loadMaterialTexture(const Char8_t *basePath, aiMaterial const *mat)
 {
     static char        buffer[1024];
     std::vector<Sid_t> textures;
@@ -50,15 +50,15 @@ std::vector<Sid_t> loadMaterialTexture(aiMaterial const *mat)
                 I32_t texHeight     = 0;
                 I32_t texChannelCnt = 0;
 
-                // build the absolute path
-                U32_t pathCnt = strlen(ASSET_PATH); // strlen does't count null
-                memcpy(buffer, ASSET_PATH, pathCnt);
-                memcpy(buffer + pathCnt, path.C_Str(), path.length);
-                buffer[pathCnt + path.length] = '\0';
+                auto completePath = std::string(basePath);
+                auto pos = completePath.find_last_of('/');
+                assert(pos != std::string::npos);
+                completePath = completePath.substr(0, pos) + '/';
+                completePath += path.C_Str();
 
                 // TODO not handling RGBA
                 Byte_t *texData =
-                  stbi_load(buffer, &texWidth, &texHeight, &texChannelCnt, 3);
+                  stbi_load(completePath.c_str(), &texWidth, &texHeight, &texChannelCnt, 3);
 
                 assert(texWidth != 0);
                 auto data = std::shared_ptr<Byte_t>(texData, STBIDeleter{});
@@ -82,6 +82,7 @@ void processMesh(
   aiMesh const  *aMesh,
   aiScene const *aScene,
   aiNode const  *aNode,
+  char const *path,
   Mesh_s        *outMesh)
 {
     assert(
@@ -129,7 +130,7 @@ void processMesh(
     if (aMesh->mMaterialIndex < (U32_t)-1)
     {
         aiMaterial const *material = aScene->mMaterials[aMesh->mMaterialIndex];
-        outMesh->textures          = loadMaterialTexture(material);
+        outMesh->textures          = loadMaterialTexture(path, material);
     }
 
     // TODO set OpenGL related mesh information coming from another file?
@@ -210,7 +211,7 @@ void main()
             Mesh_s &mesh = g_handleTable.insertMesh(sid);
 
             // if the mesh is new
-            processMesh(aMesh, aScene, node, &mesh);
+            processMesh(aMesh, aScene, node, m_path.c_str(), &mesh);
             mesh.allocateTexturesToGpu();
 
             static U32_t constexpr stagesCount = 2;
@@ -248,16 +249,9 @@ void main()
 
 tl::optional<Scene_s> Scene_s::fromObj(Char8_t const *relativePath)
 {
-    static char        buffer[1024]{ ASSET_PATH };
-    static U32_t const assetPathCnt = strlen(ASSET_PATH); // no '\0'
-
-    auto relPathCnt = (U32_t)strlen(relativePath);
-    memcpy(buffer + assetPathCnt, relativePath, relPathCnt);
-    buffer[assetPathCnt + relPathCnt] = '\0';
-
     Assimp::Importer importer;
     aiScene const   *scene = importer.ReadFile(
-      buffer,
+      relativePath,
       aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace
         | aiProcess_ForceGenNormals);
     if (
@@ -268,6 +262,7 @@ tl::optional<Scene_s> Scene_s::fromObj(Char8_t const *relativePath)
     Scene_s internalScene;
     Sid_t   rootId = CGE_SID(scene->mRootNode->mName.C_Str());
     internalScene.m_names.push_back(rootId);
+    internalScene.m_path = relativePath;
     internalScene.processNode(rootId, scene->mRootNode, scene, &internalScene);
     return internalScene;
 }

@@ -191,7 +191,13 @@ U32_t Texture_s::numLevels(U32_t width, U32_t height)
 #undef max
 
     // log2
+#if defined(MSC_VER)
     biggest = 31 - __lzcnt(biggest);
+#elif defined(__GNUC__) || defined(__clang__)
+    biggest = 31 - __builtin_clz(biggest);
+#else
+#error "what"
+#endif
 
     ++biggest;
 
