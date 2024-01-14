@@ -34,6 +34,8 @@ class Window_s
     void setDeltaTime(F32_t dt) { deltaTime = dt; }
     void emitFramebufferSize() const;
 
+    void *internal();
+
   private:
     gsl::owner<GLFWwindow *> handle    = nullptr;
     F32_t                    deltaTime = 0.16f;

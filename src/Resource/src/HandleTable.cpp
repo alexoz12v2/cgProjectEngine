@@ -54,9 +54,9 @@ B8_t HandleTable_s::remove(Sid_t sid)
 HandleTable_s::Ref_s HandleTable_s::get(Sid_t sid)
 {
     Ref_s ref;
-    auto  it0 = meshTable.find(sid);
-    auto  it1 = lightTable.find(sid);
-    auto  it2 = textureTable.find(sid);
+    auto it0 = meshTable.find(sid);
+    auto it1 = lightTable.find(sid);
+    auto it2 = textureTable.find(sid);
     if (it0 != meshTable.cend())
     {
         ref.m_sid  = sid;

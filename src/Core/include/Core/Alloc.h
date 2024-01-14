@@ -172,7 +172,7 @@ class Pool_t
       allocateN(PoolAllocationSpec_t const &spec, Byte_t **CGE_restrict ppOut)
     {
         *ppOut =
-          (Byte_t *)_aligned_malloc(spec.size * spec.count, spec.alignment);
+          (Byte_t *)aligned_alloc(spec.size * spec.count, spec.alignment);
         if (!*ppOut) { return EErr_t::eMemory; }
         auto uptr = std::unique_ptr<Byte_t[], decltype(&detail::poolDeleter)>(
           (*ppOut), &detail::poolDeleter);
@@ -198,7 +198,7 @@ class Pool_t
     EErr_t
       allocate(PoolAllocationSpec_t const &spec, Byte_t **CGE_restrict ppOut)
     {
-        *ppOut = (Byte_t *)_aligned_malloc(spec.size, spec.alignment);
+        *ppOut = (Byte_t *)aligned_alloc(spec.size, spec.alignment);
         if (!*ppOut) { return EErr_t::eMemory; }
         auto localSpec  = spec;
         localSpec.count = 1;

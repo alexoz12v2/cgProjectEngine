@@ -1,5 +1,6 @@
 #include "Testbed.h"
 
+#include "Launch/Entry.h"
 #include "RenderUtils/GLutils.h"
 #include "Resource/HandleTable.h"
 #include "Resource/Rendering/Buffer.h"
@@ -12,12 +13,8 @@
 #include <stb/stb_image.h>
 
 #include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/quaternion.hpp>
-#include <glm/gtc/type_ptr.hpp>
 
 #include <Entity/CollisionWorld.h>
-#include <filesystem>
-
 
 CGE_DECLARE_STARTUP_MODULE(cge, TestbedModule, "TestbedModule");
 
@@ -30,6 +27,9 @@ void TestbedModule::onInit(ModuleInitParams params)
     CGE_DBG_SID("TestbedModule");
     Char8_t const *str = CGE_DBG_STRLOOKUP(mId);
     fmt::print("Hello World!! {}\n", str);
+#if defined(CGE_DEBUG)
+    fmt::print("DebugMode!\n");
+#endif
 
     // register to event key pressed
     EventArg_t listenerData{};
@@ -44,11 +44,12 @@ void TestbedModule::onInit(ModuleInitParams params)
     // setup camera
     this->camera.position = glm::vec3(0.f);
     this->camera.right    = glm::vec3(1.f, 0.f, 0.f);
-    this->camera.up       = glm::vec3(0.f, 1.f, 0.f);
-    this->camera.forward  = glm::vec3(0.f, 0.f, 1.f);
+    this->camera.up       = glm::vec3(0.f, 0.f, 1.f);
+    this->camera.forward  = glm::vec3(0.f, 1.f, 0.f);
 
     // open mesh file
-    g_scene = *Scene_s::fromObj("lightTestScene.obj");
+    fmt::print("Opening Scene file\n");
+    g_scene = *Scene_s::fromObj("../assets/lightTestScene.obj");
 
     // scene setup
     for (Sid_t sid : { cubeMeshSid, planeMeshSid })
@@ -93,15 +94,26 @@ void TestbedModule::onKey(I32_t key, I32_t action, F32_t deltaTime)
     }
 }
 
-void TestbedModule::onMouseButton(I32_t key, I32_t action, F32_t deltaTime) {}
+void TestbedModule::onMouseButton(I32_t key, I32_t action, F32_t deltaTime)
+{
+    if (action == GLFW_PRESS)
+    {
+        disableCursor();
+        isCursorDisabled = true;
+    }
+    else if (action == GLFW_RELEASE)
+    {
+        enableCursor();
+        isCursorDisabled = false;
+    }
+}
 
 void TestbedModule::onMouseMovement(F32_t xpos, F32_t ypos)
 {
     static F32_t yaw = 0, pitch = 0;
-    if (!isCursorEnabled)
+    if (!isCursorDisabled)
     {
         lastCursorPosition = { xpos, ypos };
-        isCursorEnabled    = true;
         return;
     }
 
@@ -124,6 +136,8 @@ void TestbedModule::onFramebufferSize(I32_t width, I32_t height)
 
 void TestbedModule::onTick(float deltaTime)
 {
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glEnable(GL_DEPTH_TEST);
     Mesh_s const    &cubeMesh = g_handleTable.get(cubeMeshSid).getAsMesh();
     glm::mat4 const &cubeMeshTransform =
       g_scene.getNodeBySid(cubeMeshSid)->absoluteTransform;
@@ -150,10 +164,16 @@ void TestbedModule::onTick(float deltaTime)
         if (hit.t <= 0.5f) { camera.position = oldPosition; }
     }
 
-    g_renderer.renderScene(
-      g_scene,
+    terrain.regenerate({.scale = 1.F });
+    terrain.draw(
+      glm::mat4(1.f),
       camera.viewTransform(),
       glm::perspective(45.f, aspectRatio(), 0.1f, 100.f));
+
+    /// g_renderer.renderScene(
+    ///   g_scene,
+    ///   camera.viewTransform(),
+    ///   glm::perspective(45.f, aspectRatio(), 0.1f, 100.f));
 }
 
 void TestbedModule::yawPitchRotate(F32_t yaw, F32_t pitch)
@@ -161,18 +181,22 @@ void TestbedModule::yawPitchRotate(F32_t yaw, F32_t pitch)
     yaw   = glm::radians(yaw);
     pitch = glm::radians(glm::clamp(pitch, -89.f, 89.f));
 
-    if (pitch > 89.0f) pitch = 89.0f;
-    if (pitch < -89.0f) pitch = -89.0f;
-
     glm::vec3 direction;
-    direction.x    = cos(yaw) * cos(pitch);
-    direction.y    = sin(pitch);
-    direction.z    = sin(yaw) * cos(pitch);
+    direction.x = cos(yaw) * cos(pitch);
+    direction.y = sin(yaw) * cos(pitch);
+    direction.z = -sin(pitch);
+
     camera.forward = glm::normalize(direction);
-    camera.up      = glm::vec3(0.f, 1.f, 0.f);
-    camera.right   = glm::normalize(glm::cross(camera.forward, camera.up));
-    camera.up      = glm::normalize(glm::cross(camera.forward, camera.right));
+
+    // Assuming the initial up direction is the z-axis
+    glm::vec3 worldUp = glm::vec3(0.0f, 0.0f, 1.0f);
+
+    // Calculate the right and up vectors using cross products
+    camera.right = glm::normalize(glm::cross(worldUp, camera.forward));
+    camera.up    = glm::normalize(glm::cross(camera.forward, camera.right));
 }
+
+TestbedModule::TestbedModule() : terrain(MarchingCubesSpecs_t{}) {}
 
 // boilerplate ----------------------------------------------------------------
 

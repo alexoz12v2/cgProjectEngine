@@ -11,7 +11,7 @@
 #include <glm/glm.hpp>
 
 /// @note we only support x86_64. No macro is needed
-#include <intrin.h>
+#include <immintrin.h>
 
 #include "MacroDefs.h"
 

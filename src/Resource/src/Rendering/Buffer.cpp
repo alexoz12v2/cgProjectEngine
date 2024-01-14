@@ -4,6 +4,7 @@
 #include "RenderUtils/GLutils.h"
 
 #include <cassert>
+#include <cstring>
 #include <glad/gl.h>
 
 namespace cge
@@ -41,7 +42,7 @@ void Buffer_s::unbind(U32_t target) const { GL_CHECK(glBindBuffer(target, 0)); }
 
 void VertexBuffer_s::bind() const
 {
-    auto id = getId();
+    auto id = Buffer_s::id();
     GL_CHECK(glBindBuffer(GL_ARRAY_BUFFER, id));
 }
 
@@ -201,7 +202,7 @@ BufferMapping_s::BufferMapping_s(
 
 void IndexBuffer_s::bind() const
 {
-    GL_CHECK(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, getId()));
+    GL_CHECK(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id()));
 }
 void IndexBuffer_s::unbind() const
 {

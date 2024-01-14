@@ -7,8 +7,9 @@
 #include "Core/Type.h"
 #include "Launch/Entry.h"
 #include "Render/Renderer.h"
-#include "Resource/Rendering/GpuProgram.h"
+#include "Render/VoxelTerrain.h"
 #include "Resource/Rendering/cgeTexture.h"
+#include "Resource/Rendering/GpuProgram.h"
 
 #include <glm/glm.hpp>
 #include <stb/stb_image.h>
@@ -31,6 +32,13 @@ class TestbedModule : public IModule
     static Sid_t constexpr planeMeshSid     = "Plane"_sid;
 
   public:
+    TestbedModule();
+    TestbedModule(TestbedModule const &other)                = delete;
+    TestbedModule &operator=(TestbedModule const &other)     = delete;
+    TestbedModule(TestbedModule &&other)                     = delete;
+    TestbedModule &operator=(TestbedModule &&other) noexcept = delete;
+    ~TestbedModule() override                                = default;
+
     void onInit(ModuleInitParams params) override;
     void onKey(I32_t key, I32_t action, cge::F32_t deltaTime);
     void onMouseButton(I32_t key, I32_t action, cge::F32_t deltaTime);
@@ -40,22 +48,18 @@ class TestbedModule : public IModule
 
   private:
     void  yawPitchRotate(F32_t yaw, F32_t pitch);
-    F32_t aspectRatio() const
+    [[nodiscard]] F32_t aspectRatio() const
     {
         return (F32_t)framebufferSize.x / (F32_t)framebufferSize.y;
     }
 
-    glm::ivec2 keyPressed{ 0, 0 }; // WS AD
-    glm::ivec2 framebufferSize{ 800, 600 };
-    glm::vec2  lastCursorPosition{ -1.0f, -1.0f };
-    B8_t       isCursorEnabled = false;
-    Camera_t   camera;
-    AABB_t     box;
-
-  public:
-    TestbedModule()                                      = default;
-    TestbedModule(TestbedModule const &other)            = delete;
-    TestbedModule &operator=(TestbedModule const &other) = delete;
+    glm::ivec2  keyPressed{ 0, 0 }; // WS AD
+    glm::ivec2  framebufferSize{ 800, 600 };
+    glm::vec2   lastCursorPosition{ -1.0f, -1.0f };
+    B8_t        isCursorDisabled = false;
+    Camera_t    camera{};
+    AABB_t      box{};
+    VoxelMesh_s terrain;
 };
 
 } // namespace cge
