@@ -101,13 +101,21 @@ void main()
 		tri.points[1] = interpolateVerts(cell[a1], cell[b1]);
 		tri.points[2] = interpolateVerts(cell[a2], cell[b2]);
 		
-		vec3 normal = normalize(
-		cross((tri.points[1] - tri.points[0]).xyz, (tri.points[2] - tri.points[0]).xyz));
-		
-		tri.normals[0] = vec4(normal, 1.0);
-		tri.normals[1] = vec4(normal, 1.0);
-		tri.normals[2] = vec4(normal, 1.0);
-		
-		triangles[atomicCounterIncrement(TriCounter)] = tri;
+		vec3 normal = cross((tri.points[1] - tri.points[0]).xyz, (tri.points[2] - tri.points[0]).xyz);
+		if (abs(normal.x) < 0.0001f && abs(normal.y) < 0.0001f && abs(normal.z) < 0.0001f) {
+			normal = vec3(0,0,0);
+		} else {
+			normal = normalize(normal);
+		}
+
+		tri.normals[0] = vec4(normal, 0.f);
+		tri.normals[1] = vec4(normal, 0.f);
+		tri.normals[2] = vec4(normal, 0.f);
+
+		// Check if the triangle is beyond a certain height (e.g., 60)
+		vec3 triangleCenter = (tri.points[0].xyz + tri.points[1].xyz + tri.points[2].xyz) / 3.0;
+		if (triangleCenter.z <= 90) {
+			triangles[atomicCounterIncrement(TriCounter)] = tri;
+		}
 	}
 }

@@ -81,30 +81,81 @@ float perlin(vec3 p) {
     );
 }
 
-float noise(vec3 worldPosition)
+float erodeTerrain(vec3 worldPosition, float threshold, float baseErosionStrength, float zScale)
 {
-
     // Adjust the scale and frequency based on your needs
-    float frequency = 3.f;
-    float amplitude = 10.f;
-    float persistence = 0.5f;  // Persistence controls the decrease in amplitude with each octave
+    float frequency = 3.0;
+    float amplitude = 5.0;
+    float persistence = 0.5;  // Persistence controls the decrease in amplitude with each octave
 
-    float noiseValue = 0.0;
-    int NumOctaves = 8;
-    float offset = 0.25f;
-    vec2 minmax = vec2(0.f,0.f);
+    float erosionValue = 0.0;
+    int NumErosionOctaves = 4;
 
-    for (int i = 0; i < NumOctaves; i++) {
-        float value = perlin(worldPosition * frequency) * amplitude;
-        noiseValue += value;
-        minmax.x = min(value, minmax.x);
-        minmax.y = max(value, minmax.y);
+    for (int i = 0; i < NumErosionOctaves; i++) {
+        erosionValue += perlin(worldPosition * frequency) * amplitude;
         frequency *= 2.0;
         amplitude *= persistence;
     }
 
-    // Map the noise values to the range [-1, 1]
-    float mappedValue = mix(-1.0, 1.0, smoothstep(minmax.x, minmax.y, noiseValue));
+    // Map the erosion noise to the range [0, 1]
+    erosionValue = clamp(erosionValue, 0.0, 1.0);
+
+    // Calculate erosion strength based on Z coordinate
+    float zFactor = smoothstep(threshold, 1.0, worldPosition.z);
+    float erosionStrength = baseErosionStrength * zFactor * zScale;
+
+    // Apply erosion
+    erosionValue *= erosionStrength;
+
+    return erosionValue;
+}
+
+float noise(vec3 worldPosition)
+{
+    float secondThreshold = 0.7;
+
+    // If Z coordinate is beyond the second threshold, return 1 directly
+    if (worldPosition.z > secondThreshold) {
+        return -10000;
+    }
+
+    // Adjust the scale and frequency based on your needs
+    float frequency = 3.0;
+    float amplitude = 10.0;
+    float persistence = 0.5;  // Persistence controls the decrease in amplitude with each octave
+
+    float mainNoiseValue = 0.0;
+    int NumMainOctaves = 4;
+    float mainOffset = 0.25;
+
+    // Generate noise for each axis independently
+    float noiseX = 0.0;
+    float noiseY = 0.0;
+    float noiseZ = 0.0;
+
+    for (int i = 0; i < NumMainOctaves; i++) {
+        noiseX += perlin((worldPosition + vec3(mainOffset, 0.0, 0.0)) * frequency) * amplitude;
+        noiseY += perlin((worldPosition + vec3(0.0, mainOffset, 0.0)) * frequency) * amplitude;
+        noiseZ += perlin((worldPosition + vec3(0.0, 0.0, mainOffset)) * frequency) * amplitude;
+
+        frequency *= 2.0;
+        amplitude *= persistence;
+    }
+
+    // Combine noise values for each axis
+    mainNoiseValue = (noiseX + noiseY + noiseZ) / 3.0;
+
+    // Introduce erosion only when Z is below a certain threshold
+    float threshold = 0.2;
+    float baseErosionStrength = exp(worldPosition.z);
+    float zScale = 100.0 * exp(worldPosition.z);  // Adjust as needed
+
+    float erosionValue = erodeTerrain(worldPosition, threshold, baseErosionStrength, zScale);
+
+    // Combine the main noise and erosion noise
+    float finalValue = mainNoiseValue - erosionValue;
+
+    float mappedValue = finalValue;
     return mappedValue;
 }
 
@@ -118,9 +169,9 @@ void main()
 
     vec3 worldPosition = gl_GlobalInvocationID / vec3(computeDim - 1);
 
-    float density = noise(worldPosition);
+   float density = noise(worldPosition);
 
-    // Write the density value to the buffer
-    densities[idx] = density;
-    memoryBarrier(); // Ensure densities[idx] is written before continuing
+   // Write the density value to the buffer
+   densities[idx] = density;
+   memoryBarrier(); // Ensure densities[idx] is written before continuing
 }
