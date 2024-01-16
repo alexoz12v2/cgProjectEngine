@@ -1,16 +1,15 @@
 #include "Testbed.h"
 
+#include "Core/Events.h"
+#include "Core/KeyboardKeys.h"
 #include "Launch/Entry.h"
+#include "Render/Renderer.h"
 #include "RenderUtils/GLutils.h"
 #include "Resource/HandleTable.h"
-#include "Resource/Rendering/Buffer.h"
 #include "Resource/Rendering/cgeMesh.h"
 #include "Resource/Rendering/cgeScene.h"
 
-#define STB_IMAGE_IMPLEMENTATION
 #include <fmt/core.h>
-#include <glad/gl.h>
-#include <stb/stb_image.h>
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -21,6 +20,10 @@ CGE_DECLARE_STARTUP_MODULE(cge, TestbedModule, "TestbedModule");
 namespace cge
 {
 
+static F32_t constexpr renderDistance = 200.f;
+static F32_t constexpr clipDistance   = 0.05f;
+
+// boilerplate ----------------------------------------------------------------
 void TestbedModule::onInit(ModuleInitParams params)
 {
     Sid_t mId = "TestbedModule"_sid;
@@ -34,12 +37,12 @@ void TestbedModule::onInit(ModuleInitParams params)
     // register to event key pressed
     EventArg_t listenerData{};
     listenerData.idata.p = (Byte_t *)this;
-    g_eventQueue.addListener(evKeyPressed, KeyCallback, listenerData);
-    g_eventQueue.addListener(evMouseMoved, mouseCallback, listenerData);
+    g_eventQueue.addListener(evKeyPressed, KeyCallback<TestbedModule>, listenerData);
+    g_eventQueue.addListener(evMouseMoved, mouseCallback<TestbedModule>, listenerData);
     g_eventQueue.addListener(
-      evMouseButtonPressed, mouseButtonCallback, listenerData);
+      evMouseButtonPressed, mouseButtonCallback<TestbedModule>, listenerData);
     g_eventQueue.addListener(
-      evFramebufferSize, framebufferSizeCallback, listenerData);
+      evFramebufferSize, framebufferSizeCallback<TestbedModule>, listenerData);
 
     // setup camera
     this->camera.position = glm::vec3(0.f);
@@ -67,6 +70,11 @@ void TestbedModule::onInit(ModuleInitParams params)
 
         g_world.addObject(cubeCollisionMesh);
     }
+
+    g_renderer.viewport(framebufferSize.x, framebufferSize.y);
+
+    //// background
+    worldSpawner.init();
 }
 
 void TestbedModule::onKey(I32_t key, I32_t action, F32_t deltaTime)
@@ -88,6 +96,10 @@ void TestbedModule::onKey(I32_t key, I32_t action, F32_t deltaTime)
         break;
     case GLFW_KEY_D:
         keyPressed[1] -= dirMult;
+        break;
+    case GLFW_KEY_UP:
+        break;
+    case GLFW_KEY_DOWN:
         break;
     default:
         break;
@@ -131,13 +143,18 @@ void TestbedModule::onFramebufferSize(I32_t width, I32_t height)
 {
     framebufferSize.x = width;
     framebufferSize.y = height;
+    g_renderer.viewport(framebufferSize.x, framebufferSize.y);
     fmt::print("width: {}, height: {}\n", framebufferSize.x, framebufferSize.y);
 }
 
 void TestbedModule::onTick(float deltaTime)
 {
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glEnable(GL_DEPTH_TEST);
+    g_renderer.clear();
+    worldSpawner.renderBackground(camera);
+
+    // TODO place randomly obstacles with a seed by reading back the height of
+    // the mesh
+    // TODO astronave che spara su ostacoli!
     Mesh_s const    &cubeMesh = g_handleTable.get(cubeMeshSid).getAsMesh();
     glm::mat4 const &cubeMeshTransform =
       g_scene.getNodeBySid(cubeMeshSid)->absoluteTransform;
@@ -164,16 +181,16 @@ void TestbedModule::onTick(float deltaTime)
         if (hit.t <= 0.5f) { camera.position = oldPosition; }
     }
 
-    terrain.regenerate({.scale = 1.F });
-    terrain.draw(
-      glm::mat4(1.f),
-      camera.viewTransform(),
-      glm::perspective(45.f, aspectRatio(), 0.1f, 100.f));
+    worldSpawner.renderTerrain(camera);
 
     /// g_renderer.renderScene(
     ///   g_scene,
     ///   camera.viewTransform(),
-    ///   glm::perspective(45.f, aspectRatio(), 0.1f, 100.f));
+    ///   glm::perspective(45.f, aspectRatio(), clipDistance, renderDistance));
+
+    // TODO transparency when
+    // Disable depth buffer writes
+    // glDepthMask(GL_FALSE);
 }
 
 void TestbedModule::yawPitchRotate(F32_t yaw, F32_t pitch)
@@ -196,34 +213,7 @@ void TestbedModule::yawPitchRotate(F32_t yaw, F32_t pitch)
     camera.up    = glm::normalize(glm::cross(camera.forward, camera.right));
 }
 
-TestbedModule::TestbedModule() : terrain(MarchingCubesSpecs_t{}) {}
+TestbedModule::TestbedModule() = default;
 
-// boilerplate ----------------------------------------------------------------
-
-void KeyCallback(EventArg_t eventData, EventArg_t listenerData)
-{
-    auto self = (TestbedModule *)listenerData.idata.p;
-    self->onKey(
-      eventData.idata.i32[0], eventData.idata.i32[1], eventData.fdata.f32[0]);
-}
-
-void mouseButtonCallback(EventArg_t eventData, EventArg_t listenerData)
-{
-    auto self = (TestbedModule *)listenerData.idata.p;
-    self->onMouseButton(
-      eventData.idata.i32[0], eventData.idata.i32[1], eventData.fdata.f32[0]);
-};
-
-void mouseCallback(EventArg_t eventData, EventArg_t listenerData)
-{
-    auto self = (TestbedModule *)listenerData.idata.p;
-    self->onMouseMovement(eventData.fdata.f32[0], eventData.fdata.f32[1]);
-}
-
-void framebufferSizeCallback(EventArg_t eventData, EventArg_t listenerData)
-{
-    auto self = (TestbedModule *)listenerData.idata.p;
-    self->onFramebufferSize(eventData.idata.i32[0], eventData.idata.i32[1]);
-}
 
 } // namespace cge

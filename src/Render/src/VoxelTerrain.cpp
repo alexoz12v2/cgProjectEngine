@@ -1,9 +1,9 @@
 #include "VoxelTerrain.h"
-#include "Resource/Rendering/ShaderLibrary.h"
 #include "Core/Type.h"
+#include "Resource/Rendering/ShaderLibrary.h"
 
-#include <glm/ext/matrix_transform.hpp>
 #include "glad/gl.h"
+#include <glm/ext/matrix_transform.hpp>
 
 
 #define VOXEL_COMPUTE_LOCAL_SIZE 10
@@ -285,8 +285,10 @@ VoxelMesh_s::VoxelMesh_s(MarchingCubesSpecs_t const &specs)
     };
 
     // initialize buffers
-    m_triangleBuffer.allocateImmutable(fieldSize * sizeof(Triangle_t), EAccess::eNone);
-    m_densityBuffer.allocateImmutable(fieldSize * sizeof(float), EAccess::eNone);
+    m_triangleBuffer.allocateImmutable(
+      fieldSize * sizeof(Triangle_t), EAccess::eNone);
+    m_densityBuffer.allocateImmutable(
+      fieldSize * sizeof(float), EAccess::eNone);
     m_triLUTBuffer.allocateMutable(256U * 16U * sizeof(I32_t));
     m_triLUTBuffer.transferDataImm(0, 256U * 16U * sizeof(I32_t), triangleLUT);
     m_indirectBuffer.allocateMutable(sizeof(cmd));
@@ -332,7 +334,9 @@ VoxelMesh_s::VoxelMesh_s(MarchingCubesSpecs_t const &specs)
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
 
-void VoxelMesh_s::regenerate(MarchingCubesSpecs_t const &specs)
+void VoxelMesh_s::regenerate(
+  MarchingCubesSpecs_t const &specs,
+  glm::mat4 const            &model)
 {
     m_scale            = specs.scale;
     U32_t      counter = 0;
@@ -352,6 +356,11 @@ void VoxelMesh_s::regenerate(MarchingCubesSpecs_t const &specs)
 
     // compute density function
     m_densityUpdate.bind();
+    glUniformMatrix4fv(
+      glGetUniformLocation(m_densityUpdate.id(), "model"),
+      1,
+      GL_FALSE,
+      &(model[0][0]));
     glDispatchCompute(dispatchNum.x, dispatchNum.y, dispatchNum.z);
 
     // execute marching cubes compute shader
@@ -373,7 +382,10 @@ struct DirectionalLight_t
 };
 
 // TODO type safe uniform functions (in GpuProgram_s)
-void VoxelMesh_s::draw(glm::mat4 const &model, glm::mat4 const &view, glm::mat4 const &proj)
+void VoxelMesh_s::draw(
+  glm::mat4 const &model,
+  glm::mat4 const &view,
+  glm::mat4 const &proj)
 {
     glDeleteSync(m_fence);
     auto               scaledModel = glm::scale(model, glm::vec3(m_scale));
@@ -408,7 +420,9 @@ void VoxelMesh_s::draw(glm::mat4 const &model, glm::mat4 const &view, glm::mat4 
     glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(ViewProjection_t), &mats);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
+    m_VAO.bind();
     glDrawArraysIndirect(GL_TRIANGLES, nullptr);
+    m_VAO.unbind();
 
     m_fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 }

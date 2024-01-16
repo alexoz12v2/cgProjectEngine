@@ -86,3 +86,19 @@ install(TARGETS
   COMPONENT cge_Runtime
   INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
+
+#target_precompile_headers(cge-res
+#  PRIVATE
+#    include/Resource/HandleTable.h
+#    include/Resource/Ref.h
+#    include/Resource/WeakRef.h
+#    #include/Resource/Rendering/Buffer.h
+#    #include/Resource/Rendering/GpuProgram.h
+#    include/Resource/Rendering/cgeLight.h
+#    include/Resource/Rendering/cgeMaterial.h
+#    #include/Resource/Rendering/cgeMesh.h
+#    #include/Resource/Rendering/cgeScene.h
+#    include/Resource/Rendering/cgeTexture.h
+#    include/Resource/Rendering/TextureView.h
+#    include/Resource/Rendering/ShaderLibrary.h
+#)

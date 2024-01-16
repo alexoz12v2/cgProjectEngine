@@ -26,6 +26,12 @@ class Renderer_s
       Scene_s const   &scene,
       glm::mat4 const &view,
       glm::mat4 const &proj) const;
+    void clear() const;
+
+    // TODO configuration program
+    void renderCube() const;
+
+    void viewport(U32_t width, U32_t height) const;
 };
 
 extern Renderer_s g_renderer;

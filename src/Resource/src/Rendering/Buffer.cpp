@@ -40,26 +40,6 @@ void Buffer_s::bind(U32_t target) const
 
 void Buffer_s::unbind(U32_t target) const { GL_CHECK(glBindBuffer(target, 0)); }
 
-void VertexBuffer_s::bind() const
-{
-    auto id = Buffer_s::id();
-    GL_CHECK(glBindBuffer(GL_ARRAY_BUFFER, id));
-}
-
-void VertexBuffer_s::unbind() const
-{
-    GL_CHECK(glBindBuffer(GL_ARRAY_BUFFER, 0));
-}
-
-void VertexBuffer_s::allocateMutable(U32_t size) const
-{
-    Buffer_s::allocateMutable(GL_ARRAY_BUFFER, size, GL_STATIC_DRAW);
-}
-void VertexBuffer_s::allocateImmutable(U32_t size, EAccess mapAccess) const
-{
-    Buffer_s::allocateImmutable(GL_ARRAY_BUFFER, size, mapAccess);
-}
-
 void Buffer_s::allocateMutable(U32_t target, U32_t size, U32_t usage) const
 {
     bind(target);
@@ -178,13 +158,6 @@ BufferMapping_s
 
     return mapping;
 }
-
-BufferMapping_s
-  VertexBuffer_s::mmap(U32_t offset, U32_t size, EAccess eRW) const
-{
-    return Buffer_s::mmap(GL_ARRAY_BUFFER, offset, size, eRW);
-}
-
 Buffer_s::Buffer_s(U32_t id) : m_id(id) {}
 
 BufferMapping_s::BufferMapping_s(
@@ -195,34 +168,9 @@ BufferMapping_s::BufferMapping_s(
   I32_t access,
   U32_t target)
   : m_ptr(ptr), m_id(id), m_size(size), m_offset(offset), m_access(access),
-    m_target(target)
+    m_target(target), m_currentOffset(m_offset)
 {
-    m_currentOffset = m_offset;
-}
 
-void IndexBuffer_s::bind() const
-{
-    GL_CHECK(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id()));
-}
-void IndexBuffer_s::unbind() const
-{
-    GL_CHECK(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
-}
-
-BufferMapping_s IndexBuffer_s::mmap(U32_t offset, U32_t size, EAccess eRW) const
-{
-    return Buffer_s::mmap(GL_ELEMENT_ARRAY_BUFFER, offset, size, eRW);
-}
-
-void IndexBuffer_s::allocateMutable(U32_t size) const
-{
-    return Buffer_s::allocateMutable(
-      GL_ELEMENT_ARRAY_BUFFER, size, GL_STATIC_DRAW);
-}
-void IndexBuffer_s::allocateImmutable(U32_t size, EAccess mapAccess) const
-{
-    return Buffer_s::allocateImmutable(
-      GL_ELEMENT_ARRAY_BUFFER, size, mapAccess);
 }
 
 // vertex Array ---------------------------------------------------------------

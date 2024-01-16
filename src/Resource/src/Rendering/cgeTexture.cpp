@@ -10,7 +10,7 @@ Texture_s::Texture_s() { GL_CHECK(glGenTextures(1, &m_id)); }
 
 Texture_s::~Texture_s() { GL_CHECK(glDeleteTextures(1, &m_id)); }
 
-U32_t Texture_s::getId() const { return m_id; }
+U32_t Texture_s::id() const { return m_id; }
 
 void Texture_s::bind(ETexture_t type) const
 {

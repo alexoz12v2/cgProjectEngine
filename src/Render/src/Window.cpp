@@ -176,7 +176,6 @@ void Window_s::onCursorMovement(F32_t xpos, F32_t ypos) const
 void Window_s::onFramebufferSize(I32_t width, I32_t height) const
 {
     // Handle framebuffer size changes here
-    glViewport(0, 0, width, height);
     EventArg_t framebufferSize{};
     framebufferSize.idata.i32[0] = width;
     framebufferSize.idata.i32[1] = height;

@@ -1,26 +1,18 @@
 #pragma once
 
-#include "Core/Events.h"
-#include "Core/KeyboardKeys.h"
+#include "Core/Event.h"
 #include "Core/Module.h"
 #include "Core/StringUtils.h"
 #include "Core/Type.h"
-#include "Launch/Entry.h"
 #include "Render/Renderer.h"
 #include "Render/VoxelTerrain.h"
 #include "Resource/Rendering/cgeTexture.h"
-#include "Resource/Rendering/GpuProgram.h"
+#include "WorldSpawner.h"
 
-#include <glm/glm.hpp>
 #include <stb/stb_image.h>
 
 namespace cge
 {
-
-void KeyCallback(EventArg_t eventData, EventArg_t listenerData);
-void mouseCallback(EventArg_t eventData, EventArg_t listenerData);
-void mouseButtonCallback(EventArg_t eventData, EventArg_t listenerData);
-void framebufferSizeCallback(EventArg_t eventData, EventArg_t listenerData);
 
 class TestbedModule : public IModule
 {
@@ -47,19 +39,19 @@ class TestbedModule : public IModule
     void onTick(float deltaTime) override;
 
   private:
-    void  yawPitchRotate(F32_t yaw, F32_t pitch);
+    void                yawPitchRotate(F32_t yaw, F32_t pitch);
     [[nodiscard]] F32_t aspectRatio() const
     {
         return (F32_t)framebufferSize.x / (F32_t)framebufferSize.y;
     }
 
-    glm::ivec2  keyPressed{ 0, 0 }; // WS AD
-    glm::ivec2  framebufferSize{ 800, 600 };
-    glm::vec2   lastCursorPosition{ -1.0f, -1.0f };
-    B8_t        isCursorDisabled = false;
-    Camera_t    camera{};
-    AABB_t      box{};
-    VoxelMesh_s terrain;
+    glm::ivec2   keyPressed{ 0, 0 }; // WS AD
+    glm::ivec2   framebufferSize{ 800, 600 };
+    glm::vec2    lastCursorPosition{ -1.0f, -1.0f };
+    B8_t         isCursorDisabled = false;
+    Camera_t     camera{};
+    AABB_t       box{};
+    WorldSpawner worldSpawner;
 };
 
 } // namespace cge

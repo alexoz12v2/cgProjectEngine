@@ -3,6 +3,8 @@
 #include "Core/Containers.h"
 #include "Core/Type.h"
 
+#include <glad/gl.h>
+
 #include <type_traits>
 
 namespace cge
@@ -43,7 +45,7 @@ class BufferLayout_s
     LayoutElement_t const *pElements(U32_t *pOutNumbers) const;
 
   private:
-    Array<LayoutElement_t, bufferLayoutSize> m_elements;
+    Array<LayoutElement_t, bufferLayoutSize> m_elements{};
 
     U32_t m_end    = 0;
     U32_t m_stride = 0;
@@ -151,29 +153,8 @@ template<U32_t target, U32_t usage> class DerivedBuffer_s : public Buffer_s
     }
 };
 
-class VertexBuffer_s : public Buffer_s
-{
-  public: // name hiding on purpose
-    void bind() const;
-    void unbind() const;
-
-    BufferMapping_s mmap(U32_t offset, U32_t size, EAccess eRW) const;
-
-    void allocateMutable(U32_t size) const;
-    void allocateImmutable(U32_t size, EAccess mapAccess) const;
-};
-
-class IndexBuffer_s : public Buffer_s
-{
-  public: // name hiding on purpose
-    void bind() const;
-    void unbind() const;
-
-    BufferMapping_s mmap(U32_t offset, U32_t size, EAccess eRW) const;
-
-    void allocateMutable(U32_t size) const;
-    void allocateImmutable(U32_t size, EAccess mapAccess) const;
-};
+using VertexBuffer_s = DerivedBuffer_s<GL_ARRAY_BUFFER, GL_STATIC_DRAW>;
+using IndexBuffer_s = DerivedBuffer_s<GL_ELEMENT_ARRAY_BUFFER, GL_STATIC_DRAW>;
 
 class VertexArray_s
 {
