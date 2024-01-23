@@ -191,6 +191,10 @@ U32_t Texture_s::numLevels(U32_t width, U32_t height)
 #undef max
 
     // log2
+<<<<<<< Updated upstream
+=======
+#if defined(_MSC_VER)
+>>>>>>> Stashed changes
     biggest = 31 - __lzcnt(biggest);
 
     ++biggest;
