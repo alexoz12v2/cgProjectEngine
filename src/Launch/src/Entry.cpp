@@ -66,10 +66,7 @@ struct AppStatus_t
 bool appShouldRun(AppStatus_t const &status) { return status.all(); }
 } // namespace cge
 
-<<<<<<< Updated upstream
 
-=======
->>>>>>> Stashed changes
 using namespace cge;
 
 I32_t main(I32_t argc, Char8_t **argv)

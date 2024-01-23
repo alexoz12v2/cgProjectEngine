@@ -69,7 +69,7 @@ EErr_t Window_s::init(WindowSpec_t const& spec)
     glfwSetWindowUserPointer(handle, this);
 
     // set cursor mode
-    glfwSetInputMode(handle, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    //glfwSetInputMode(handle, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     // set member function callbacks
     glfwSetKeyCallback(handle, &Window_s::keyCallback);

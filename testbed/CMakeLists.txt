@@ -3,6 +3,8 @@ target_sources(testbed
   PRIVATE
     Testbed.h
     Testbed.cpp
+    MainMenu.h
+    MainMenu.cpp
 )
 
 target_include_directories(testbed

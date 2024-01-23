@@ -18,9 +18,6 @@
 #include <Entity/CollisionWorld.h>
 #include <filesystem>
 
-
-CGE_DECLARE_STARTUP_MODULE(cge, TestbedModule, "TestbedModule");
-
 namespace cge
 {
 
