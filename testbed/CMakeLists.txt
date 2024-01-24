@@ -1,6 +1,9 @@
 add_executable(testbed)
 target_sources(testbed
   PRIVATE
+  Player.h
+  Player.cpp
+  ConstantsAndStructs.h
   Testbed.h
   Testbed.cpp
   WorldSpawner.h

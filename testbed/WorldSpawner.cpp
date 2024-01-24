@@ -5,10 +5,12 @@
 #include "Core/KeyboardKeys.h"
 #include "Core/Type.h"
 #include "Render/Renderer.h"
+#include "Resource/Rendering/Buffer.h"
 #include "Resource/Rendering/GpuProgram.h"
 #include "Resource/Rendering/ShaderLibrary.h"
 #include "Resource/Rendering/cgeTexture.h"
 
+#include <fmt/core.h>
 #include <glad/gl.h>
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
@@ -25,8 +27,11 @@ void WorldSpawner::init()
     g_eventQueue.addListener(
       evFramebufferSize, framebufferSizeCallback<WorldSpawner>, listenerData);
 
-    //// background
+    // background
     generateBackgroundCubemap();
+
+    // terrain collision initialization
+    createCollisionBuffersAndShaders();
 }
 
 void WorldSpawner::generateBackgroundCubemap()
@@ -56,19 +61,13 @@ void WorldSpawner::generateBackgroundCubemap()
     auto optFrag = g_shaderLibrary.open("../assets/Background.frag");
     if (!optVert.has_value() || !optFrag.has_value()) { assert(false); }
     const Shader_s *ppShaders[2] = { *optVert, *optFrag };
-    backgrProgram.build("background", ppShaders, 2);
+    m_backgrProgram.build("background", ppShaders, 2);
 
     stbi_image_free(image);
 
     // cubemap which will host the background
-    cubeBackground.bind(ETexture_t::eCube);
-    // glTexStorage2D(GL_TEXTURE_CUBE_MAP, 10, GL_RGB8, 1024, 1024);
+    m_cubeBackground.bind(ETexture_t::eCube);
     static U32_t constexpr CUBE_FRAMEBUFFER_SIZE = 1024;
-    // cubeBackground.allocate({ .type           = ETexture_t::eCube,
-    //                           .width          = CUBE_FRAMEBUFFER_SIZE,
-    //                           .height         = CUBE_FRAMEBUFFER_SIZE,
-    //                           .internalFormat = GL_RGB8,
-    //                           .genMips        = true });
     for (unsigned int i = 0; i < 6; ++i)
     {
         // note that we store each face with 16 bit floating point values
@@ -88,9 +87,7 @@ void WorldSpawner::generateBackgroundCubemap()
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    // cubeBackground.defaultSamplerParams({ .minFilter = GL_LINEAR,
-    //                                       .magFilter = GL_LINEAR,
-    //                                       .wrap      = GL_CLAMP_TO_EDGE });
+
     unsigned int captureFBO, captureRBO;
     glGenFramebuffers(1, &captureFBO);
     glGenRenderbuffers(1, &captureRBO);
@@ -166,7 +163,7 @@ void WorldSpawner::generateBackgroundCubemap()
           GL_FRAMEBUFFER,
           GL_COLOR_ATTACHMENT0,
           GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-          cubeBackground.id(),
+          m_cubeBackground.id(),
           0);
         glClearColor(0, 0, 0, 0);
         glClear(GL_DEPTH_BUFFER_BIT);
@@ -180,63 +177,145 @@ void WorldSpawner::generateBackgroundCubemap()
 }
 void WorldSpawner::renderTerrain(Camera_t const &camera)
 {
-    terrain.regenerate({ .scale = 2.F }, terrainTransform);
-    terrain.draw(
-      glm::mat4(1.f),
+    m_terrain.regenerate({ .scale = 2.F }, m_terrainTransform);
+    m_terrain.draw(
+      glm::mat4(1.F),
       camera.viewTransform(),
-      glm::perspective(45.f, aspectRatio(), clipDistance, renderDistance));
+      glm::perspective(FOV, aspectRatio(), CLIPDISTANCE, RENDERDISTANCE));
 }
 
 void WorldSpawner::renderBackground(Camera_t const &camera) const
 {
+    glFrontFace(GL_CW);
+    glEnable(GL_CULL_FACE);
     glDisable(GL_DEPTH_TEST);
-    cubeBackground.bind(ETexture_t::eCube);
-    backgrProgram.bind();
+    m_cubeBackground.bind(ETexture_t::eCube);
+    m_backgrProgram.bind();
     glm::mat4 rotationMatrix =
-      glm::lookAt(glm::vec3(0.f), camera.forward, camera.up);
+      glm::lookAt(glm::vec3(0.F), camera.forward, camera.up);
 
     glUniformMatrix4fv(
-      glGetUniformLocation(backgrProgram.id(), "view"),
+      glGetUniformLocation(m_backgrProgram.id(), "view"),
       1,
       GL_FALSE,
       &rotationMatrix[0][0]);
     auto proj =
-      glm::perspective(45.f, aspectRatio(), clipDistance, renderDistance);
+      glm::perspective(45.F, aspectRatio(), CLIPDISTANCE, RENDERDISTANCE);
     glUniformMatrix4fv(
-      glGetUniformLocation(backgrProgram.id(), "projection"),
+      glGetUniformLocation(m_backgrProgram.id(), "projection"),
       1,
       GL_FALSE,
       &proj[0][0]);
     glUniform3fv(
-      glGetUniformLocation(backgrProgram.id(), "cameraPos"),
+      glGetUniformLocation(m_backgrProgram.id(), "cameraPos"),
       1,
       &camera.position[0]);
+
     g_renderer.renderCube();
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
+    glFrontFace(GL_CCW);
 }
 
 void WorldSpawner::onFramebufferSize(U32_t width, U32_t height)
 {
-    framebufferSize.x = width;
-    framebufferSize.y = height;
+    m_framebufferSize.x = width;
+    m_framebufferSize.y = height;
 }
 F32_t WorldSpawner::aspectRatio() const
 {
-    return (F32_t)framebufferSize.x / (F32_t)framebufferSize.y;
+    return (F32_t)m_framebufferSize.x / (F32_t)m_framebufferSize.y;
 }
-void WorldSpawner::onKey(I32_t key, I32_t action, F32_t deltaTime)
+void WorldSpawner::onKey(I32_t key, I32_t action)
 {
-    switch (key)
-    {
-    case GLFW_KEY_UP:
-        terrainTransform =
-          glm::translate(terrainTransform, glm::vec3(0.f, 0.01f, 0.f));
-        break;
-    case GLFW_KEY_DOWN:
-        terrainTransform =
-          glm::translate(terrainTransform, glm::vec3(0.f, -0.01f, 0.f));
-        break;
-    }
+    //    switch (key)
+    //    {
+    //    case GLFW_KEY_UP:
+    //        m_terrainTransform =
+    //          glm::translate(m_terrainTransform, glm::vec3(0.F, 0.01f, 0.F));
+    //        break;
+    //    case GLFW_KEY_DOWN:
+    //        m_terrainTransform =
+    //          glm::translate(m_terrainTransform, glm::vec3(0.F, -0.01f, 0.F));
+    //        break;
+    //    }
 }
+void WorldSpawner::transformTerrain(const glm::mat4 &transform)
+{
+    m_terrainTransform = glm::translate(
+      transform,
+      glm::vec3(
+        m_terrainTransform[3].x,
+        m_terrainTransform[3].y,
+        m_terrainTransform[3].z));
+}
+
+HitInfo_t WorldSpawner::detectTerrainCollisions(const glm::mat4 &transform)
+{
+    //m_collision.buildShader.bind();
+    //glUniform1ui(glGetUniformLocation(m_collision.buildShader.id(), "nextFree"), 0u);
+    return HitInfo_t{};
+}
+
+struct ListNode
+{
+    U32_t triangleIndex;
+    U32_t nextNode; // if NULL_NODE then nothing
+};
+
+void WorldSpawner::createCollisionBuffersAndShaders()
+{
+    // build all shader programs
+    g_shaderLibrary.open("../assets/BuildTerrainHashGrid.comp")
+      .map_or_else(
+        [this](Shader_s const *shader)
+        { m_collision.buildShader.build("BuildTerrainHashGrid", &shader, 1); },
+        []() { fmt::print("could not open BuildTerrainHashGrid shader"); });
+    g_shaderLibrary.open("../assets/TerrainCollision.comp")
+      .map_or_else(
+        [this](Shader_s const *shader)
+        { m_collision.detectShader.build("TerrainCollision", &shader, 1); },
+        []() { fmt::print("could not open TerrainCollision shader"); });
+    g_shaderLibrary.open("../assets/ResetTerrainHashGrid.comp")
+      .map_or_else(
+        [this](Shader_s const *shader)
+        { m_collision.resetShader.build("ResetTerrainHashGrid", &shader, 1); },
+        []() { fmt::print("could not open ResetTerrainHashGrid shader"); });
+
+    // allocate all buffers
+    glUniform1ui(glGetUniformLocation(m_collision.buildShader.id(), "nextFree"), 0u);
+
+    static U32_t constexpr axisSize          = 512u * sizeof(U32_t);
+    // 32 MB for a total of 2^22 list nodes
+    static U32_t constexpr listSize = (1u << 22u) * sizeof(ListNode);
+    m_collision.hashGridBuffer.allocateImmutable(
+      axisSize + listSize, EAccess::eNone);
+
+    static HitInfo_t const initial{ .present  = false,
+                                    .position = glm::vec3(0.F),
+                                    .normal   = glm::vec3(0.F) };
+    m_collision.hitInfoBuffer.allocateMutable(sizeof(HitInfo_t));
+    m_collision.hitInfoBuffer.transferDataImm(0, sizeof(initial), &initial);
+
+    // bind buffers to their correct indexed bindings
+    bindCollisionbuffers();
+
+    // run resetTerrainhashGrid.comp to initialize it
+    m_collision.resetShader.bind();
+    glDispatchCompute(1,1,1);
+    m_collision.resetShader.unbind();
+}
+
+void WorldSpawner::bindCollisionbuffers() const
+{
+    glBindBufferBase(
+      decltype(m_collision.hashGridBuffer)::targetType,
+      9,
+      m_collision.hashGridBuffer.id());
+    glBindBufferBase(
+      decltype(m_collision.hitInfoBuffer)::targetType,
+      10,
+      m_collision.hitInfoBuffer.id());
+}
+
 } // namespace cge

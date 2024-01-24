@@ -150,7 +150,6 @@ I32_t main(I32_t argc, Char8_t **argv)
         elapsedTimeF = (F32_t)elapsedTime / timeUnit32;
 
         // swap buffers and poll events (and queue them)
-        window.setDeltaTime(elapsedTimeF);
         window.swapBuffers();
         window.pollEvents(min(timeUnitsIn60FPS - elapsedTime, 0U));
 

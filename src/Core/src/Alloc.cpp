@@ -49,7 +49,7 @@ void freeAligned(Byte_t* CGE_restrict pMem)
         Byte_t* pAlignedMem = reinterpret_cast<Byte_t*>(pMem);
 
         // Extract the shift.
-        ptrdiff_t shift = pAlignedMem[-1];
+        ptrdiff_t shift = static_cast<ptrdiff_t>(pAlignedMem[-1]);
         if (shift == 0) { shift = 256; }
 
         // Back up to the actual allocated address,

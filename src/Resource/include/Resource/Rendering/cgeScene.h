@@ -9,6 +9,7 @@
 #include <forward_list>
 #include <map>
 #include <vector>
+#include <string>
 
 extern "C"
 {

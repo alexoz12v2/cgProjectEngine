@@ -2,6 +2,7 @@
 
 #include "RenderUtils/GLutils.h"
 #include "glad/gl.h"
+#include <glm/common.hpp>
 
 namespace cge
 {
@@ -115,7 +116,7 @@ EErr_t Texture_s::transferData(TexTransferSpec_t const &spec)
     case eCube:
         for (int face = 0; face < 6; face++)
         {
-            GLenum target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
+            GLenum const target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
             GL_CHECK(glTexSubImage3D(
               target,
               spec.level,
@@ -186,12 +187,9 @@ U32_t Texture_s::bindFromType(ETexture_t type)
 // the following formula \floor(\log2{width, height}) + 1 = numLevels
 U32_t Texture_s::numLevels(U32_t width, U32_t height)
 {
-#define max(a, b) ((a) > (b) ? (a) : (b))
-    U32_t biggest = max(width, height);
-#undef max
-
+    U32_t biggest = glm::max(width, height);
     // log2
-#if defined(MSC_VER)
+#if defined(_MSC_VER)
     biggest = 31 - __lzcnt(biggest);
 #elif defined(__GNUC__) || defined(__clang__)
     biggest = 31 - __builtin_clz(biggest);

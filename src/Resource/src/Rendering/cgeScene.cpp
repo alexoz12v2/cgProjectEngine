@@ -57,8 +57,12 @@ std::vector<Sid_t> loadMaterialTexture(const Char8_t *basePath, aiMaterial const
                 completePath += path.C_Str();
 
                 // TODO not handling RGBA
-                Byte_t *texData =
-                  stbi_load(completePath.c_str(), &texWidth, &texHeight, &texChannelCnt, 3);
+                Byte_t *texData = reinterpret_cast<Byte_t *>(stbi_load(
+                  completePath.c_str(),
+                  &texWidth,
+                  &texHeight,
+                  &texChannelCnt,
+                  3));
 
                 assert(texWidth != 0);
                 auto data = std::shared_ptr<Byte_t>(texData, STBIDeleter{});

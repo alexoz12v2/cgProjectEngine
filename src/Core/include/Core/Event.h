@@ -99,30 +99,28 @@ class EventQueue_t
 // TODO: when finish group all globals into singleton
 extern EventQueue_t g_eventQueue;
 
-template <typename T>
+template<typename T>
 void KeyCallback(EventArg_t eventData, EventArg_t listenerData)
 {
-    auto self = (T*)listenerData.idata.p;
-    self->onKey(
-      eventData.idata.i32[0], eventData.idata.i32[1], eventData.fdata.f32[0]);
+    auto self = (T *)listenerData.idata.p;
+    self->onKey(eventData.idata.i32[0], eventData.idata.i32[1]);
 }
 
-template <typename T>
+template<typename T>
 void mouseButtonCallback(EventArg_t eventData, EventArg_t listenerData)
 {
-    auto self = (T*)listenerData.idata.p;
-    self->onMouseButton(
-      eventData.idata.i32[0], eventData.idata.i32[1], eventData.fdata.f32[0]);
+    auto self = (T *)listenerData.idata.p;
+    self->onMouseButton(eventData.idata.i32[0], eventData.idata.i32[1]);
 };
 
-template <typename T>
-void mouseCallback(EventArg_t eventData, EventArg_t listenerData)
+template<typename T>
+void mouseMovementCallback(EventArg_t eventData, EventArg_t listenerData)
 {
-    auto self = (T*)listenerData.idata.p;
+    auto self = (T *)listenerData.idata.p;
     self->onMouseMovement(eventData.fdata.f32[0], eventData.fdata.f32[1]);
 }
 
-template <typename T>
+template<typename T>
 void framebufferSizeCallback(EventArg_t eventData, EventArg_t listenerData)
 {
     auto self = (T *)listenerData.idata.p;

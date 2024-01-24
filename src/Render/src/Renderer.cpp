@@ -20,16 +20,18 @@ void Renderer_s::renderScene(
 {
     glCullFace(GL_BACK);
     glFrontFace(GL_CCW);
-    glClearColor(0.f, 0.f, 0.f, 1.f);
+    //glClearColor(0.f, 0.f, 0.f, 1.f);
 
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
 
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     for (auto const &[sid, sceneNode] : scene.m_bnodes)
     {
         auto          meshRef = g_handleTable.get(sid);
-        Mesh_s const &mesh    = meshRef.getAsMesh();
+        Mesh_s const &mesh    = meshRef.asMesh();
 
         glm::mat4 const     modelView = view * sceneNode.absoluteTransform;
         MeshUniform_t const uniforms{ .modelView     = modelView,
@@ -37,7 +39,7 @@ void Renderer_s::renderScene(
 
         mesh.shaderProgram.bind();
         mesh.vertexArray.bind();
-        mesh.streamTextures(&mesh);
+        mesh.bindTextures(&mesh);
         mesh.streamUniforms(uniforms);
 
         glDrawElements(
@@ -46,8 +48,10 @@ void Renderer_s::renderScene(
           GL_UNSIGNED_INT,
           nullptr);
     }
+    glUseProgram(0);
 }
 
+// TODO parameters: transform, drawMode, normalOrientation
 void Renderer_s::renderCube() const
 {
     static U32_t constexpr verticesCount               = 8;

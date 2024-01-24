@@ -4,6 +4,7 @@
  * contains all necessary fundamental type definitions
  */
 #include <concepts>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <type_traits>
@@ -34,7 +35,7 @@ using F32_t = float;
 using F64_t = double;
 
 using UChar8_t  = unsigned char;
-using Byte_t    = UChar8_t;
+using Byte_t    = std::byte;
 using Char8_t   = char;
 using CharU8_t  = char8_t;
 using CharU16_t = char16_t;

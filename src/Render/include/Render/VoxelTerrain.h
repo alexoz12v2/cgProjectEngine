@@ -15,7 +15,7 @@ namespace cge
 
 struct MarchingCubesSpecs_t
 {
-    glm::ivec3 size{ 100, 200, 100 };
+    glm::ivec3 size{ 200, 200, 100 };
     float      scale    = 1.f;
     float      isoValue = 0.f;
 };
