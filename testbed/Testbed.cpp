@@ -7,7 +7,6 @@
 #include "Resource/Rendering/cgeScene.h"
 
 #define STB_IMAGE_IMPLEMENTATION
-#include <fmt/core.h>
 #include <glad/gl.h>
 #include <stb/stb_image.h>
 
@@ -26,7 +25,6 @@ void TestbedModule::onInit(ModuleInitParams params)
     Sid_t mId = "TestbedModule"_sid;
     CGE_DBG_SID("TestbedModule");
     Char8_t const *str = CGE_DBG_STRLOOKUP(mId);
-    fmt::print("Hello World!! {}\n", str);
 
     // register to event key pressed
     EventArg_t listenerData{};
@@ -116,7 +114,6 @@ void TestbedModule::onFramebufferSize(I32_t width, I32_t height)
 {
     framebufferSize.x = width;
     framebufferSize.y = height;
-    fmt::print("width: {}, height: {}\n", framebufferSize.x, framebufferSize.y);
 }
 
 void TestbedModule::onTick(float deltaTime)

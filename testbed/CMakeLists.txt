@@ -13,4 +13,4 @@ target_include_directories(testbed
 )
 
 target_link_libraries(testbed PRIVATE cge::cge stb::stb glm::glm)
-target_link_system_libraries(testbed PUBLIC fmt::fmt)
+# target_link_system_libraries(testbed PUBLIC fmt::fmt)
