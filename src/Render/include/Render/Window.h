@@ -31,12 +31,12 @@ class Window_s
     void   swapBuffers();
     void   pollEvents(I32_t waitMillis = 0) const;
 
-    void setDeltaTime(F32_t dt) { deltaTime = dt; }
     void emitFramebufferSize() const;
+
+    void *internal();
 
   private:
     gsl::owner<GLFWwindow *> handle    = nullptr;
-    F32_t                    deltaTime = 0.16f;
 
     static void keyCallback(
       GLFWwindow *window,

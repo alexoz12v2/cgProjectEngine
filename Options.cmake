@@ -18,12 +18,11 @@ macro(cge_supports_sanitizers)
 endmacro()
 
 macro(cge_setup_options)
-  option(cge_ENABLE_HARDENING "Enable hardening" ON)
+  option(cge_ENABLE_HARDENING "Enable hardening" OFF)
   option(cge_ENABLE_COVERAGE "Enable coverage reporting" OFF)
-  cmake_dependent_option(
-    cge_ENABLE_GLOBAL_HARDENING
+  cmake_dependent_option(cge_ENABLE_GLOBAL_HARDENING
     "Attempt to push hardening options to built dependencies"
-    ON
+    OFF
     cge_ENABLE_HARDENING
     OFF)
 
@@ -96,20 +95,20 @@ macro(cge_global_options)
 
   cge_supports_sanitizers()
 
-  if(cge_ENABLE_HARDENING AND cge_ENABLE_GLOBAL_HARDENING)
-    include(cmake/Hardening.cmake)
-    if(NOT SUPPORTS_UBSAN 
-       OR cge_ENABLE_SANITIZER_UNDEFINED
-       OR cge_ENABLE_SANITIZER_ADDRESS
-       OR cge_ENABLE_SANITIZER_THREAD
-       OR cge_ENABLE_SANITIZER_LEAK)
-      set(ENABLE_UBSAN_MINIMAL_RUNTIME FALSE)
-    else()
-      set(ENABLE_UBSAN_MINIMAL_RUNTIME TRUE)
-    endif()
-    message("${cge_ENABLE_HARDENING} ${ENABLE_UBSAN_MINIMAL_RUNTIME} ${cge_ENABLE_SANITIZER_UNDEFINED}")
-    cge_enable_hardening(cge_options ON ${ENABLE_UBSAN_MINIMAL_RUNTIME})
-  endif()
+  #if(cge_ENABLE_HARDENING AND cge_ENABLE_GLOBAL_HARDENING)
+  #  include(cmake/Hardening.cmake)
+  #  if(NOT SUPPORTS_UBSAN
+  #     OR cge_ENABLE_SANITIZER_UNDEFINED
+  #     OR cge_ENABLE_SANITIZER_ADDRESS
+  #     OR cge_ENABLE_SANITIZER_THREAD
+  #     OR cge_ENABLE_SANITIZER_LEAK)
+  #    set(ENABLE_UBSAN_MINIMAL_RUNTIME FALSE)
+  #  else()
+  #    set(ENABLE_UBSAN_MINIMAL_RUNTIME TRUE)
+  #  endif()
+  #  message("${cge_ENABLE_HARDENING} ${ENABLE_UBSAN_MINIMAL_RUNTIME} ${cge_ENABLE_SANITIZER_UNDEFINED}")
+  #  cge_enable_hardening(cge_options ON ${ENABLE_UBSAN_MINIMAL_RUNTIME})
+  #endif()
 endmacro()
 
 macro(cge_local_options)
@@ -182,18 +181,18 @@ macro(cge_local_options)
     endif()
   endif()
 
-  if(cge_ENABLE_HARDENING AND NOT cge_ENABLE_GLOBAL_HARDENING)
-    include(cmake/Hardening.cmake)
-    if(NOT SUPPORTS_UBSAN 
-       OR cge_ENABLE_SANITIZER_UNDEFINED
-       OR cge_ENABLE_SANITIZER_ADDRESS
-       OR cge_ENABLE_SANITIZER_THREAD
-       OR cge_ENABLE_SANITIZER_LEAK)
-      set(ENABLE_UBSAN_MINIMAL_RUNTIME FALSE)
-    else()
-      set(ENABLE_UBSAN_MINIMAL_RUNTIME TRUE)
-    endif()
-    cge_enable_hardening(cge_options OFF ${ENABLE_UBSAN_MINIMAL_RUNTIME})
-  endif()
+  #if(cge_ENABLE_HARDENING AND NOT cge_ENABLE_GLOBAL_HARDENING)
+  #  include(cmake/Hardening.cmake)
+  #  if(NOT SUPPORTS_UBSAN
+  #     OR cge_ENABLE_SANITIZER_UNDEFINED
+  #     OR cge_ENABLE_SANITIZER_ADDRESS
+  #     OR cge_ENABLE_SANITIZER_THREAD
+  #     OR cge_ENABLE_SANITIZER_LEAK)
+  #    set(ENABLE_UBSAN_MINIMAL_RUNTIME FALSE)
+  #  else()
+  #    set(ENABLE_UBSAN_MINIMAL_RUNTIME TRUE)
+  #  endif()
+  #  cge_enable_hardening(cge_options OFF ${ENABLE_UBSAN_MINIMAL_RUNTIME})
+  #endif()
 
 endmacro()

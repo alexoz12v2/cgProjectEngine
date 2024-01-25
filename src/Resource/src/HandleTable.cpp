@@ -80,4 +80,10 @@ HandleTable_s::Ref_s HandleTable_s::get(Sid_t sid)
     }
     return ref;
 }
+
+B8_t HandleTable_s::Ref_s::hasValue() const
+{
+    return m_ptr != nullptr && m_sid != nullSid;
+}
+
 } // namespace cge

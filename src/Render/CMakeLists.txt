@@ -7,6 +7,8 @@ target_sources(cge-renderer
   PRIVATE
     src/Window.cpp
     src/Renderer.cpp
+    src/Renderer2d.cpp
+    src/VoxelTerrain.cpp
   PUBLIC 
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Render/SceneView.h>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Render/SceneView.h>
@@ -16,6 +18,12 @@ target_sources(cge-renderer
 
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Render/Renderer.h>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Render/Renderer.h>
+
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Render/Renderer2d.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Render/Renderer2d.h>
+
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Render/VoxelTerrain.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Render/VoxelTerrain.h>
 )
 
 target_compile_features(cge-renderer INTERFACE cxx_std_20)

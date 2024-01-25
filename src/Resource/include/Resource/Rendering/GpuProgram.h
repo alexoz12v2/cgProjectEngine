@@ -2,6 +2,7 @@
 
 #include "Core/Containers.h"
 #include "Core/Type.h"
+#include "ShaderLibrary.h"
 
 #include <span>
 
@@ -47,6 +48,7 @@ class GpuProgram_s
     void unbind() const;
 
     void build(ProgramSpec_t const &specs);
+    void build(Char8_t const *name, Shader_s const ** pShaders, U32_t count);
 
     // problem: if you need them in multiple places you need to set them
     // multiple times

@@ -11,6 +11,7 @@ target_sources(cge-res
     src/Rendering/cgeMesh.cpp
     src/Rendering/cgeScene.cpp
     src/Rendering/cgeTexture.cpp
+    src/Rendering/ShaderLibrary.cpp
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Resource/HandleTable.h>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Resource/HandleTable.h>
@@ -44,14 +45,12 @@ target_sources(cge-res
 
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Resource/Rendering/TextureView.h>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Resource/Rendering/TextureView.h>
+
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Resource/Rendering/ShaderLibrary.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Resource/Rendering/ShaderLibrary.h>
 )
 
 target_compile_features(cge-res INTERFACE cxx_std_20)
-
-target_compile_definitions(cge-res
-  PRIVATE 
-    ASSET_PATH="${CMAKE_SOURCE_DIR}/assets/")
-message(STATUS ${ASSET_PATH})
 
 target_include_directories(cge-res
   PRIVATE
@@ -87,3 +86,19 @@ install(TARGETS
   COMPONENT cge_Runtime
   INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
+
+#target_precompile_headers(cge-res
+#  PRIVATE
+#    include/Resource/HandleTable.h
+#    include/Resource/Ref.h
+#    include/Resource/WeakRef.h
+#    #include/Resource/Rendering/Buffer.h
+#    #include/Resource/Rendering/GpuProgram.h
+#    include/Resource/Rendering/cgeLight.h
+#    include/Resource/Rendering/cgeMaterial.h
+#    #include/Resource/Rendering/cgeMesh.h
+#    #include/Resource/Rendering/cgeScene.h
+#    include/Resource/Rendering/cgeTexture.h
+#    include/Resource/Rendering/TextureView.h
+#    include/Resource/Rendering/ShaderLibrary.h
+#)

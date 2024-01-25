@@ -9,6 +9,7 @@
 #include <forward_list>
 #include <map>
 #include <vector>
+#include <string>
 
 extern "C"
 {
@@ -72,6 +73,7 @@ class Scene_s
 
     std::pmr::map<Sid_t, SceneNode_s> m_bnodes;
     std::pmr::vector<Sid_t>           m_names;
+    std::string                       m_path;
 };
 extern Scene_s g_scene;
 

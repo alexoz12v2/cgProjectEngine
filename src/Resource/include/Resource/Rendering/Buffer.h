@@ -3,6 +3,8 @@
 #include "Core/Containers.h"
 #include "Core/Type.h"
 
+#include <glad/gl.h>
+
 #include <type_traits>
 
 namespace cge
@@ -43,7 +45,7 @@ class BufferLayout_s
     LayoutElement_t const *pElements(U32_t *pOutNumbers) const;
 
   private:
-    Array<LayoutElement_t, bufferLayoutSize> m_elements;
+    Array<LayoutElement_t, bufferLayoutSize> m_elements{};
 
     U32_t m_end    = 0;
     U32_t m_stride = 0;
@@ -87,12 +89,16 @@ class Buffer_s
 
   public:
     Buffer_s();
+    Buffer_s(Buffer_s const &)                = default;
+    Buffer_s(Buffer_s &&) noexcept            = default;
+    Buffer_s &operator=(Buffer_s const &)     = default;
+    Buffer_s &operator=(Buffer_s &&) noexcept = default;
     ~Buffer_s();
 
     void bind(U32_t target) const;
     void unbind(U32_t target) const;
 
-    U32_t id() const { return m_id; }
+    [[nodiscard]] U32_t id() const { return m_id; }
 
     void allocateMutable(U32_t target, U32_t size, U32_t usage) const;
 
@@ -105,14 +111,11 @@ class Buffer_s
       transferDataImm(U32_t target, U32_t offset, U32_t size, void const *data);
 
     // add map persistent function if you need it
-    BufferMapping_s
+    [[nodiscard]] BufferMapping_s
       mmap(U32_t target, U32_t offset, U32_t size, EAccess eRW) const;
 
     // when you wnat to modify a buffer between 2 renderings, add
     // lock(), set data, unlock() functionality
-  protected:
-    U32_t getId() const { return m_id; }
-    U32_t setId(U32_t id) { return (m_id = id); }
 
   private:
     explicit Buffer_s(U32_t);
@@ -121,35 +124,48 @@ class Buffer_s
     // if you need it, add metadata like the size of the buffer
 };
 
-class VertexBuffer_s : public Buffer_s
+template<U32_t target, U32_t usage> class DerivedBuffer_s : public Buffer_s
 {
-  public: // name hiding on purpose
-    void bind() const;
-    void unbind() const;
+  public:
+    static U32_t constexpr targetType = target;
 
-    BufferMapping_s mmap(U32_t offset, U32_t size, EAccess eRW) const;
+    void bind() const { Buffer_s::bind(target); }
+    void unbind() const { Buffer_s::unbind(target); }
+    [[nodiscard]] BufferMapping_s
+      mmap(U32_t offset, U32_t size, EAccess eRW) const
+    {
+        return Buffer_s::mmap(target, offset, size, eRW);
+    }
 
-    void allocateMutable(U32_t size) const;
-    void allocateImmutable(U32_t size, EAccess mapAccess) const;
+    void allocateMutable(U32_t size) const
+    {
+        Buffer_s::allocateMutable(target, size, usage);
+    }
+
+    void allocateImmutable(U32_t size, EAccess mapAccess) const
+    {
+        Buffer_s::allocateImmutable(target, size, mapAccess);
+    }
+
+    void transferDataImm(U32_t offset, U32_t size, void const *data)
+    {
+        Buffer_s::transferDataImm(target, offset, size, data);
+    }
 };
 
-class IndexBuffer_s : public Buffer_s
-{
-  public: // name hiding on purpose
-    void bind() const;
-    void unbind() const;
-
-    BufferMapping_s mmap(U32_t offset, U32_t size, EAccess eRW) const;
-
-    void allocateMutable(U32_t size) const;
-    void allocateImmutable(U32_t size, EAccess mapAccess) const;
-};
+using VertexBuffer_s = DerivedBuffer_s<GL_ARRAY_BUFFER, GL_STATIC_DRAW>;
+using IndexBuffer_s = DerivedBuffer_s<GL_ELEMENT_ARRAY_BUFFER, GL_STATIC_DRAW>;
 
 class VertexArray_s
 {
   public:
     VertexArray_s();
+    VertexArray_s(VertexArray_s const &)     = default;
+    VertexArray_s(VertexArray_s &&) noexcept = default;
     ~VertexArray_s();
+
+    VertexArray_s &operator=(VertexArray_s const &)     = default;
+    VertexArray_s &operator=(VertexArray_s &&) noexcept = default;
 
     void bind() const;
     void unbind() const;

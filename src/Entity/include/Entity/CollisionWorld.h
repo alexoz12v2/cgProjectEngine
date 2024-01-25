@@ -3,6 +3,7 @@
 #include "Core/StringUtils.h"
 #include "Core/Type.h"
 
+#include <set>
 #include <span>
 #include <vector>
 
@@ -21,6 +22,17 @@ struct CollisionObj_t
     AABB_t ebox;
     Sid_t  sid;
 };
+
+constexpr inline bool
+  operator==(CollisionObj_t const &a, CollisionObj_t const &b)
+{
+    return a.sid == b.sid;
+}
+constexpr inline bool
+  operator<(CollisionObj_t const &a, CollisionObj_t const &b)
+{
+    return a.sid < b.sid;
+}
 
 struct Hit_t
 {
@@ -46,9 +58,13 @@ class CollisionWorld_s
     static U32_t constexpr maxCap         = 1024;
     static U32_t constexpr maxPrimsInNode = 2u;
 
+    using ObjHandle = std::vector<CollisionObj_t>::iterator;
+
     CollisionWorld_s();
 
-    void addObject(CollisionObj_t const &obj);
+    [[nodiscard]] std::vector<CollisionObj_t>::iterator addObject(CollisionObj_t const &obj);
+    [[nodiscard]] bool isNullCollisionObject(std::vector<CollisionObj_t>::iterator it) const;
+    void transformCollisionObject(std::vector<CollisionObj_t>::iterator, glm::mat4 const &);
 
     // maybe later, now we'll simply rebuild it each frame
     // void removeObject(Sid_t obj);
