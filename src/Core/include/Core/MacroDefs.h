@@ -10,7 +10,7 @@
  * therefore the compiler doesn't have to account for it
  */
 #if defined(__GNUC__) || defined(__clang__) // GCC, Clang, ICC
-#define GGE_unreachable() (__builtin_unreachable())
+#define CGE_unreachable() (__builtin_unreachable())
 #elif defined(_MSC_VER) // MSVC
 
 #define CGE_unreachable() (__assume(false))

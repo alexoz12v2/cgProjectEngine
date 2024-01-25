@@ -6,14 +6,11 @@
 #include "Resource/Rendering/GpuProgram.h"
 #include "Resource/Rendering/cgeTexture.h"
 
-#include <forward_list>
-#include <glm/glm.hpp>
-#include <map>
-#include <memory_resource>
-#include <span>
-#include <tl/optional.hpp>
+#include <glm/ext/vector_float3.hpp>
+#include <glm/ext/matrix_float4x4.hpp>
 #include <vector>
 
+// TODO: Tear this class to pieces and figure out something else. See FScene
 namespace cge
 {
 
@@ -70,13 +67,13 @@ struct Mesh_s
 
     /// @warning to be assigned after the mesh creation, on its first use
     // glUniformli(samplerLoc, samplerIndex)
-    TextureBinderFunc_t streamTextures = &noTex;
+    TextureBinderFunc_t bindTextures = &noTex;
 
     void streamUniforms(MeshUniform_t const &uniforms) const;
 
-    // Sets up uploadedTextures and streamTextures
+    // Sets up uploadedTextures and bindTextures
     void allocateTexturesToGpu();
-    void setupUniforms();
+    void setupUniforms() const;
     void allocateGeometryBuffersToGpu();
 };
 

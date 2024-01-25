@@ -1,0 +1,189 @@
+#version 460 core
+struct Triangle
+{
+    vec4 points[3];
+    vec4 normals[3];
+};
+
+layout(std430, binding = 4) readonly buffer TriangleBuffer
+{
+    Triangle triangles[];
+} terrain;
+
+#define NULL_NODE 4294967295u
+struct ListNode
+{
+    uint triangleIndex;
+    uint nextNode;// if NULL_NODE then nothing
+};
+
+// offset from hashList beginning indicating the first free position index into hashList
+layout(std430, binding = 9) readonly buffer HashGrid
+{
+    uint xAxis[512];
+    uint yAxis[512];
+    ListNode hashList[];
+} grid;
+
+layout(std430, binding = 10) buffer HitInfo {
+    bool present;
+    vec3 position;
+    vec3 normal;
+} hit;
+
+layout(std430, binding = 11) readonly buffer VertexBufferMesh {
+    vec3 vertices[];
+};
+
+layout(std430, binding = 12) readonly buffer IndexBufferMesh {
+    uvec3 triangles[];
+} indexBuf;
+
+#define SIZE 10
+layout(local_size_x = SIZE, local_size_y = SIZE, local_size_z = SIZE) in;
+
+// Returns the minimum and maximum projections of a triangle onto a given axis
+vec2 projectTriangleOntoAxis(vec3 v0, vec3 v1, vec3 v2, vec3 axis) {
+    float dot0 = dot(v0, axis);
+    float dot1 = dot(v1, axis);
+    float dot2 = dot(v2, axis);
+
+    return vec2(min(dot0, min(dot1, dot2)), max(dot0, max(dot1, dot2)));
+}
+
+// Returns true if the projections of two triangles onto the given axis overlap
+bool axisOverlaps(vec2 projA, vec2 projB) {
+    return (projA.x <= projB.y && projA.y >= projB.x) || (projB.x <= projA.y && projB.y >= projA.x);
+}
+
+// Check for triangle-triangle intersection using SAT
+bool triangleTriangleIntersect(vec3 v0a, vec3 v1a, vec3 v2a, vec3 v0b, vec3 v1b, vec3 v2b) {
+    // Calculate edges of the triangles
+    vec3 edgeA0 = v1a - v0a;
+    vec3 edgeA1 = v2a - v1a;
+    vec3 edgeA2 = v0a - v2a;
+
+    vec3 edgeB0 = v1b - v0b;
+    vec3 edgeB1 = v2b - v1b;
+    vec3 edgeB2 = v0b - v2b;
+
+    // Calculate face normals
+    vec3 normalA = cross(edgeA0, edgeA1);
+    vec3 normalB = cross(edgeB0, edgeB1);
+
+    // Check overlap on face normals
+    if (!axisOverlaps(projectTriangleOntoAxis(v0a, v1a, v2a, normalA),
+    /*              */projectTriangleOntoAxis(v0b, v1b, v2b, normalA)))
+    {
+        return false;
+    }
+
+    if (!axisOverlaps(projectTriangleOntoAxis(v0a, v1a, v2a, normalB),
+    /*              */projectTriangleOntoAxis(v0b, v1b, v2b, normalB)))
+    {
+        return false;
+    }
+
+    // Check overlap on edge cross products
+    vec3 edgesA[3] = { edgeA0, edgeA1, edgeA2 };
+    vec3 edgesB[3] = { edgeB0, edgeB1, edgeB2 };
+
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            vec3 axis = cross(edgesA[i], edgesB[j]);
+            if (!axisOverlaps(projectTriangleOntoAxis(v0a, v1a, v2a, axis),
+            /*              */projectTriangleOntoAxis(v0b, v1b, v2b, axis)))
+            {
+                return false;
+            }
+        }
+    }
+
+    // No separating axis found, triangles overlap
+    return true;
+}
+
+uvec2 hashToGrid(vec3 point) { return uvec2(floor(mod(point.x, 512)), floor(mod(point.y, 512))); }
+
+vec3 computeCenter(vec4 points[3]) { return (points[0].xyz + points[1].xyz + points[2].xyz) * 0.33333333f; }
+
+#define EPS 0.001f
+#define PINF uintBitsToFloat(0x7F800000)
+void intersect(uint startTriangle, uint endTriangle)
+{
+    if (hit.present == true) { return; }
+
+    for (uint i = startTriangle; i != endTriangle; i++)
+    {
+        vec3 v0 = vertices[indexBuf.triangles[i].x];
+        vec3 v1 = vertices[indexBuf.triangles[i].y];
+        vec3 v2 = vertices[indexBuf.triangles[i].z];
+        vec3 center = (v0 + v1 + v2) * 0.33333333f;
+        uvec2 gridCoords = hashToGrid(center);
+
+        uint xStart = grid.xAxis[gridCoords.x];
+        uint yStart = grid.yAxis[gridCoords.y];
+        uint target = NULL_NODE;
+        Triangle terrainTri;
+        bool isect;
+
+        // for each common entry in the hashList (compare points within tolerance)
+        for (uint xIndex = xStart; xIndex != NULL_NODE; xIndex = grid.hashList[xIndex].nextNode)
+        {
+            for (uint yIndex = yStart; yIndex != NULL_NODE; yIndex = grid.hashList[yIndex].nextNode)
+            {
+                vec3 xCenter = computeCenter(terrain.triangles[grid.hashList[xIndex].triangleIndex].points);
+                vec3 yCenter = computeCenter(terrain.triangles[grid.hashList[yIndex].triangleIndex].points);
+                if (distance(xCenter, yCenter) < EPS)
+                {
+                    // chech for collision looking up to the terrain buffer and performing
+                    terrainTri = terrain.triangles[grid.hashList[xIndex].triangleIndex];
+                    isect = triangleTriangleIntersect(
+                    /**/v0, v1, v2,
+                    /**/terrainTri.points[0].xyz, terrainTri.points[1].xyz, terrainTri.points[2].xyz);
+                    if (isect)
+                    {
+                        // return on the first intersection found
+                        target = xIndex;
+                        break;
+                    }
+                }
+            }
+            if (isect) { break; }
+        }
+
+        // if intersection, populate the intersection data and return
+        if (isect)
+        {
+            vec3 triCenter = terrainTri.points[0].xyz + terrainTri.points[1].xyz + terrainTri.points[2].xyz;
+            memoryBarrierBuffer();
+            hit.present = true;
+            hit.position = triCenter; // TODO find precise intersection point
+            hit.normal = normalize(terrainTri.normals[0].xyz + terrainTri.normals[1].xyz + terrainTri.normals[2].xyz);  // TODO find precise intersection normal
+            memoryBarrierBuffer();
+
+            return;
+        }
+    }
+}
+
+void main()
+{
+    // barrier on entry to make sure that grid construction has concluded
+    memoryBarrierBuffer();
+
+    uvec3 computeDim = gl_NumWorkGroups * gl_WorkGroupSize;
+    uint idx =  gl_GlobalInvocationID.z * computeDim.x * computeDim.y +
+    gl_GlobalInvocationID.y * computeDim.x +
+    gl_GlobalInvocationID.x;
+
+    // compute mesh range such that triangle.length(), which is arbitrary, is equally subdivided
+    // between all invocations depending on the index. Duplicate computations are allowed.
+    uint totalTriangles = indexBuf.triangles.length();
+    uint trianglesPerInvocation = totalTriangles / gl_NumWorkGroups.x;
+    uint remainingTriangles = totalTriangles - trianglesPerInvocation * gl_NumWorkGroups.x;
+
+    uint startTriangle = min(idx * trianglesPerInvocation + min(idx, remainingTriangles), indexBuf.triangles.length());
+    uint endTriangle = min(startTriangle + trianglesPerInvocation + (idx < remainingTriangles ? 1 : 0), indexBuf.triangles.length());
+    intersect(startTriangle, endTriangle);
+}

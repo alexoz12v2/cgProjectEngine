@@ -1,0 +1,126 @@
+#version 460 core
+
+struct Triangle
+{
+    vec4 points[3];
+    vec4 normals[3];
+};
+
+layout(std430, binding = 4) readonly buffer TriangleBuffer
+{
+    Triangle triangles[];
+} terrain;
+
+#define NULL_NODE 4294967295u
+struct ListNode
+{
+    uint triangleIndex;
+    uint nextNode;// if NULL_NODE then nothing
+};
+
+// offset from hashList beginning indicating the first free position index into hashList
+layout(std430, binding = 9) buffer HashGrid
+{
+    uint xAxis[512];
+    uint yAxis[512];
+    ListNode hashList[];
+} grid;
+
+layout(binding = 1) uniform atomic_uint nextFree;
+
+#define WORK_GROUP_SIZE 10
+layout (local_size_x = WORK_GROUP_SIZE, local_size_y = WORK_GROUP_SIZE, local_size_z = WORK_GROUP_SIZE) in;
+
+uvec2 hashToGrid(vec3 point) { return uvec2(floor(mod(point.x, 512)), floor(mod(point.y, 512))); }
+
+bool atomicWrite(int index, uint dataIndex, uint prev, uint new)
+{
+    uint maxAttempts = 100;
+    uint j = maxAttempts;
+    if (index == 0) { for (; maxAttempts > 0 && atomicCompSwap(grid.hashList[dataIndex].nextNode, NULL_NODE, new) != new; j--) { } }
+    else if (index == 1) { for (; maxAttempts > 0 && atomicCompSwap(grid.xAxis[dataIndex], NULL_NODE, new) != new; j--) { } }
+    else if (index == 2) { for (; maxAttempts > 0 && atomicCompSwap(grid.yAxis[dataIndex], NULL_NODE, new) != new; j--) { } }
+
+    if (j == 0) { return false; }
+    else        { return true; }
+}
+
+void wireInNewLastNode(bool isY, uint coord, uint listIndex)
+{
+    uint prevIndex;
+    if (isY) { prevIndex = grid.yAxis[coord]; }
+    else     { prevIndex = grid.xAxis[coord]; }
+
+    for (; grid.hashList[prevIndex].nextNode != NULL_NODE; prevIndex = grid.hashList[prevIndex].nextNode) {}
+    // now prevIndex contains the previously last node
+
+    while(atomicWrite(0, prevIndex, NULL_NODE, listIndex) == false)
+    {   // at least one new node was inserted
+        for (; grid.hashList[prevIndex].nextNode != NULL_NODE; prevIndex = grid.hashList[prevIndex].nextNode) {}
+    }
+}
+
+void buildGrid(uint startTriangle, uint endTriangle)
+{
+    for (uint i = startTriangle; i != endTriangle; i++)
+    {
+        // compute triangle center
+        vec3 center = (terrain.triangles[i].points[0].xyz + terrain.triangles[i].points[1].xyz + terrain.triangles[i].points[2].xyz) * 0.33333333f;
+        uvec2 gridCoords = hashToGrid(center);
+        ListNode node;
+        node.nextNode = NULL_NODE;
+        node.triangleIndex = i;
+
+        // write the new node in the hashList
+        uint listIndex = atomicCounterIncrement(nextFree);
+        memoryBarrierBuffer();
+        grid.hashList[listIndex] = node;
+
+        // based on the center's xy coordinates, insert it at the end of the lists whose heads are given by xAxis
+        // (handle case in which triangle is the first to be inserted into a list, atomic writes)
+        if (grid.xAxis[gridCoords.x] == NULL_NODE)
+        {
+            bool didWrite = atomicWrite(1, gridCoords.x, NULL_NODE, listIndex);
+            if (!didWrite) // somebody wrote before us
+            {
+                wireInNewLastNode(false, gridCoords.x, listIndex);
+            }
+        }
+        else
+        {
+            wireInNewLastNode(false, gridCoords.x, listIndex);
+        }
+
+        // repeat same operations for yAxis (list will contain duplicates)
+        if (grid.yAxis[gridCoords.y] == NULL_NODE)
+        {
+            bool didWrite = atomicWrite(2, gridCoords.y, NULL_NODE, listIndex);
+            if (!didWrite) // somebody wrote before us
+            {
+                wireInNewLastNode(true, gridCoords.y, listIndex);
+            }
+        }
+        else
+        {
+            wireInNewLastNode(true, gridCoords.y, listIndex);
+        }
+    }
+}
+
+void main()
+{
+    uvec3 computeDim = gl_NumWorkGroups * gl_WorkGroupSize;
+    uint idx =  gl_GlobalInvocationID.z * computeDim.x * computeDim.y +
+    gl_GlobalInvocationID.y * computeDim.x +
+    gl_GlobalInvocationID.x;
+
+    uint totalTriangles = terrain.triangles.length();
+    uint trianglesPerInvocation = totalTriangles / gl_NumWorkGroups.x;
+    uint remainingTriangles = totalTriangles - trianglesPerInvocation * gl_NumWorkGroups.x;
+
+    uint startTriangle = min(idx * trianglesPerInvocation + min(idx, remainingTriangles), terrain.triangles.length());
+    uint endTriangle = min(startTriangle + trianglesPerInvocation + (idx < remainingTriangles ? 1 : 0), terrain.triangles.length());
+
+    buildGrid(startTriangle, endTriangle);
+    memoryBarrierBuffer();
+}

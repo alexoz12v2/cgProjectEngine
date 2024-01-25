@@ -8,6 +8,7 @@
 #include "Core/Type.h"
 #include "Render/Window.h"
 
+#include <GLFW/glfw3.h>
 #include <cstdio>
 namespace cge
 {
@@ -19,9 +20,6 @@ inline U32_t constexpr timeWindowSize  = 1u << timeWindowPower;
 // change in ISceneModule
 IModule               *g_startupModule = nullptr;
 std::function<void()> *g_constructStartupModule;
-Memory_s               g_memory;
-Pool_t                 g_pool;
-DoubleBuffer_t         g_doublebuffer;
 
 EErr_t g_initializerStatus;
 
@@ -34,23 +32,7 @@ namespace detail
         static U64_t constexpr memoryBytes     = 1 << memoryPower;
         static U64_t constexpr memQuarterBytes = memoryBytes >> 2;
 
-        // allocate system memory
-        g_initializerStatus = g_memory.init(memoryBytes, 16);
-        if (g_initializerStatus != EErr_t::eSuccess)
-        {
-            return g_initializerStatus;
-        }
-        printf("allocated memory\n");
-
-        // initialize pool
-        g_pool.init(g_memory.atOffset(0), memQuarterBytes);
-        printf("created pool\n");
-
-        // initialize memory structures
-        g_doublebuffer.init(
-          g_memory.atOffset(memQuarterBytes), memQuarterBytes);
-        printf("created double buffer\n");
-
+        g_initializerStatus = EErr_t::eSuccess;
         return g_initializerStatus;
     }
 
@@ -58,14 +40,30 @@ namespace detail
 
 struct AppStatus_t
 {
-    bool all() const { return windowStayOpen; }
+    [[nodiscard]] bool all() const { return windowStayOpen; }
 
     bool windowStayOpen;
 };
 
 bool appShouldRun(AppStatus_t const &status) { return status.all(); }
-} // namespace cge
 
+void *windowPointer = nullptr;
+
+void enableCursor()
+{
+    assert(windowPointer);
+    auto *window = (GLFWwindow *)windowPointer;
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+}
+
+void disableCursor()
+{
+    assert(windowPointer);
+    auto *window = (GLFWwindow *)windowPointer;
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+}
+
+} // namespace cge
 
 using namespace cge;
 
@@ -78,11 +76,14 @@ I32_t main(I32_t argc, Char8_t **argv)
     U32_t elapsedTime     = timeUnitsIn60FPS;
     F32_t elapsedTimeF    = oneOver60FPS;
 
-    WindowSpec_t windowSpec{ .title = "window", .width = 600, .height = 480 };
-    Window_s     window;
-    AppStatus_t  appStatus{ true };
+    WindowSpec_t windowSpec{
+        .title = "window", .width = 600, .height = 480
+    }; // TODO: read startup config from yaml
+    Window_s      window;
+    ::AppStatus_t appStatus{ true };
 
     window.init(windowSpec);
+    ::windowPointer = window.internal();
     printf("past pre initialization\n");
     (*g_constructStartupModule)();
 
@@ -126,9 +127,8 @@ I32_t main(I32_t argc, Char8_t **argv)
         elapsedTimeF = (F32_t)elapsedTime / timeUnit32;
 
         // swap buffers and poll events (and queue them)
-        window.setDeltaTime(elapsedTimeF);
         window.swapBuffers();
-        window.pollEvents(min(timeUnitsIn60FPS - elapsedTime, 0));
+        window.pollEvents(min(timeUnitsIn60FPS - elapsedTime, 0U));
 
         // dispatch events
         g_eventQueue.dispatch();

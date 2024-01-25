@@ -16,7 +16,6 @@ namespace cge
 struct Sid_t
 {
     Sid_t &operator=(Sid_t const &other) = default;
-    bool   operator<(Sid_t const &other) const { return id < other.id; }
 
     U64_t           id;
     Char8_t const **pStr = nullptr;
@@ -145,7 +144,7 @@ inline U64_t constexpr g_CRC64Table[256] = {
 
 inline U64_t constexpr INITIAL_CRC64 = 0x43a04931514122ddull;
 
-// TODO: as a fast alternative, consider Fowler–Noll–Vo hash function
+// TODO: as a fast alternative, consider Fowlerï¿½Nollï¿½Vo hash function
 inline U64_t constexpr hashCRC64(Char8_t const *str)
 {
     U64_t crc = INITIAL_CRC64;
@@ -157,6 +156,7 @@ inline U64_t constexpr hashCRC64(Char8_t const *str)
 }
 
 bool constexpr operator==(Sid_t a, Sid_t b) { return a.id == b.id; }
+bool constexpr operator<(Sid_t a, Sid_t b) { return a.id < b.id; }
 
 inline Sid_t constexpr operator""_sid(Char8_t const *str, U64_t size)
 {
@@ -173,6 +173,7 @@ Char8_t const *dbg_lookupString(Sid_t sid);
 #else
 #define CGE_DBG_SID(x)
 #define CGE_SID(x) dbg_internString(x)
+#define CGE_DBG_STRLOOKUP(x) dbg_lookupString(x)
 #endif
 
 inline Sid_t constexpr nullSid = { .id = 0ULL };

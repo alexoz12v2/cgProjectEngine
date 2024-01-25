@@ -1,9 +1,13 @@
 #pragma once
 
+#include "Core/MacroDefs.h"
 #include "Core/Type.h"
 
 #if defined(CGE_PLATFORM_WINDOWS)
 #include <windows.h>
+#elif defined(CGE_PLATFORM_LINUX)
+#include <ctime>
+#include <bits/time.h>
 #else
 #error "platform not supported"
 #endif
@@ -25,6 +29,19 @@ inline U64_t hiResTimer()
     LARGE_INTEGER li;
     QueryPerformanceCounter(&li);
     return static_cast<U64_t>(li.QuadPart);
+#elif defined(CGE_PLATFORM_LINUX)
+    U32_t low = 0;
+    U32_t high = 0;
+
+#if defined(__x86_64__) || defined(__i386__)
+    // Use inline assembly for x86 platforms
+    asm volatile("rdtsc" : "=a"(low), "=d"(high));
+#else
+#error "Unsupported architecture"
+#endif
+
+    // Combine the low and high parts to get the 64-bit result
+    return static_cast<U64_t>(low) | (static_cast<U64_t>(high) << 32);
 #endif
 
     CGE_unreachable();
@@ -41,16 +58,22 @@ inline U64_t hiResFrequency()
     LARGE_INTEGER li;
     QueryPerformanceFrequency(&li);
     return static_cast<U64_t>(li.QuadPart);
+#elif defined(CGE_PLATFORM_LINUX)
+    struct timespec res{};
+    clock_getres(CLOCK_MONOTONIC, &res);
+
+    // Convert to frequency (1 / delta time)
+    return static_cast<U64_t>(1e9 / (double)res.tv_nsec);
 #endif
 
     CGE_unreachable();
 }
 
-inline U32_t constexpr timeUnit32 = 300u;
+inline U32_t constexpr timeUnit32 = 300U;
 inline U64_t constexpr timeUnit64 = 300ULL;
 inline F32_t constexpr oneOver60FPS =
-  0.0166666693985462188720703125f; // in hex 0x3c88888a;
-inline U32_t constexpr timeUnitsIn60FPS = timeUnit32 / 60u; // 5
+  0.0166666693985462188720703125F; // in hex 0x3c88888a;
+inline U32_t constexpr timeUnitsIn60FPS = timeUnit32 / 60U; // 5
 
 /**
  * @fn elaspedTimeUnits.
@@ -60,6 +83,7 @@ inline U32_t constexpr timeUnitsIn60FPS = timeUnit32 / 60u; // 5
  */
 inline CGE_forceinline U32_t elapsedTimeUnits(U64_t end, U64_t start)
 {
+    // Convert nanoseconds to 1/300 seconds
     return static_cast<U32_t>((end - start) * timeUnit64 / hiResFrequency());
 }
 
@@ -71,6 +95,6 @@ inline CGE_forceinline U32_t elapsedTimeUnits(U64_t end, U64_t start)
  */
 inline CGE_forceinline F32_t elapsedTimeFloat(U64_t end, U64_t start)
 {
-    return static_cast<F32_t>((end - start) / hiResFrequency());
+    return (F32_t) (end - start) / (F32_t) hiResFrequency();
 }
 } // namespace cge

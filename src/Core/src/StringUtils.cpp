@@ -1,6 +1,5 @@
 #include "StringUtils.h"
 
-#include "MacroDefs.h"
 namespace cge
 {
 

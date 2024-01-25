@@ -104,20 +104,28 @@ class HandleTable_s
         friend HandleTable_s;
 
       public:
-        Mesh_s        &getAsMesh() { return *(Mesh_s *)m_ptr; }
-        Light_t       &getAsLight() { return *(Light_t *)m_ptr; }
-        TextureData_s &getAsTexture() { return *(TextureData_s *)m_ptr; }
+        // TODO optionality
+        Mesh_s        &asMesh() { return *(Mesh_s *)m_ptr; }
+        Light_t       &asLight() { return *(Light_t *)m_ptr; }
+        TextureData_s &asTexture() { return *(TextureData_s *)m_ptr; }
 
-        B8_t hasValue() const { return m_ptr; }
+        [[nodiscard]] B8_t hasValue() const;
 
-        Sid_t sid() const { return m_sid; }
+        [[nodiscard]] Sid_t sid() const { return m_sid; }
 
+        [[nodiscard]] static const Ref_s& nullRef()
+        {
+            static const Ref_s ref;
+            return ref;
+        }
       private:
-        Ref_s() = default;
-        Sid_t           m_sid;
-        EResourceType_t m_type;
-        void           *m_ptr;
+        constexpr Ref_s() = default;
+
+        Sid_t           m_sid  = nullSid;
+        EResourceType_t m_type = EResourceType_t::eInvalid;
+        void           *m_ptr  = nullptr;
     };
+
     Mesh_s              &insertMesh(Sid_t sid, Mesh_s mesh);
     Mesh_s              &insertMesh(Sid_t sid);
     TextureData_s       &insertTexture(Sid_t sid, TextureData_s const &texture);
@@ -129,6 +137,8 @@ class HandleTable_s
     std::map<Sid_t, Light_t>       lightTable;
     std::map<Sid_t, TextureData_s> textureTable;
 };
+
+inline auto nullRef = HandleTable_s::Ref_s::nullRef();
 
 extern HandleTable_s g_handleTable;
 } // namespace cge

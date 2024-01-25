@@ -24,10 +24,10 @@ enum class ETexture_t : U8_t
 
 struct TextureSpec_t
 {
-    ETexture_t type;
+    ETexture_t type = ETexture_t::e2D;
     U32_t      width;
     U32_t      height;
-    U32_t      depth;
+    U32_t      depth = 1;
     U32_t      internalFormat;
     B8_t       genMips;
 };
@@ -38,7 +38,7 @@ struct TextureData_s
 
     U32_t width;
     U32_t height;
-    U32_t depth; // if 1 then 2D
+    U32_t depth = 1; // if 1 then 2D
 
     // OpenGL related
     U32_t format;
@@ -49,19 +49,19 @@ struct TexTransferSpec_t
 {
     void const* data;
 
-    U32_t level;
-    U32_t xoff;
-    U32_t yoff;
-    U32_t zoff;
+    U32_t level = 0;
+    U32_t xoff = 0;
+    U32_t yoff = 0;
+    U32_t zoff = 0;
     U32_t width;
     U32_t height;
-    U32_t depth;
-    U32_t layer;
+    U32_t depth = 1;
+    U32_t layer = 0;
 
     U32_t format;
     U32_t type;
 
-    B8_t usePixelUnpack;
+    B8_t usePixelUnpack = false;
 };
 
 // TODO: presets functions
@@ -69,8 +69,8 @@ struct SamplerSpec_t
 {
     U32_t minFilter;
     U32_t magFilter;
-    F32_t minLod;
-    F32_t maxLod;
+    F32_t minLod = 0.f;
+    F32_t maxLod = 1000.f;
     U32_t wrap; // s t and r
     F32_t borderColor[3];
     // U32_t compareMode; maybe later, these
@@ -84,7 +84,7 @@ class Texture_s
     Texture_s();
     ~Texture_s();
 
-    U32_t getId() const;
+    [[nodiscard]] U32_t id() const;
 
     void bind(ETexture_t type) const;
 

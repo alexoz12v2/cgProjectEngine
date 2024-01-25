@@ -3,6 +3,8 @@
 #include "Resource/HandleTable.h"
 #include "Resource/Rendering/cgeMesh.h"
 #include "Resource/Rendering/cgeScene.h"
+#include <memory>
+#include <vector>
 
 namespace cge
 {
@@ -55,9 +57,11 @@ bool CollisionWorld_s::intersect(Ray_t const &ray, U32_t nodeIdx, Hit_t &outHit)
     }
 }
 
-void CollisionWorld_s::addObject(CollisionObj_t const &obj)
+std::vector<CollisionObj_t>::iterator
+  CollisionWorld_s::addObject(CollisionObj_t const &obj)
 {
     objs.push_back(obj);
+    return --objs.end();
 }
 
 void CollisionWorld_s::subdivide(U32_t nodeIdx)
@@ -144,6 +148,22 @@ B8_t CollisionWorld_s::intersectLeaf(
 
     return bIsect;
 }
+bool CollisionWorld_s::isNullCollisionObject(
+  std::vector<CollisionObj_t>::iterator it) const
+{
+    return it == objs.cend();
+}
+
+void CollisionWorld_s::transformCollisionObject(
+  std::vector<CollisionObj_t>::iterator it,
+  const glm::mat4                      &m)
+{
+    if (it != objs.cend())
+    {
+        it->ebox.min = m * glm::vec4(it->ebox.min, 1.f);
+        it->ebox.max = m * glm::vec4(it->ebox.max, 1.f);
+    }
+}
 
 // https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
 B8_t intersectObj(Ray_t const &ray, CollisionObj_t const &obj, Hit_t &outHit)
@@ -153,8 +173,7 @@ B8_t intersectObj(Ray_t const &ray, CollisionObj_t const &obj, Hit_t &outHit)
     bool found = false;
     if (ref.hasValue())
     {
-        for (Mesh_s const &mesh = ref.getAsMesh();
-             auto const   &face : mesh.indices)
+        for (Mesh_s const &mesh = ref.asMesh(); auto const &face : mesh.indices)
         {
             glm::mat4 const &transform =
               g_scene.getNodeBySid(obj.sid)->absoluteTransform;

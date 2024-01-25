@@ -1,4 +1,5 @@
 #include "Rendering/cgeMesh.h"
+#include "Rendering/Buffer.h"
 
 #include <HandleTable.h>
 #include <RenderUtils/GLutils.h>
@@ -69,7 +70,7 @@ void Mesh_s::allocateTexturesToGpu()
     U32_t i = 0;
     for (Sid_t texid : textures)
     {
-        auto texData = g_handleTable.get(texid).getAsTexture();
+        auto texData = g_handleTable.get(texid).asTexture();
 
         // upload texture to gpu
         glActiveTexture(GL_TEXTURE0 + i);
@@ -108,7 +109,7 @@ void Mesh_s::allocateTexturesToGpu()
     }
 
     // assign default texture binder function (TODO better)
-    streamTextures = [](Mesh_s const *mesh)
+    bindTextures = [](Mesh_s const *mesh)
     {
         U32_t fragId     = mesh->shaderProgram.id();
         U32_t samplerLoc = glGetUniformLocation(fragId, "sampler");
@@ -116,7 +117,7 @@ void Mesh_s::allocateTexturesToGpu()
     };
 }
 
-void Mesh_s::setupUniforms()
+void Mesh_s::setupUniforms() const
 {
     auto uniforms = shaderProgram.getUniformBlock(
       { "MeshUniforms", uniformNames, uniformCount });
