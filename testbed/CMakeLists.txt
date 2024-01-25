@@ -1,12 +1,6 @@
 add_executable(testbed)
 target_sources(testbed
   PRIVATE
-<<<<<<< HEAD
-    Testbed.h
-    Testbed.cpp
-    MainMenu.h
-    MainMenu.cpp
-=======
   Player.h
   Player.cpp
   ConstantsAndStructs.h
@@ -15,7 +9,8 @@ target_sources(testbed
   WorldSpawner.h
   WorldSpawner.cpp
   StbImageImplementation.cpp
->>>>>>> main
+  MainMenu.h
+  MainMenu.cpp
 )
 
 target_include_directories(testbed
@@ -24,8 +19,4 @@ target_include_directories(testbed
 )
 
 target_link_libraries(testbed PRIVATE cge::cge stb::stb glm::glm)
-<<<<<<< HEAD
-# target_link_system_libraries(testbed PUBLIC fmt::fmt)
-=======
 # target_link_system_libraries(testbed PUBLIC )
->>>>>>> main
