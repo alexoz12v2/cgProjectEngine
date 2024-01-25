@@ -10,7 +10,6 @@
 #include "Resource/Rendering/ShaderLibrary.h"
 #include "Resource/Rendering/cgeTexture.h"
 
-#include <fmt/core.h>
 #include <glad/gl.h>
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
@@ -252,8 +251,9 @@ void WorldSpawner::transformTerrain(const glm::mat4 &transform)
 
 HitInfo_t WorldSpawner::detectTerrainCollisions(const glm::mat4 &transform)
 {
-    //m_collision.buildShader.bind();
-    //glUniform1ui(glGetUniformLocation(m_collision.buildShader.id(), "nextFree"), 0u);
+    // m_collision.buildShader.bind();
+    // glUniform1ui(glGetUniformLocation(m_collision.buildShader.id(),
+    // "nextFree"), 0u);
     return HitInfo_t{};
 }
 
@@ -270,22 +270,23 @@ void WorldSpawner::createCollisionBuffersAndShaders()
       .map_or_else(
         [this](Shader_s const *shader)
         { m_collision.buildShader.build("BuildTerrainHashGrid", &shader, 1); },
-        []() { fmt::print("could not open BuildTerrainHashGrid shader"); });
+        []() { printf("could not open BuildTerrainHashGrid shader"); });
     g_shaderLibrary.open("../assets/TerrainCollision.comp")
       .map_or_else(
         [this](Shader_s const *shader)
         { m_collision.detectShader.build("TerrainCollision", &shader, 1); },
-        []() { fmt::print("could not open TerrainCollision shader"); });
+        []() { printf("could not open TerrainCollision shader"); });
     g_shaderLibrary.open("../assets/ResetTerrainHashGrid.comp")
       .map_or_else(
         [this](Shader_s const *shader)
         { m_collision.resetShader.build("ResetTerrainHashGrid", &shader, 1); },
-        []() { fmt::print("could not open ResetTerrainHashGrid shader"); });
+        []() { printf("could not open ResetTerrainHashGrid shader"); });
 
     // allocate all buffers
-    glUniform1ui(glGetUniformLocation(m_collision.buildShader.id(), "nextFree"), 0u);
+    glUniform1ui(
+      glGetUniformLocation(m_collision.buildShader.id(), "nextFree"), 0u);
 
-    static U32_t constexpr axisSize          = 512u * sizeof(U32_t);
+    static U32_t constexpr axisSize = 512u * sizeof(U32_t);
     // 32 MB for a total of 2^22 list nodes
     static U32_t constexpr listSize = (1u << 22u) * sizeof(ListNode);
     m_collision.hashGridBuffer.allocateImmutable(
@@ -302,7 +303,7 @@ void WorldSpawner::createCollisionBuffersAndShaders()
 
     // run resetTerrainhashGrid.comp to initialize it
     m_collision.resetShader.bind();
-    glDispatchCompute(1,1,1);
+    glDispatchCompute(1, 1, 1);
     m_collision.resetShader.unbind();
 }
 

@@ -11,7 +11,6 @@ namespace cge
 {
 
 extern IModule               *g_startupModule;
-extern Pool_t                 g_pool;
 extern std::function<void()> *g_constructStartupModule;
 
 I32_t main(I32_t argc, Char8_t **argv);

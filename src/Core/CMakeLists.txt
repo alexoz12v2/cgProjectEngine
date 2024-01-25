@@ -6,7 +6,6 @@ include(GNUInstallDirs)
 add_library(cge-core STATIC)
 target_sources(cge-core
   PRIVATE
-  src/Alloc.cpp
   src/StringUtils.cpp
   src/Event.cpp
   PUBLIC
@@ -21,9 +20,6 @@ target_sources(cge-core
 
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/Module.h>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/Module.h>
-
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/Alloc.h>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/Alloc.h>
 
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/Containers.h>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/Containers.h>

@@ -20,9 +20,9 @@ void Renderer_s::renderScene(
 {
     glCullFace(GL_BACK);
     glFrontFace(GL_CCW);
-    //glClearColor(0.f, 0.f, 0.f, 1.f);
+    // glClearColor(0.f, 0.f, 0.f, 1.f);
 
-    //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
 
@@ -54,9 +54,9 @@ void Renderer_s::renderScene(
 // TODO parameters: transform, drawMode, normalOrientation
 void Renderer_s::renderCube() const
 {
-    static U32_t constexpr verticesCount               = 8;
-    static glm::vec3 constexpr vertices[verticesCount] = {
-        // -------------------
+    static U32_t constexpr verticesCount     = 8;
+    static glm::vec3 vertices[verticesCount] = {
+        // -------------------------------
         // Front face
         { -1.f, -1.f, 1.f },
         { 1.f, -1.f, 1.f },
@@ -68,13 +68,13 @@ void Renderer_s::renderCube() const
         { 1.f, 1.f, -1.f },
         { -1.f, 1.f, -1.f }
     };
-    static U32_t constexpr verticesNumComponents = glm::vec3::length();
-    static U32_t constexpr verticesBytes =
+    static U32_t verticesNumComponents = glm::vec3::length();
+    static U32_t verticesBytes =
       verticesNumComponents * verticesCount * sizeof(glm::vec3::value_type);
 
-    static U32_t constexpr triangleCount                 = 12;
-    static glm::uvec3 constexpr triangles[triangleCount] = {
-        // --------------------
+    static U32_t constexpr triangleCount       = 12;
+    static glm::uvec3 triangles[triangleCount] = {
+        // ----------------------------
         // Front Face
         { 0, 1, 3 },
         { 1, 2, 3 },
@@ -94,8 +94,8 @@ void Renderer_s::renderCube() const
         { 4, 5, 1 },
         { 0, 4, 1 }
     };
-    static U32_t constexpr indicesNumComponents = glm::uvec3::length();
-    static U32_t constexpr indicesBytes =
+    static U32_t indicesNumComponents = glm::uvec3::length();
+    static U32_t indicesBytes =
       indicesNumComponents * triangleCount * sizeof(glm::uvec3::value_type);
 
     GLuint VBO, VAO, EBO;
@@ -128,10 +128,12 @@ void Renderer_s::renderCube() const
     glDeleteBuffers(1, &VBO);
     glDeleteBuffers(1, &EBO);
 }
-void Renderer_s::clear() const {
+void Renderer_s::clear() const
+{
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
-void Renderer_s::viewport(U32_t width, U32_t height) const {
+void Renderer_s::viewport(U32_t width, U32_t height) const
+{
     glViewport(0, 0, width, height);
 }
 } // namespace cge

@@ -15,7 +15,6 @@
 
 #include "ConstantsAndStructs.h"
 
-#include <fmt/core.h>
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_float4x4.hpp>
 #include <glm/ext/matrix_transform.hpp>
@@ -36,9 +35,9 @@ void TestbedModule::onInit(ModuleInitParams params)
     Sid_t const mId = "TestbedModule"_sid;
     CGE_DBG_SID("TestbedModule");
     Char8_t const *str = CGE_DBG_STRLOOKUP(mId);
-    fmt::print("Hello World!! {}\n", str);
+    printf("Hello World!! %s\n", str);
 #if defined(CGE_DEBUG)
-    fmt::print("DebugMode!\n");
+    printf("DebugMode!\n");
 #endif
 
     // register to all relevant events pressed
@@ -54,7 +53,7 @@ void TestbedModule::onInit(ModuleInitParams params)
       evFramebufferSize, framebufferSizeCallback<TestbedModule>, listenerData);
 
     // open mesh file
-    fmt::print("Opening Scene file\n");
+    printf("Opening Scene file\n");
     g_scene = *Scene_s::fromObj("../assets/lightTestScene.obj");
 
     // setup player
@@ -83,7 +82,7 @@ void TestbedModule::onFramebufferSize(I32_t width, I32_t height)
     framebufferSize.x = width;
     framebufferSize.y = height;
     g_renderer.viewport(framebufferSize.x, framebufferSize.y);
-    fmt::print("width: {}, height: {}\n", framebufferSize.x, framebufferSize.y);
+    printf("width: %u, height: %u\n", framebufferSize.x, framebufferSize.y);
 }
 
 void TestbedModule::onTick(float deltaTime)
