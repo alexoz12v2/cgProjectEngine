@@ -42,10 +42,10 @@ void Player::spawn(const Camera_t &view, Sid_t meshSid)
 
 AABB_t Player::recomputeGlobalSpaceBB() const
 {
-    glm::mat4 &transform = g_scene.getNodeBySid(m_sid)->absoluteTransform;
+    glm::mat4 transform = g_scene.getNodeBySid(m_sid)->getAbsoluteTransform();
 
     transform = glm::inverse(m_camera.viewTransform())
-                * glm::translate(glm::mat4(1.F), glm::vec3(0, 0, 5));
+                * glm::translate(glm::mat4(1.F), glm::vec3(0, 0, -5));
 
     AABB_t const gSpaceAABB = { .min = transform * glm::vec4(m_box.min, 1.f),
                                 .max = transform * glm::vec4(m_box.max, 1.f) };
@@ -54,8 +54,9 @@ AABB_t Player::recomputeGlobalSpaceBB() const
 
 void Player::onTick(F32_t deltaTime)
 {
+    printf("Player::onTick deltaTime = %f\n", deltaTime);
     // update bounding box
-    glm::mat4      &transform = g_scene.getNodeBySid(m_sid)->absoluteTransform;
+    glm::mat4 transform = g_scene.getNodeBySid(m_sid)->getAbsoluteTransform();
     glm::vec3 const displacement = displacementTick(deltaTime);
     transform                    = glm::translate(transform, displacement);
     m_worldObjPtr->ebox          = recomputeGlobalSpaceBB();
@@ -66,12 +67,15 @@ void Player::onTick(F32_t deltaTime)
     auto const meshCenter = centroid(m_worldObjPtr->ebox);
 
     // TODO add effective movement
-    Ray_t const ray{ .o = m_camera.position, .d = meshCenter - m_camera.position };
+    m_camera.position += displacement;
+
+    Ray_t const ray{ .o = m_camera.position,
+                     .d = meshCenter - m_camera.position };
     Hit_t       hit;
     g_world.build();
     if (g_world.intersect(ray, 0, hit))
     {
-        //if (hit.t <= 0.5F) { m_camera.position = oldPosition; }
+        // if (hit.t <= 0.5F) { m_camera.position = oldPosition; }
     }
 }
 
@@ -130,9 +134,9 @@ void Player::onMouseButton([[maybe_unused]] I32_t key, I32_t action)
 void Player::onMouseMovement(F32_t xpos, F32_t ypos)
 {
     // TODO refactor
-    auto        &transform = g_scene.getNodeBySid(m_sid)->absoluteTransform;
-    static F32_t yaw       = 0;
-    static F32_t pitch     = 0;
+    auto transform     = g_scene.getNodeBySid(m_sid)->getAbsoluteTransform();
+    static F32_t yaw   = 0;
+    static F32_t pitch = 0;
     if (!m_isCursorDisabled)
     {
         m_lastCursorPosition = { xpos, ypos };
@@ -178,8 +182,6 @@ void Player::yawPitchRotate(F32_t yaw, F32_t pitch)
 glm::mat4 Player::viewTransform() const { return m_camera.viewTransform(); }
 Camera_t  Player::getCamera() const { return m_camera; }
 glm::vec3 Player::lastDisplacement() const { return m_lastDisplacement; }
-glm::vec3 Player::getCentroid() const {
-    return centroid(m_worldObjPtr->ebox);
-}
+glm::vec3 Player::getCentroid() const { return centroid(m_worldObjPtr->ebox); }
 
 } // namespace cge

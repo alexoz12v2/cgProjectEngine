@@ -54,7 +54,11 @@ void TestbedModule::onInit(ModuleInitParams params)
 
     // open mesh file
     printf("Opening Scene file\n");
-    g_scene = *Scene_s::fromObj("../assets/lightTestScene.obj");
+    g_scene         = Scene_s::fromObj("../assets/lightTestScene.obj");
+    auto planeScene = Scene_s::fromObj("../assets/plane.obj");
+    auto planeSid   = *planeScene.names();
+    auto pPlane     = g_scene.addChild(
+      planeSid, glm::translate(glm::mat4(1.f), glm::vec3(1.f, 0.f, 0.f)));
 
     // setup player
     Camera_t camera{};
@@ -99,10 +103,15 @@ void TestbedModule::onTick(float deltaTime)
     auto const camera = player.getCamera();
     auto const center = player.getCentroid();
 
-    worldSpawner.transformTerrain(
-      glm::translate(glm::mat4(1.F), glm::vec3(p.x, p.y, 0)));
+    // worldSpawner.transformTerrain(glm::translate(glm::mat4(1.F),
+    // glm::vec3(p.x, p.y, 0)));
 
-    worldSpawner.renderTerrain(camera); // TODO deltaTime is broken
+    // worldSpawner.renderTerrain(camera); // TODO deltaTime is broken
+    printf(
+      "Testbed::onTick camera.position = { %f %f %f }",
+      camera.position.x,
+      camera.position.y,
+      camera.position.z);
 
     g_renderer.renderScene(
       g_scene,
@@ -113,7 +122,7 @@ void TestbedModule::onTick(float deltaTime)
     // Disable depth buffer writes
     // glDepthMask(GL_FALSE);
 
-    worldSpawner.detectTerrainCollisions(camera.viewTransform());
+    // worldSpawner.detectTerrainCollisions(camera.viewTransform());
 }
 
 TestbedModule::TestbedModule() = default;

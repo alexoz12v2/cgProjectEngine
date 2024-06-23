@@ -6,7 +6,7 @@
 #include <glm/ext/matrix_transform.hpp>
 
 
-#define VOXEL_COMPUTE_LOCAL_SIZE 10
+#define VOXEL_COMPUTE_LOCAL_SIZE 10U
 
 namespace cge
 {
@@ -352,7 +352,7 @@ void VoxelMesh_s::regenerate(
     glBindBufferBase(TriLUTBuffer_s::targetType, 7, m_triLUTBuffer.id());
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, m_indirectBuffer.id());
 
-    glClientWaitSync(m_fence, GL_SYNC_FLUSH_COMMANDS_BIT, 1000000000);
+    // glClientWaitSync(m_fence, GL_SYNC_FLUSH_COMMANDS_BIT, 1000000000);
 
     // compute density function
     m_densityUpdate.bind();
@@ -385,12 +385,12 @@ struct DirectionalLight_t
 void VoxelMesh_s::draw(
   glm::mat4 const &model,
   glm::mat4 const &view,
-  glm::mat4 const &proj)
+  glm::mat4 const &proj,
+  glm::vec3        objectColor)
 {
-    glDeleteSync(m_fence);
+    // glDeleteSync(m_fence);
     auto               scaledModel = glm::scale(model, glm::vec3(m_scale));
     U32_t              id          = m_drawShader.id();
-    auto               objectColor = glm::vec3(1.0f, 0.65f, 0.0f);
     DirectionalLight_t dirLight{ .direction = glm::vec3(0.5f, 1.0f, 0.2f),
                                  .ambient   = glm::vec3(0.15f, 0.15f, 0.15f),
                                  .diffuse   = glm::vec3(0.4f, 0.4f, 0.4f) };
@@ -424,7 +424,7 @@ void VoxelMesh_s::draw(
     glDrawArraysIndirect(GL_TRIANGLES, nullptr);
     m_VAO.unbind();
 
-    m_fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+    // m_fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 }
 
 } // namespace cge

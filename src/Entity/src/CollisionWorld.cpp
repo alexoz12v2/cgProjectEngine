@@ -176,7 +176,7 @@ B8_t intersectObj(Ray_t const &ray, CollisionObj_t const &obj, Hit_t &outHit)
         for (Mesh_s const &mesh = ref.asMesh(); auto const &face : mesh.indices)
         {
             glm::mat4 const &transform =
-              g_scene.getNodeBySid(obj.sid)->absoluteTransform;
+              g_scene.getNodeBySid(obj.sid)->getAbsoluteTransform();
             glm::vec3 v0 =
               transform * glm::vec4(mesh.vertices[face[0]].pos, 1.f);
             glm::vec3 v1 =

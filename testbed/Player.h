@@ -16,7 +16,7 @@ namespace cge
 class Player
 {
   public:
-    static F32_t constexpr baseVelocity     = 0.1F;
+    static F32_t constexpr baseVelocity     = 100.F;
     static F32_t constexpr mouseSensitivity = 0.1F;
 
     void spawn(Camera_t const &, Sid_t);

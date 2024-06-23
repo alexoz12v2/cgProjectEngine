@@ -8,8 +8,8 @@
 
 #include <forward_list>
 #include <map>
-#include <vector>
 #include <string>
+#include <vector>
 
 extern "C"
 {
@@ -20,15 +20,50 @@ extern "C"
 namespace cge
 {
 
+
+class Scene_s;
 struct SceneNode_s
 {
-    Sid_t        sid;               // sid of the mesh
-    glm::mat4    absoluteTransform; // Absolute transform
-    glm::mat4    relativeTransform;
-    SceneNode_s *parent; // Pointer to the parent node
-    B8_t         translucent;
+    friend class Scene_s;
+    using ChildList = std::pmr::vector<SceneNode_s *>;
 
-    std::pmr::forward_list<SceneNode_s *> children;
+    SceneNode_s(Sid_t sid_, SceneNode_s &parent_)
+      : m_sid(sid_), m_isRoot(false), m_parent(parent_)
+    {
+    }
+
+    Sid_t        getSid() const { return m_sid; }
+    glm::mat4    getRelativeTransform() const { return m_relativeTransform; }
+    glm::mat4    getAbsoluteTransform() const;
+    SceneNode_s *getParent() const
+    {
+        if (m_isRoot) { return &m_parent.parent.get(); }
+        else { return nullptr; }
+    }
+
+
+    void transform(glm::mat4 const &t)
+    {
+        m_relativeTransform = t * m_relativeTransform;
+    }
+
+  private:
+    SceneNode_s(Sid_t sid_) : m_sid(sid_), m_isRoot(true), m_parent(true) {}
+
+    union U
+    {
+        U(SceneNode_s &x) : parent(x) {}
+        U(B8_t x) : isRoot(x) {}
+        std::reference_wrapper<SceneNode_s> parent;
+        B8_t                                isRoot;
+    };
+
+    Sid_t     m_sid; // sid of the mesh
+    U         m_parent;
+    B8_t      m_isRoot;
+    ChildList m_children          = ChildList(); // stored in bnodes
+    glm::mat4 m_relativeTransform = glm::mat4(1.f);
+    B8_t      m_translucent       = false;
 };
 
 class Scene_s
@@ -36,7 +71,11 @@ class Scene_s
     friend class Renderer_s;
 
   public:
-    static tl::optional<Scene_s> fromObj(Char8_t const *path);
+    Scene_s()                = default;
+    Scene_s(Scene_s const &) = default;
+    static Scene_s fromObj(Char8_t const *path);
+
+    void mergeWith(Scene_s const &other);
 
     SceneNode_s *getNodeBySid(Sid_t sid)
     {
@@ -44,11 +83,16 @@ class Scene_s
         return (it != m_bnodes.end()) ? &(it->second) : nullptr;
     }
 
-    B8_t addChild(Sid_t parent, Sid_t child);
+    SceneNode_s *addChild(
+      SceneNode_s &parent,
+      Sid_t        childSid,
+      glm::mat4    transform = glm::mat4(1.f));
+    SceneNode_s *addChild(Sid_t childSid, glm::mat4 transform = glm::mat4(1.f))
+    {
+        return addChild(m_root, childSid, transform);
+    };
 
-    B8_t removeChild(Sid_t parent, Sid_t child);
-
-    B8_t removeNode(Sid_t sid);
+    B8_t removeChild(SceneNode_s *parent, Sid_t child);
 
     std::pmr::vector<Sid_t>::const_iterator names() const
     {
@@ -61,20 +105,25 @@ class Scene_s
     }
 
   private:
+    SceneNode_s *addChild(SceneNode_s &parent, SceneNode_s *child);
+
     void processNode(
-      Sid_t          parent,
+      SceneNode_s   &parent,
       aiNode const  *node,
       aiScene const *aScene,
-      Scene_s       *outScene);
+      Char8_t const *path);
 
     // trasform is relative to parent
-    SceneNode_s &
-      createNode(Sid_t sid, glm::mat4 const &transform = glm::mat4(1.f));
+    SceneNode_s *createNode(
+      Sid_t            sid,
+      SceneNode_s     &parent,
+      glm::mat4 const &transform = glm::mat4(1.f));
 
     std::pmr::map<Sid_t, SceneNode_s> m_bnodes;
+    SceneNode_s                       m_root = SceneNode_s(nullSid);
     std::pmr::vector<Sid_t>           m_names;
-    std::string                       m_path;
 };
+
 extern Scene_s g_scene;
 
 } // namespace cge

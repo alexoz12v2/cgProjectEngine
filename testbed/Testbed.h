@@ -12,10 +12,10 @@ namespace cge
 
 class TestbedModule : public IModule
 {
-    static Sid_t constexpr vertShader       = "VERTEX"_sid;
-    static Sid_t constexpr fragShader       = "FRAG"_sid;
-    static Sid_t constexpr cubeMeshSid      = "Cube"_sid;
-    static Sid_t constexpr planeMeshSid     = "Plane"_sid;
+    static Sid_t constexpr vertShader   = "VERTEX"_sid;
+    static Sid_t constexpr fragShader   = "FRAG"_sid;
+    static Sid_t constexpr cubeMeshSid  = "Cube"_sid;
+    static Sid_t constexpr planeMeshSid = "Plane"_sid;
 
   public:
     TestbedModule();
@@ -33,7 +33,6 @@ class TestbedModule : public IModule
     void onTick(float deltaTime) override;
 
   private:
-    void                yawPitchRotate(F32_t yaw, F32_t pitch);
     [[nodiscard]] F32_t aspectRatio() const
     {
         return (F32_t)framebufferSize.x / (F32_t)framebufferSize.y;

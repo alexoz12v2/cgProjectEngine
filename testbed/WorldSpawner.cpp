@@ -22,8 +22,6 @@ void WorldSpawner::init()
     EventArg_t listenerData{};
     listenerData.idata.p = (Byte_t *)this;
     g_eventQueue.addListener(
-      evKeyPressed, KeyCallback<WorldSpawner>, listenerData);
-    g_eventQueue.addListener(
       evFramebufferSize, framebufferSizeCallback<WorldSpawner>, listenerData);
 
     // background
@@ -176,11 +174,19 @@ void WorldSpawner::generateBackgroundCubemap()
 }
 void WorldSpawner::renderTerrain(Camera_t const &camera)
 {
-    m_terrain.regenerate({ .scale = 2.F }, m_terrainTransform);
-    m_terrain.draw(
+    for (U32_t i = 0; i != chunksCount; i++)
+    {
+        m_terrain[i].regenerate({ .scale = 2.F }, m_terrainTransform[i]);
+    }
+    m_terrain[0].draw(
       glm::mat4(1.F),
       camera.viewTransform(),
       glm::perspective(FOV, aspectRatio(), CLIPDISTANCE, RENDERDISTANCE));
+    m_terrain[1].draw(
+      glm::mat4(1.F),
+      camera.viewTransform(),
+      glm::perspective(FOV, aspectRatio(), CLIPDISTANCE, RENDERDISTANCE),
+      { 1.f, 0, 0 });
 }
 
 void WorldSpawner::renderBackground(Camera_t const &camera) const
@@ -225,28 +231,13 @@ F32_t WorldSpawner::aspectRatio() const
 {
     return (F32_t)m_framebufferSize.x / (F32_t)m_framebufferSize.y;
 }
-void WorldSpawner::onKey(I32_t key, I32_t action)
-{
-    //    switch (key)
-    //    {
-    //    case GLFW_KEY_UP:
-    //        m_terrainTransform =
-    //          glm::translate(m_terrainTransform, glm::vec3(0.F, 0.01f, 0.F));
-    //        break;
-    //    case GLFW_KEY_DOWN:
-    //        m_terrainTransform =
-    //          glm::translate(m_terrainTransform, glm::vec3(0.F, -0.01f, 0.F));
-    //        break;
-    //    }
-}
+
 void WorldSpawner::transformTerrain(const glm::mat4 &transform)
 {
-    m_terrainTransform = glm::translate(
-      transform,
-      glm::vec3(
-        m_terrainTransform[3].x,
-        m_terrainTransform[3].y,
-        m_terrainTransform[3].z));
+    //for (U32_t i = 0; i != chunksCount; i++)
+    //{
+    //    m_terrainTransform[i] *= transform;
+    //}
 }
 
 HitInfo_t WorldSpawner::detectTerrainCollisions(const glm::mat4 &transform)

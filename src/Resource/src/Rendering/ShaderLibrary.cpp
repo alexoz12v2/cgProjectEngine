@@ -76,8 +76,8 @@ tl::optional<Shader_s *> cge::ShaderLibrary_s::open(const char *path)
       std::forward_as_tuple(pathSid),
       std::forward_as_tuple(pathSid, glid, source));
 
-    if (wasEmplaced) { return &it->second; }
-    else { return tl::nullopt; }
+    if (wasEmplaced) { return &it->second; } // TODO insert check/warning
+    else { return &m_shaderMap.find(pathSid)->second; }
 }
 
 ShaderLibrary_s g_shaderLibrary;

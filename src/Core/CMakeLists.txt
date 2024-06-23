@@ -8,6 +8,7 @@ target_sources(cge-core
   PRIVATE
   src/StringUtils.cpp
   src/Event.cpp
+  src/Random.cpp
   PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/Type.h>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/Type.h>
@@ -35,6 +36,9 @@ target_sources(cge-core
 
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/KeyboardKeys.h>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/KeyboardKeys.h>
+
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/Random.h>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/Random.h>
 )
 
 

@@ -33,7 +33,7 @@ void Renderer_s::renderScene(
         auto          meshRef = g_handleTable.get(sid);
         Mesh_s const &mesh    = meshRef.asMesh();
 
-        glm::mat4 const     modelView = view * sceneNode.absoluteTransform;
+        glm::mat4 const     modelView = view * sceneNode.getAbsoluteTransform();
         MeshUniform_t const uniforms{ .modelView     = modelView,
                                       .modelViewProj = proj * modelView };
 

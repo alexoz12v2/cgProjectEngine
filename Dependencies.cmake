@@ -28,6 +28,10 @@ function(cge_setup_dependencies)
     CPMAddPackage("gh:skypjack/entt@3.12.2")
   endif()
 
+  if(NOT TARGET freetype)
+    CPMAddPackage("gh:servo/libfreetype2@4.0.7")
+  endif()
+
   #------------------------------------------------------------------------------
   # Begin GLFW
   #------------------------------------------------------------------------------

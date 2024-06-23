@@ -9,6 +9,7 @@
 #include <glad/gl.h>
 #include <stb/stb_image.h>
 
+#include <algorithm>
 #include <cassert>
 
 namespace cge
@@ -21,7 +22,8 @@ struct STBIDeleter
 };
 
 // TODO more
-std::vector<Sid_t> loadMaterialTexture(const Char8_t *basePath, aiMaterial const *mat)
+std::vector<Sid_t>
+  loadMaterialTexture(const Char8_t *basePath, aiMaterial const *mat)
 {
     static char        buffer[1024];
     std::vector<Sid_t> textures;
@@ -51,7 +53,7 @@ std::vector<Sid_t> loadMaterialTexture(const Char8_t *basePath, aiMaterial const
                 I32_t texChannelCnt = 0;
 
                 auto completePath = std::string(basePath);
-                auto pos = completePath.find_last_of('/');
+                auto pos          = completePath.find_last_of('/');
                 assert(pos != std::string::npos);
                 completePath = completePath.substr(0, pos) + '/';
                 completePath += path.C_Str();
@@ -86,7 +88,7 @@ void processMesh(
   aiMesh const  *aMesh,
   aiScene const *aScene,
   aiNode const  *aNode,
-  char const *path,
+  char const    *path,
   Mesh_s        *outMesh)
 {
     assert(
@@ -148,10 +150,10 @@ B8_t meshNotAllocated(Sid_t sid)
 }
 
 void Scene_s::processNode(
-  Sid_t          parent,
+  SceneNode_s   &parent,
   aiNode const  *node,
   aiScene const *aScene,
-  Scene_s       *outScene)
+  Char8_t const *path)
 {
 
 
@@ -215,7 +217,7 @@ void main()
             Mesh_s &mesh = g_handleTable.insertMesh(sid);
 
             // if the mesh is new
-            processMesh(aMesh, aScene, node, m_path.c_str(), &mesh);
+            processMesh(aMesh, aScene, node, path, &mesh);
             mesh.allocateTexturesToGpu();
 
             static U32_t constexpr stagesCount = 2;
@@ -231,27 +233,24 @@ void main()
         }
 
         // create new node in scene
-        outScene->createNode(sid);
-
-        // set parent
-        outScene->addChild(parent, sid);
+        auto x = createNode(sid, parent);
 
         // recurse (works only if there is 1 mesh per node)
         for (U32_t i = 0; i < node->mNumChildren; ++i)
         {
-            processNode(sid, node->mChildren[i], aScene, outScene);
+            processNode(*x, node->mChildren[i], aScene, path);
         }
     }
     if (node->mNumMeshes == 0)
     {
         for (U32_t i = 0; i < node->mNumChildren; ++i)
         {
-            processNode(sid, node->mChildren[i], aScene, outScene);
+            processNode(parent, node->mChildren[i], aScene, path);
         }
     }
 }
 
-tl::optional<Scene_s> Scene_s::fromObj(Char8_t const *relativePath)
+Scene_s Scene_s::fromObj(Char8_t const *relativePath)
 {
     Assimp::Importer importer;
     aiScene const   *scene = importer.ReadFile(
@@ -261,72 +260,80 @@ tl::optional<Scene_s> Scene_s::fromObj(Char8_t const *relativePath)
     if (
       !scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
     {
-        return tl::nullopt;
+        assert(false);
+        // return tl::nullopt;
     }
     Scene_s internalScene;
-    Sid_t   rootId = CGE_SID(scene->mRootNode->mName.C_Str());
-    internalScene.m_names.push_back(rootId);
-    internalScene.m_path = relativePath;
-    internalScene.processNode(rootId, scene->mRootNode, scene, &internalScene);
+    internalScene.processNode(
+      internalScene.m_root, scene->mRootNode, scene, relativePath);
+    assert(internalScene.m_bnodes.size() == internalScene.m_names.size());
     return internalScene;
 }
 
-inline SceneNode_s &Scene_s::createNode(Sid_t sid, glm::mat4 const &transform)
+void Scene_s::mergeWith(Scene_s const &other)
 {
-    auto const &[pairIt, bWasInserted] =
-      m_bnodes.try_emplace(sid, sid, transform, transform, nullptr, false);
-    assert(bWasInserted && "ID collision!!");
-    return pairIt->second;
-}
-
-inline B8_t Scene_s::addChild(Sid_t parent, Sid_t child)
-{
-    SceneNode_s *parentNode = getNodeBySid(parent);
-    SceneNode_s *childNode  = getNodeBySid(child);
-
-    if (parentNode && childNode)
+    for (Sid_t const &sid : other.m_names)
     {
-        childNode->parent = parentNode; // Set the parent for the child
-        childNode->absoluteTransform =
-          childNode->relativeTransform * parentNode->absoluteTransform;
-        parentNode->children.push_front(childNode);
-        return true;
+        auto const it = other.m_bnodes.find(sid);
+        assert(
+          it != other.m_bnodes.end()
+          && "every named object should exist in the scene");
+
+        if (m_bnodes.find(sid) != m_bnodes.end())
+        {
+            assert(false && "duplicate");
+        }
+        else
+        {
+            SceneNode_s copy = it->second;
+            m_names.push_back(sid);
+            m_bnodes.emplace(sid, copy);
+        }
     }
-    else { return false; }
 }
 
-inline B8_t Scene_s::removeChild(Sid_t parent, Sid_t child)
+inline SceneNode_s *Scene_s::createNode(
+  Sid_t            sid,
+  SceneNode_s     &parent,
+  glm::mat4 const &transform)
 {
-    if (SceneNode_s *parentNode = getNodeBySid(parent))
-    {
-        auto elemntsRemovedCnt = parentNode->children.remove_if(
-          [child](SceneNode_s const *childNode)
-          { return childNode->sid == child && childNode->children.empty(); });
+    auto s                = SceneNode_s(sid, parent);
+    s.m_relativeTransform = transform;
+    auto const &[pairIt, bWasInserted] =
+      m_bnodes.insert(std::make_pair(sid, s));
+    assert(bWasInserted && "ID collision!!");
+    m_names.push_back(sid);
+    parent.m_children.push_back(&pairIt->second);
+    return &pairIt->second;
+}
 
-        return elemntsRemovedCnt != 0;
+SceneNode_s *
+  Scene_s::addChild(SceneNode_s &parent, Sid_t childSid, glm::mat4 transform)
+{
+    return createNode(childSid, parent, transform);
+}
+
+inline B8_t Scene_s::removeChild(SceneNode_s *parent, Sid_t child)
+{
+    if (parent)
+    {
+        auto it = std::remove_if(
+          parent->m_children.begin(),
+          parent->m_children.end(),
+          [child](SceneNode_s const *x) { return x->m_sid == child; });
+
+        parent->m_children.erase(it, parent->m_children.end());
+
+        return true;
     }
     return false;
 }
 
-inline B8_t Scene_s::removeNode(Sid_t sid)
+glm::mat4 SceneNode_s::getAbsoluteTransform() const
 {
-    auto it = m_bnodes.find(sid);
-
-    if (it != m_bnodes.end() && it->second.children.empty())
-    {
-        // Remove the node if it has no children
-        if (it->second.parent)
-        {
-            // Remove the node from its parent's children list
-            // TODO remove sid
-            it->second.parent->children.remove_if(
-              [sid](SceneNode_s const *childNode)
-              { return childNode->sid == sid; });
-        }
-
-        m_bnodes.erase(it);
-        return true;
-    }
-    else { return false; }
+    auto *parent = getParent();
+    if (parent) { return m_relativeTransform * parent->getAbsoluteTransform(); }
+    else { return m_relativeTransform; }
 }
+
 } // namespace cge
