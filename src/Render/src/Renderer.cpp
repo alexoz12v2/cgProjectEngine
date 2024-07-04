@@ -13,6 +13,21 @@ glm::mat4 Camera_t::viewTransform() const
 {
     return glm::lookAt(position, position + forward, up);
 }
+
+void Camera_t::setForward(glm::vec3 newForward)
+{
+    // Normalize the new forward vector
+    forward = glm::normalize(newForward);
+
+    // Calculate a temporary right vector based on the cross product of
+    // world up (usually Y-axis) and the new forward
+    right = glm::normalize(glm::cross(glm::vec3(0.f, 0.f, 1.f), forward));
+
+    // Calculate the final up vector using the cross product of the new
+    // forward and the temporary right vector
+    up = glm::normalize(glm::cross(forward, right));
+}
+
 void Renderer_s::renderScene(
   Scene_s const   &scene,
   glm::mat4 const &view,

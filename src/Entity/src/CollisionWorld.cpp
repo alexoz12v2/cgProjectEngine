@@ -79,12 +79,15 @@ void CollisionWorld_s::subdivide(U32_t nodeIdx)
     F32_t splitPos = node.ebox.min[axis] + extent[axis] * 0.5f;
 
     // Phase 2: split the group in 2 halves
-    U32_t i = node.firstPrimOffset;
-    U32_t j = i + node.primitivesCount - 1;
+    I64_t i = node.firstPrimOffset;
+    I64_t j = i + node.primitivesCount - 1;
     while (i <= j)
     {
         if (centroid(objs[i].ebox)[axis] < splitPos) { i++; }
-        else { std::swap(objs[i], objs[j--]); }
+        else
+        { //
+            std::swap(objs[i], objs[j--]);
+        }
     }
 
     // Phase 3: create child nodes for each half

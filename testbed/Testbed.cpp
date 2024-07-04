@@ -59,14 +59,19 @@ void TestbedModule::onInit(ModuleInitParams params)
     auto planeSid   = *planeScene.names();
     pieces          = std::pmr::vector<Sid_t>(10);
     std::fill(pieces.begin(), pieces.end(), planeSid);
+
+    auto obstaclesScene = Scene_s::fromObj("../assets/prop.obj");
+    auto obstacleSid    = *obstaclesScene.names();
+    obstacles.push_back(obstacleSid);
+
     scrollingTerrain.init(g_scene, pieces.begin(), pieces.end());
 
     // setup player
     Camera_t camera{};
     camera.position = glm::vec3(0, 0, 10);
-    camera.right    = glm::vec3(1.F, 0.F, 0.F);
-    camera.up       = glm::vec3(0.F, 0.F, 1.F);
-    camera.forward  = glm::vec3(0.F, 1.F, 0.F);
+    camera.right    = glm::vec3(1.f, 0.f, 0.f);
+    camera.up       = glm::vec3(0.f, 0.f, 1.f);
+    camera.forward  = glm::vec3(0.f, 1.f, 0.f);
     player.spawn(camera, cubeMeshSid);
 
     // set up the viewport
@@ -103,7 +108,7 @@ void TestbedModule::onTick(float deltaTime)
     auto const p      = player.lastDisplacement();
     auto const camera = player.getCamera();
     auto const center = player.getCentroid();
-    scrollingTerrain.updateTilesFromPosition(center, pieces);
+    scrollingTerrain.updateTilesFromPosition(center, pieces, obstacles);
 
     // worldSpawner.transformTerrain(glm::translate(glm::mat4(1.F),
     // glm::vec3(p.x, p.y, 0)));

@@ -43,6 +43,7 @@ class TestbedModule : public IModule
     WorldSpawner            worldSpawner;
     ScrollingTerrain        scrollingTerrain;
     std::pmr::vector<Sid_t> pieces;
+    std::pmr::vector<Sid_t> obstacles;
 };
 
 } // namespace cge

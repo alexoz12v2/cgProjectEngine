@@ -18,14 +18,19 @@ namespace cge
 class Player
 {
   public:
+    static U32_t constexpr pieceSize = 100; // TODO automatic update
+    static F32_t constexpr laneShift = (F32_t)pieceSize / 3;
+
     static F32_t constexpr baseVelocity     = 100.F;
     static F32_t constexpr mouseSensitivity = 0.1F;
+    static U8_t constexpr LANE_LEFT         = 1 << 2; // 0000'0100
+    static U8_t constexpr LANE_CENTER       = 1 << 1; // 0000'0010
+    static U8_t constexpr LANE_RIGHT        = 1 << 0; // 0000'0001
 
     void spawn(Camera_t const &, Sid_t);
 
     void onKey(I32_t key, I32_t action);
     void onMouseButton(I32_t key, I32_t action);
-    void onMouseMovement(F32_t xPos, F32_t yPos);
     void onTick(F32_t deltaTime);
 
     [[nodiscard]] AABB_t    boundingBox() const;
@@ -38,7 +43,6 @@ class Player
 
   private:
     void      yawPitchRotate(F32_t yaw, F32_t pitch);
-    AABB_t    recomputeGlobalSpaceBB() const;
     glm::vec3 displacementTick(F32_t deltaTime) const;
 
     // main components
@@ -51,16 +55,16 @@ class Player
     CollisionWorld_s::ObjHandle m_worldObjPtr;
 
     // movement related
-    glm::ivec2 m_keyPressed{ 0, 0 }; // WS AD
-    glm::vec2  m_lastCursorPosition{ -1.0F, -1.0F };
-    B8_t       m_isCursorDisabled = false;
-    glm::vec3  m_lastDisplacement{};
+    U8_t      m_lane       = LANE_CENTER;
+    F32_t     m_targetXPos = 0.f;
+    glm::vec3 m_lastDisplacement{};
 };
 
 class ScrollingTerrain
 {
   public:
     static U32_t constexpr pieceSize = 100;
+    static F32_t constexpr laneShift = (F32_t)pieceSize / 3;
 
     /**
      * @fn init
@@ -90,7 +94,8 @@ class ScrollingTerrain
      */
     void updateTilesFromPosition(
       glm::vec3                      position,
-      std::pmr::vector<Sid_t> const &sidSet);
+      std::pmr::vector<Sid_t> const &sidSet,
+      std::pmr::vector<Sid_t> const &obstacles);
 
   private:
     // the front is the furthest piece backwards, hence the first to be moved

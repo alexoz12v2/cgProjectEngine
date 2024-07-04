@@ -12,6 +12,7 @@ namespace cge
 struct Camera_t
 {
     glm::mat4 viewTransform() const;
+    void      setForward(glm::vec3 newForward);
 
     glm::vec3 forward;
     glm::vec3 up;
