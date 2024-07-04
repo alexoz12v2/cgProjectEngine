@@ -12,6 +12,14 @@ namespace cge
 class Random
 {
   public:
+    Random()
+    {
+        // Seed the generator with a thread-safe random device
+        std::random_device          rd;
+        std::lock_guard<std::mutex> lock(mtx);
+        generator.seed(rd());
+    }
+
     // Generates a random number within the specified range (inclusive)
     template<std::integral T>
     T next(
@@ -35,14 +43,6 @@ class Random
 
     // Mutex for thread-safe initialization
     static std::mutex mtx;
-
-    Random()
-    {
-        // Seed the generator with a thread-safe random device
-        std::random_device          rd;
-        std::lock_guard<std::mutex> lock(mtx);
-        generator.seed(rd());
-    }
 
     // Disallow copying to prevent accidental sharing of the generator
     Random(const Random&)            = delete;

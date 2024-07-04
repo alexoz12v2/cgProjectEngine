@@ -18,7 +18,7 @@ class TestbedModule : public IModule
     static Sid_t constexpr planeMeshSid = "Plane"_sid;
 
   public:
-    TestbedModule();
+    TestbedModule()                                          = default;
     TestbedModule(TestbedModule const &other)                = delete;
     TestbedModule &operator=(TestbedModule const &other)     = delete;
     TestbedModule(TestbedModule &&other)                     = delete;
@@ -38,9 +38,11 @@ class TestbedModule : public IModule
         return (F32_t)framebufferSize.x / (F32_t)framebufferSize.y;
     }
 
-    glm::ivec2   framebufferSize{ 800, 600 };
-    Player       player;
-    WorldSpawner worldSpawner;
+    glm::ivec2              framebufferSize{ 800, 600 };
+    Player                  player;
+    WorldSpawner            worldSpawner;
+    ScrollingTerrain        scrollingTerrain;
+    std::pmr::vector<Sid_t> pieces;
 };
 
 } // namespace cge

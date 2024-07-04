@@ -204,8 +204,9 @@ void WorldSpawner::renderBackground(Camera_t const &camera) const
       1,
       GL_FALSE,
       &rotationMatrix[0][0]);
-    auto proj =
-      glm::perspective(45.F, aspectRatio(), CLIPDISTANCE, RENDERDISTANCE);
+    F32_t ratio = aspectRatio();
+    ratio       = ratio >= 1.f ? ratio : 1.f;
+    auto proj   = glm::perspective(45.F, ratio, CLIPDISTANCE, RENDERDISTANCE);
     glUniformMatrix4fv(
       glGetUniformLocation(m_backgrProgram.id(), "projection"),
       1,
@@ -234,10 +235,10 @@ F32_t WorldSpawner::aspectRatio() const
 
 void WorldSpawner::transformTerrain(const glm::mat4 &transform)
 {
-    //for (U32_t i = 0; i != chunksCount; i++)
+    // for (U32_t i = 0; i != chunksCount; i++)
     //{
-    //    m_terrainTransform[i] *= transform;
-    //}
+    //     m_terrainTransform[i] *= transform;
+    // }
 }
 
 HitInfo_t WorldSpawner::detectTerrainCollisions(const glm::mat4 &transform)

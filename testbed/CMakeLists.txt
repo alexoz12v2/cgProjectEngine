@@ -9,6 +9,7 @@ target_sources(testbed
   WorldSpawner.h
   WorldSpawner.cpp
   StbImageImplementation.cpp
+  Utils.h
 )
 
 target_include_directories(testbed

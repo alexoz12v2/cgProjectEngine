@@ -6,8 +6,8 @@
 #include "Resource/Rendering/GpuProgram.h"
 #include "Resource/Rendering/cgeTexture.h"
 
-#include <glm/ext/vector_float3.hpp>
 #include <glm/ext/matrix_float4x4.hpp>
+#include <glm/ext/vector_float3.hpp>
 #include <vector>
 
 // TODO: Tear this class to pieces and figure out something else. See FScene
@@ -15,10 +15,6 @@ namespace cge
 {
 
 using TextureBinderFunc_t = void (*)(struct Mesh_s const *);
-inline void noTex(struct Mesh_s const *)
-{
-    // method used when there are no textures to bind
-}
 
 struct Vertex_t
 {
@@ -67,7 +63,7 @@ struct Mesh_s
 
     /// @warning to be assigned after the mesh creation, on its first use
     // glUniformli(samplerLoc, samplerIndex)
-    TextureBinderFunc_t bindTextures = &noTex;
+    TextureBinderFunc_t bindTextures;
 
     void streamUniforms(MeshUniform_t const &uniforms) const;
 

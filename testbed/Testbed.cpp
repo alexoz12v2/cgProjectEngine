@@ -57,12 +57,13 @@ void TestbedModule::onInit(ModuleInitParams params)
     g_scene         = Scene_s::fromObj("../assets/lightTestScene.obj");
     auto planeScene = Scene_s::fromObj("../assets/plane.obj");
     auto planeSid   = *planeScene.names();
-    auto pPlane     = g_scene.addChild(
-      planeSid, glm::translate(glm::mat4(1.f), glm::vec3(1.f, 0.f, 0.f)));
+    pieces          = std::pmr::vector<Sid_t>(10);
+    std::fill(pieces.begin(), pieces.end(), planeSid);
+    scrollingTerrain.init(g_scene, pieces.begin(), pieces.end());
 
     // setup player
     Camera_t camera{};
-    camera.position = glm::vec3(100, 100, 50);
+    camera.position = glm::vec3(0, 0, 10);
     camera.right    = glm::vec3(1.F, 0.F, 0.F);
     camera.up       = glm::vec3(0.F, 0.F, 1.F);
     camera.forward  = glm::vec3(0.F, 1.F, 0.F);
@@ -102,16 +103,17 @@ void TestbedModule::onTick(float deltaTime)
     auto const p      = player.lastDisplacement();
     auto const camera = player.getCamera();
     auto const center = player.getCentroid();
+    scrollingTerrain.updateTilesFromPosition(center, pieces);
 
     // worldSpawner.transformTerrain(glm::translate(glm::mat4(1.F),
     // glm::vec3(p.x, p.y, 0)));
 
     // worldSpawner.renderTerrain(camera); // TODO deltaTime is broken
-    printf(
-      "Testbed::onTick camera.position = { %f %f %f }",
-      camera.position.x,
-      camera.position.y,
-      camera.position.z);
+    // printf(
+    //  "Testbed::onTick camera.position = { %f %f %f }\n",
+    //  camera.position.x,
+    //  camera.position.y,
+    //  camera.position.z);
 
     g_renderer.renderScene(
       g_scene,
@@ -124,8 +126,5 @@ void TestbedModule::onTick(float deltaTime)
 
     // worldSpawner.detectTerrainCollisions(camera.viewTransform());
 }
-
-TestbedModule::TestbedModule() = default;
-
 
 } // namespace cge

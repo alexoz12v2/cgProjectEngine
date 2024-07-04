@@ -21,6 +21,53 @@ struct STBIDeleter
     void operator()(Byte_t *data) const { stbi_image_free(data); }
 };
 
+
+static char const *const vertexSource = R"a(
+#version 460 core
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec3 aNorm;
+layout (location = 2) in vec3 aTexCoord;
+
+layout (location = 0) out vec3 texCoord;
+
+layout (std140) uniform MeshUniforms {
+    mat4 modelView;
+    mat4 modelViewProj;
+};
+
+void main() 
+{
+    texCoord = aTexCoord;
+    gl_Position = modelViewProj * vec4(aPos, 1.f);
+}
+)a";
+
+static char const *const fragSource = R"a(
+#version 460 core
+layout (location = 0) in vec3 texCoord;
+
+uniform sampler2D sampler;
+uniform int hasTexture;
+
+layout (location = 0) out vec4 fragColor;
+
+void main()
+{
+    if (hasTexture == 1) {
+        vec3 color = texture(sampler, texCoord.xy).xyz;
+        fragColor = vec4(color, 1.f);
+    } else {
+        fragColor = vec4(0.5f, 0.5f, 0.5f, 1.f);
+    }
+}
+)a";
+
+
 // TODO more
 std::vector<Sid_t>
   loadMaterialTexture(const Char8_t *basePath, aiMaterial const *mat)
@@ -157,49 +204,9 @@ void Scene_s::processNode(
 {
 
 
-    static Sid_t constexpr vertShader     = "DEFAULT_VERTEX"_sid;
-    static Sid_t constexpr fragShader     = "DEFAULT_FRAG"_sid;
-    static char const *const vertexSource = R"a(
-#version 460 core
-out gl_PerVertex
-{
-    vec4 gl_Position;
-};
-
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec3 aNorm;
-layout (location = 2) in vec3 aTexCoord;
-
-layout (location = 0) out vec3 texCoord;
-
-layout (std140) uniform MeshUniforms {
-    mat4 modelView;
-    mat4 modelViewProj;
-};
-
-void main() 
-{
-    texCoord = aTexCoord;
-    gl_Position = modelViewProj * vec4(aPos, 1.f);
-}
-)a";
-
-    static char const *const fragSource = R"a(
-#version 460 core
-layout (location = 0) in vec3 texCoord;
-
-uniform sampler2D sampler;
-
-layout (location = 0) out vec4 fragColor;
-
-void main()
-{
-    vec3 color = texture(sampler, texCoord.xy).xyz;
-    fragColor = vec4(color, 1.f);
-}
-)a";
-
-    Sid_t sid = CGE_SID(node->mName.C_Str());
+    static Sid_t constexpr vertShader = "DEFAULT_VERTEX"_sid;
+    static Sid_t constexpr fragShader = "DEFAULT_FRAG"_sid;
+    Sid_t sid                         = CGE_SID(node->mName.C_Str());
     // load mesh
     assert(node->mNumMeshes <= 1 && "blender meshes should have 1 node");
     for (U32_t i = 0; i < node->mNumMeshes; ++i)
@@ -299,9 +306,7 @@ inline SceneNode_s *Scene_s::createNode(
 {
     auto s                = SceneNode_s(sid, parent);
     s.m_relativeTransform = transform;
-    auto const &[pairIt, bWasInserted] =
-      m_bnodes.insert(std::make_pair(sid, s));
-    assert(bWasInserted && "ID collision!!");
+    auto const pairIt     = m_bnodes.emplace(std::make_pair(sid, s));
     m_names.push_back(sid);
     parent.m_children.push_back(&pairIt->second);
     return &pairIt->second;

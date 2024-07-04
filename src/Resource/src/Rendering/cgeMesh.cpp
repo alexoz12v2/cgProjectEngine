@@ -109,12 +109,26 @@ void Mesh_s::allocateTexturesToGpu()
     }
 
     // assign default texture binder function (TODO better)
-    bindTextures = [](Mesh_s const *mesh)
+    if (!textures.empty())
     {
-        U32_t fragId     = mesh->shaderProgram.id();
-        U32_t samplerLoc = glGetUniformLocation(fragId, "sampler");
-        glUniform1i(samplerLoc, 0);
-    };
+        bindTextures = [](Mesh_s const *mesh)
+        {
+            U32_t fragId     = mesh->shaderProgram.id();
+            U32_t samplerLoc = glGetUniformLocation(fragId, "sampler");
+            glUniform1i(samplerLoc, 0);
+
+            glUniform1i(glGetUniformLocation(fragId, "hasTexture"), 1);
+        };
+    }
+    else
+    {
+        bindTextures = [](Mesh_s const *mesh)
+        {
+            // method used when there are no textures to bind
+            U32_t fragId = mesh->shaderProgram.id();
+            glUniform1i(glGetUniformLocation(fragId, "hasTexture"), 0);
+        };
+    }
 }
 
 void Mesh_s::setupUniforms() const

@@ -41,6 +41,7 @@ struct SceneNode_s
         else { return nullptr; }
     }
 
+    void setSid(Sid_t sid) { m_sid = sid; }
 
     void transform(glm::mat4 const &t)
     {
@@ -80,7 +81,31 @@ class Scene_s
     SceneNode_s *getNodeBySid(Sid_t sid)
     {
         auto it = m_bnodes.find(sid);
-        return (it != m_bnodes.end()) ? &(it->second) : nullptr;
+        return (it != m_bnodes.cend()) ? &(it->second) : nullptr;
+    }
+
+    SceneNode_s const *getNodeBySid(Sid_t sid) const
+    {
+        auto it = m_bnodes.find(sid);
+        return (it != m_bnodes.cend()) ? &(it->second) : nullptr;
+    }
+
+    auto getAllNodesBySid(Sid_t sid) { return m_bnodes.equal_range(sid); }
+    auto getAllNodesBySid(Sid_t sid) const { return m_bnodes.equal_range(sid); }
+
+    B8_t isEmptyRange(std::pair<
+                      std::pmr::multimap<Sid_t, SceneNode_s>::iterator,
+                      std::pmr::multimap<Sid_t, SceneNode_s>::iterator> p) const
+    {
+        return p.first != m_bnodes.end();
+    }
+
+    B8_t isEmptyRange(
+      std::pair<
+        std::pmr::multimap<Sid_t, SceneNode_s>::const_iterator,
+        std::pmr::multimap<Sid_t, SceneNode_s>::const_iterator> p) const
+    {
+        return p.first != m_bnodes.cend();
     }
 
     SceneNode_s *addChild(
@@ -104,9 +129,9 @@ class Scene_s
         return m_names.cend();
     }
 
-  private:
-    SceneNode_s *addChild(SceneNode_s &parent, SceneNode_s *child);
+    SceneNode_s &getRoot() { return m_root; }
 
+  private:
     void processNode(
       SceneNode_s   &parent,
       aiNode const  *node,
@@ -119,9 +144,9 @@ class Scene_s
       SceneNode_s     &parent,
       glm::mat4 const &transform = glm::mat4(1.f));
 
-    std::pmr::map<Sid_t, SceneNode_s> m_bnodes;
-    SceneNode_s                       m_root = SceneNode_s(nullSid);
-    std::pmr::vector<Sid_t>           m_names;
+    std::pmr::multimap<Sid_t, SceneNode_s> m_bnodes;
+    SceneNode_s                            m_root = SceneNode_s(nullSid);
+    std::pmr::vector<Sid_t>                m_names;
 };
 
 extern Scene_s g_scene;

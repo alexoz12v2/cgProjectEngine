@@ -20,8 +20,8 @@ struct Extent2D
 };
 
 inline F32_t constexpr CLIPDISTANCE   = 0.05F;
-inline F32_t constexpr RENDERDISTANCE = 200.F;
-inline F32_t constexpr FOV = 45.F;
+inline F32_t constexpr RENDERDISTANCE = 500.F;
+inline F32_t constexpr FOV            = 45.F;
 
 } // namespace cge
 
