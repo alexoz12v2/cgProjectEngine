@@ -16,6 +16,7 @@ namespace cge
 
 inline U32_t constexpr timeWindowPower = 2u;
 inline U32_t constexpr timeWindowSize  = 1u << timeWindowPower;
+inline U32_t constexpr timeWindowMask  = (timeWindowSize - 1);
 
 // change in ISceneModule
 IModule               *g_startupModule = nullptr;
@@ -112,7 +113,7 @@ I32_t main(I32_t argc, Char8_t **argv)
         }
 #endif
         // perform time average
-        timeWindowIndex             = (timeWindowIndex + 1) >> timeWindowPower;
+        timeWindowIndex             = (timeWindowIndex + 1) & timeWindowMask;
         timeWindow[timeWindowIndex] = measuredElapsedTime;
 
         measuredElapsedTime = 0;
@@ -120,6 +121,8 @@ I32_t main(I32_t argc, Char8_t **argv)
         {
             measuredElapsedTime += timeWindow[i];
         }
+        
+        // equal to measuredElapsedTime / timeWindowSize
         measuredElapsedTime >>= timeWindowPower;
 
         elapsedTime  = measuredElapsedTime;

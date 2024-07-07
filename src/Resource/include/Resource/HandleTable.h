@@ -109,15 +109,23 @@ class HandleTable_s
         Light_t       &asLight() { return *(Light_t *)m_ptr; }
         TextureData_s &asTexture() { return *(TextureData_s *)m_ptr; }
 
+        Mesh_s const        &asMesh() const { return *(Mesh_s const *)m_ptr; }
+        Light_t const       &asLight() const { return *(Light_t const *)m_ptr; }
+        TextureData_s const &asTexture() const
+        {
+            return *(TextureData_s const *)m_ptr;
+        }
+
         [[nodiscard]] B8_t hasValue() const;
 
         [[nodiscard]] Sid_t sid() const { return m_sid; }
 
-        [[nodiscard]] static const Ref_s& nullRef()
+        [[nodiscard]] static const Ref_s &nullRef()
         {
             static const Ref_s ref;
             return ref;
         }
+
       private:
         constexpr Ref_s() = default;
 

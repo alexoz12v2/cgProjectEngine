@@ -10,19 +10,22 @@
 #include <glm/ext/vector_float2.hpp>
 #include <glm/ext/vector_int2.hpp>
 
+#include <deque>
 #include <unordered_set>
 
 namespace cge
 {
 
+static U32_t constexpr pieceSize = 100;
+static U32_t constexpr numLanes  = 3;
+static F32_t constexpr laneShift = (F32_t)pieceSize / numLanes;
+
 class Player
 {
   public:
-    static U32_t constexpr pieceSize = 100; // TODO automatic update
-    static F32_t constexpr laneShift = (F32_t)pieceSize / 3;
-
-    static F32_t constexpr baseVelocity     = 100.F;
-    static F32_t constexpr mouseSensitivity = 0.1F;
+    static F32_t constexpr baseShiftVelocity = 50.f;
+    static F32_t constexpr baseVelocity     = 200.f;
+    static F32_t constexpr mouseSensitivity = 0.1f;
     static U8_t constexpr LANE_LEFT         = 1 << 2; // 0000'0100
     static U8_t constexpr LANE_CENTER       = 1 << 1; // 0000'0010
     static U8_t constexpr LANE_RIGHT        = 1 << 0; // 0000'0001
@@ -41,18 +44,24 @@ class Player
     // TODO remove
     [[nodiscard]] glm::vec3 lastDisplacement() const;
 
+    bool intersectPlayerWith(
+      std::pmr::deque<std::array<SceneNode_s *, numLanes>> const &obstacles,
+      Hit_t                                                      &outHit);
+
   private:
     void      yawPitchRotate(F32_t yaw, F32_t pitch);
     glm::vec3 displacementTick(F32_t deltaTime) const;
 
     // main components
-    Sid_t                m_sid;
+    Sid_t                m_sid  = nullSid;
+    SceneNode_s         *m_node = nullptr;
     HandleTable_s::Ref_s m_mesh = nullRef;
     Camera_t             m_camera{};
 
     // collision related
     AABB_t                      m_box;
     CollisionWorld_s::ObjHandle m_worldObjPtr;
+    bool                        m_intersected = false;
 
     // movement related
     U8_t      m_lane       = LANE_CENTER;
@@ -63,9 +72,6 @@ class Player
 class ScrollingTerrain
 {
   public:
-    static U32_t constexpr pieceSize = 100;
-    static F32_t constexpr laneShift = (F32_t)pieceSize / 3;
-
     /**
      * @fn init
      * @brief assuming each piece is 10 m x 10 m, they are placed such that the
@@ -92,15 +98,17 @@ class ScrollingTerrain
      * @param position current player position
      * @param sidSet set of meshes to pick from
      */
-    void updateTilesFromPosition(
-      glm::vec3                      position,
-      std::pmr::vector<Sid_t> const &sidSet,
-      std::pmr::vector<Sid_t> const &obstacles);
+    std::pmr::deque<std::array<SceneNode_s *, numLanes>>
+      updateTilesFromPosition(
+        glm::vec3                      position,
+        std::pmr::vector<Sid_t> const &sidSet,
+        std::pmr::vector<Sid_t> const &obstacles);
 
   private:
     // the front is the furthest piece backwards, hence the first to be moved
     // and swapped with the back
-    std::pmr::vector<SceneNode_s *> m_pieces;
+    std::pmr::vector<SceneNode_s *>                      m_pieces;
+    std::pmr::deque<std::array<SceneNode_s *, numLanes>> m_obstacles;
 };
 
 } // namespace cge

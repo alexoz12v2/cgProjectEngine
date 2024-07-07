@@ -34,7 +34,8 @@ void Player::spawn(const Camera_t &view, Sid_t meshSid)
 
     m_sid  = meshSid;
     m_mesh = g_handleTable.get(meshSid);
-    m_box  = computeAABB(m_mesh.asMesh());
+    m_box  = m_mesh.asMesh().box;
+    m_node = g_scene.getNodeBySid(m_sid);
 
     m_camera = view;
 
@@ -44,7 +45,7 @@ void Player::spawn(const Camera_t &view, Sid_t meshSid)
 
     m_worldObjPtr = g_world.addObject(cubeCollisionMesh);
 
-    g_scene.getNodeBySid(m_sid)->transform(
+    m_node->transform(
       glm::inverse(m_camera.viewTransform())
       * glm::translate(glm::mat4(1.F), glm::vec3(0, -2, -10)));
 }
@@ -55,7 +56,7 @@ void Player::onTick(F32_t deltaTime)
     // printf("Player::onTick deltaTime = %f\n", deltaTime);
     //  update bounding box
     glm::vec3 const displacement = displacementTick(deltaTime);
-    if (!smallOrZero(displacement))
+    if (!smallOrZero(displacement) && !m_intersected)
     {
         m_worldObjPtr->ebox = recomputeGlobalSpaceBB(m_sid, m_box);
 
@@ -65,35 +66,31 @@ void Player::onTick(F32_t deltaTime)
         // TODO add effective movement
         m_camera.position += displacement;
 
-        g_scene.getNodeBySid(m_sid)->transform(
-          glm::translate(glm::mat4(1.f), displacement));
+        m_node->transform(glm::translate(glm::mat4(1.f), displacement));
 
         auto const meshCenter = centroid(m_worldObjPtr->ebox);
 
-        Ray_t const ray{ .o = m_camera.position,
-                         .d = meshCenter - m_camera.position };
+        Ray_t const ray{ .o = m_camera.position, .d = glm::vec3(0, 1, 0) };
         Hit_t       hit;
         g_world.build();
-        if (g_world.intersect(ray, 0, hit))
-        {
-            if (hit.t <= 0.5F) 
-            {//
-                printf("[Player] INTERSECTION\n");
-            }
-        }
+    }
+    else if (m_intersected)
+    { //
+        printf("[Player] INTERSECTION\n");
     }
 
     if (glm::abs(m_camera.position.x - m_targetXPos) > eps)
     {
         auto old = m_camera.position.x;
-        m_camera.position.x += (m_targetXPos - old) * deltaTime * 15;
+        m_camera.position.x +=
+          (m_targetXPos - old) * deltaTime * baseShiftVelocity;
         if (glm::abs(m_camera.position.x - m_targetXPos) <= 0.5f)
         {
             m_camera.position.x = m_targetXPos;
         }
 
         auto disp = m_camera.position.x - old;
-        g_scene.getNodeBySid(m_sid)->transform(
+        m_node->transform(
           glm::translate(glm::mat4(1.f), glm::vec3(disp, 0.f, 0.f)));
     }
 }
@@ -171,14 +168,18 @@ void Player::yawPitchRotate(F32_t yaw, F32_t pitch)
 glm::mat4 Player::viewTransform() const { return m_camera.viewTransform(); }
 Camera_t  Player::getCamera() const { return m_camera; }
 glm::vec3 Player::lastDisplacement() const { return m_lastDisplacement; }
-glm::vec3 Player::getCentroid() const { return centroid(m_worldObjPtr->ebox); }
+glm::vec3 Player::getCentroid() const
+{
+    return centroid(recomputeGlobalSpaceBB(m_node, m_mesh.asMesh().box));
+}
 
 void ScrollingTerrain::init(
   Scene_s                                &scene,
   std::pmr::vector<Sid_t>::const_iterator begin,
   std::pmr::vector<Sid_t>::const_iterator end)
 {
-    glm::mat4 const identity = glm::mat4(1.f);
+    static std::array<SceneNode_s *, numLanes> constexpr arr = { nullptr };
+    glm::mat4 const identity                                 = glm::mat4(1.f);
     printf("ScrollingTerrain::init\n");
     // fill the m_pieces array and
     // trasform all pieces such that the middle one is in the origin
@@ -191,37 +192,37 @@ void ScrollingTerrain::init(
         glm::mat4 const t = glm::translate(identity, glm::vec3(0.f, yOff, 0.f));
 
         m_pieces.push_back(scene.addChild(*it, t));
+        m_obstacles.push_back(arr);
         printf("adding object at y %f\n", yOff);
 
         ++index;
     }
 }
 
-void ScrollingTerrain::updateTilesFromPosition(
-  glm::vec3                      position,
-  std::pmr::vector<Sid_t> const &sidSet,
-  std::pmr::vector<Sid_t> const &obstacles)
+std::pmr::deque<std::array<SceneNode_s *, numLanes>>
+  ScrollingTerrain::updateTilesFromPosition(
+    glm::vec3                      position,
+    std::pmr::vector<Sid_t> const &sidSet,
+    std::pmr::vector<Sid_t> const &obstacles)
 {
-    glm::mat4 const identity = glm::mat4(1.f);
+    static std::array<SceneNode_s *, numLanes> constexpr arr = { nullptr };
+    glm::mat4 const identity                                 = glm::mat4(1.f);
     // Calculate number of pieces in the terrain
     U32_t numPieces = m_pieces.size();
 
     // Check for empty terrain
     if (numPieces == 0)
-    {
-        return; // Nothing to update
+    { //
+        return m_obstacles;
     }
 
     // Calculate the "middle" tile index (halfway point of the vector)
     U32_t middleTile = numPieces / 2;
     F32_t middleYOff = m_pieces[middleTile]->getAbsoluteTransform()[3][1];
 
-    // Calculate player tile index (using integer division)
-    U32_t playerTile =
-      static_cast<U32_t>((position.y - middleYOff) / pieceSize) + middleTile;
-
     // Calculate the difference between player tile and middle tile
-    int difference = static_cast<int>(playerTile - middleTile);
+    I32_t difference =
+      static_cast<I32_t>((position.y - middleYOff) / pieceSize);
 
     // Handle potential negative difference for modulo operation
     difference = (difference + numPieces) % numPieces;
@@ -284,6 +285,9 @@ void ScrollingTerrain::updateTilesFromPosition(
             Sid_t const sid      = sidSet[setIndex];
             pNode->setSid(sid);
 
+            m_obstacles.pop_front();
+            m_obstacles.push_back(arr);
+            auto &back = m_obstacles.back();
             // TODO: spawn props in the new tiles
             if (!obstacles.empty())
             {
@@ -303,7 +307,8 @@ void ScrollingTerrain::updateTilesFromPosition(
                     auto const transform = glm::translate(
                       pNode->getAbsoluteTransform(),
                       glm::vec3(positionX, positionYFromPieceCenter, 0.f));
-                    g_scene.addChild(obstacle, transform);
+
+                    back[i] = g_scene.addChild(obstacle, transform);
 
                     CollisionObj_t collision = {
                         .ebox = recomputeGlobalSpaceBB(
@@ -328,6 +333,41 @@ void ScrollingTerrain::updateTilesFromPosition(
         printf("\n\n");
     }
 #endif
+
+    return m_obstacles;
+}
+
+bool Player::intersectPlayerWith(
+  std::pmr::deque<std::array<SceneNode_s *, numLanes>> const &obstacles,
+  Hit_t                                                      &outHit)
+{
+    bool res = false;
+    if (!obstacles.empty())
+    {
+        auto const playerBox = recomputeGlobalSpaceBB(m_sid, m_box);
+        for (auto const &obsArr : obstacles)
+        {
+            for (auto const *pNode : obsArr)
+            {
+                if (!pNode)
+                { //
+                    break;
+                }
+                auto const &mesh = g_handleTable.get(pNode->getSid()).asMesh();
+                auto const  box  = mesh.box;
+                auto const  obsBox = recomputeGlobalSpaceBB(pNode, box);
+                res |= intersect(playerBox, obsBox);
+            }
+
+            if (res)
+            { //
+                break;
+            }
+        }
+    }
+
+    m_intersected = res;
+    return res;
 }
 
 } // namespace cge

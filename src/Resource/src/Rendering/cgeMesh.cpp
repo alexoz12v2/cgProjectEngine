@@ -10,29 +10,24 @@ namespace cge
 {
 AABB_t computeAABB(const Mesh_s &mesh)
 {
-    if (mesh.vertices.empty())
+    AABB_t aabb{ AABB_t{ glm::vec3(0.0f), glm::vec3(0.0f) } };
+    aabb.min = glm::vec3(std::numeric_limits<float>::max());
+    aabb.max = glm::vec3(std::numeric_limits<float>::min());
+
+    // Loop through each indexed vertex
+    for (size_t i = 0; i < mesh.indices.size(); ++i)
     {
-        // Handle the case when the mesh has no vertices
-        // You might want to return an AABB with some default values or handle
-        // it differently
-        return AABB_t{ glm::vec3(0.0f), glm::vec3(0.0f) };
+        for (U32_t j : mesh.indices[i])
+        {
+            const auto &vertex = mesh.vertices[j];
+
+            // Update AABB based on vertex position
+            aabb.min = glm::min(aabb.min, vertex.pos);
+            aabb.max = glm::max(aabb.max, vertex.pos);
+        }
     }
 
-    // Initialize the min and max coordinates with the first vertex
-    glm::vec3 minCoord = mesh.vertices[0].pos;
-    glm::vec3 maxCoord = mesh.vertices[0].pos;
-
-    // Iterate through all vertices to find the min and max coordinates
-    for (const auto &vertex : mesh.vertices)
-    {
-        // Update min coordinates
-        minCoord = glm::min(minCoord, vertex.pos);
-
-        // Update max coordinates
-        maxCoord = glm::max(maxCoord, vertex.pos);
-    }
-
-    return AABB_t{ minCoord, maxCoord };
+    return aabb;
 }
 
 void Mesh_s::streamUniforms(MeshUniform_t const &uniforms) const

@@ -62,7 +62,7 @@ struct SceneNode_s
     Sid_t     m_sid; // sid of the mesh
     U         m_parent;
     B8_t      m_isRoot;
-    ChildList m_children          = ChildList(); // stored in bnodes
+    ChildList m_children          = ChildList(32); // stored in bnodes
     glm::mat4 m_relativeTransform = glm::mat4(1.f);
     B8_t      m_translucent       = false;
 };

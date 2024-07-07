@@ -69,11 +69,11 @@ inline U64_t hiResFrequency()
     CGE_unreachable();
 }
 
-inline U32_t constexpr timeUnit32 = 300U;
-inline U64_t constexpr timeUnit64 = 300ULL;
+inline U32_t constexpr timeUnit32 = 3000U;
+inline U64_t constexpr timeUnit64 = 3000ULL;
 inline F32_t constexpr oneOver60FPS =
   0.0166666693985462188720703125F; // in hex 0x3c88888a;
-inline U32_t constexpr timeUnitsIn60FPS = timeUnit32 / 60U; // 5
+inline U32_t constexpr timeUnitsIn60FPS = timeUnit32 / 60U; // 50
 
 /**
  * @fn elaspedTimeUnits.

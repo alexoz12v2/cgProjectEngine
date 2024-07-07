@@ -34,7 +34,6 @@ void CollisionWorld_s::build()
     nodesUsed = 1;
     subdivide(rootIdx);
 }
-
 bool CollisionWorld_s::intersect(Ray_t const &ray, U32_t nodeIdx, Hit_t &outHit)
   const
 {

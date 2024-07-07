@@ -105,10 +105,14 @@ void TestbedModule::onTick(float deltaTime)
     // TODO astronave che spara su ostacoli!
 
     player.onTick(deltaTime);
+
     auto const p      = player.lastDisplacement();
     auto const camera = player.getCamera();
     auto const center = player.getCentroid();
-    scrollingTerrain.updateTilesFromPosition(center, pieces, obstacles);
+    auto       obsVec =
+      scrollingTerrain.updateTilesFromPosition(center, pieces, obstacles);
+    Hit_t hit{};
+    player.intersectPlayerWith(obsVec, hit);
 
     // worldSpawner.transformTerrain(glm::translate(glm::mat4(1.F),
     // glm::vec3(p.x, p.y, 0)));

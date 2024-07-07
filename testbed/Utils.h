@@ -17,9 +17,19 @@ inline bool smallOrZero(glm::vec3 v)
     return v.x <= eps && v.y <= eps && v.z <= eps;
 }
 
-AABB_t recomputeGlobalSpaceBB(Sid_t sid, AABB_t box)
+inline AABB_t recomputeGlobalSpaceBB(Sid_t sid, AABB_t box)
 {
     glm::mat4 transform = g_scene.getNodeBySid(sid)->getAbsoluteTransform();
+
+    AABB_t const gSpaceAABB = { .min = transform * glm::vec4(box.min, 1.f),
+                                .max = transform * glm::vec4(box.max, 1.f) };
+
+    return gSpaceAABB;
+}
+
+inline AABB_t recomputeGlobalSpaceBB(SceneNode_s const *n, AABB_t box)
+{
+    glm::mat4 transform = n->getAbsoluteTransform();
 
     AABB_t const gSpaceAABB = { .min = transform * glm::vec4(box.min, 1.f),
                                 .max = transform * glm::vec4(box.max, 1.f) };

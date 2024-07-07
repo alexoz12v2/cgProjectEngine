@@ -186,6 +186,7 @@ void processMesh(
         outMesh->textures          = loadMaterialTexture(path, material);
     }
 
+    outMesh->box = computeAABB(*outMesh);
     // TODO set OpenGL related mesh information coming from another file?
     // outMesh.allocateResrou
 }

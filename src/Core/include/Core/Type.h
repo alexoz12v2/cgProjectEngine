@@ -369,6 +369,14 @@ inline AABB_t aUnion(AABB_t a, AABB_t b)
     return c;
 }
 
+inline bool intersect(const AABB_t &first, const AABB_t &other)
+{
+    // Check for overlap on each axis
+    return (first.min.x <= other.max.x && first.max.x >= other.min.x)
+           && (first.min.y <= other.max.y && first.max.y >= other.min.y)
+           && (first.min.z <= other.max.z && first.max.z >= other.min.z);
+}
+
 // 00 -> x, 01 -> y, 10 -> z
 inline int32_t largestAxis(AABB_t box, float *plane)
 {
