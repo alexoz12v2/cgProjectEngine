@@ -79,9 +79,6 @@ target_compile_features(cge_options INTERFACE cxx_std_${CMAKE_CXX_STANDARD})
 add_library(cge::cge_options ALIAS cge_options)
 add_library(cge::cge_warnings ALIAS cge_warnings)
 
-# add downloaded dependencies, not all of them can be fetched with CPM
-add_subdirectory(external)
-
 # Define src
 add_subdirectory(src)
 

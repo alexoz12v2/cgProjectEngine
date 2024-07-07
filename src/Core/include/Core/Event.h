@@ -100,6 +100,9 @@ class EventQueue_t
 extern EventQueue_t g_eventQueue;
 
 template<typename T>
+concept KeyListener = requires(T obj, I32_t x, I32_t y) { obj.onKey(x, y); };
+
+template<KeyListener T>
 void KeyCallback(EventArg_t eventData, EventArg_t listenerData)
 {
     auto self = (T *)listenerData.idata.p;
@@ -107,6 +110,10 @@ void KeyCallback(EventArg_t eventData, EventArg_t listenerData)
 }
 
 template<typename T>
+concept MouseButtonListener =
+  requires(T obj, I32_t x, I32_t y) { obj.onMouseButton(x, y); };
+
+template<MouseButtonListener T>
 void mouseButtonCallback(EventArg_t eventData, EventArg_t listenerData)
 {
     auto self = (T *)listenerData.idata.p;
@@ -114,6 +121,10 @@ void mouseButtonCallback(EventArg_t eventData, EventArg_t listenerData)
 };
 
 template<typename T>
+concept MouseMovementListener =
+  requires(T obj, F32_t x, F32_t y) { obj.onMouseMovement(x, y); };
+
+template<MouseMovementListener T>
 void mouseMovementCallback(EventArg_t eventData, EventArg_t listenerData)
 {
     auto self = (T *)listenerData.idata.p;
@@ -121,6 +132,10 @@ void mouseMovementCallback(EventArg_t eventData, EventArg_t listenerData)
 }
 
 template<typename T>
+concept FrameBufferSizeListener =
+  requires(T obj, I32_t x, I32_t y) { obj.onFramebufferSize(x, y); };
+
+template<FrameBufferSizeListener T>
 void framebufferSizeCallback(EventArg_t eventData, EventArg_t listenerData)
 {
     auto self = (T *)listenerData.idata.p;

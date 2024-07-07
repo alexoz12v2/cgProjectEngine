@@ -8,6 +8,7 @@
 #include "Entity/CollisionWorld.h"
 #include "Launch/Entry.h"
 #include "Render/Renderer.h"
+#include "Render/Renderer2d.h"
 #include "RenderUtils/GLutils.h"
 #include "Resource/HandleTable.h"
 #include "Resource/Rendering/cgeMesh.h"
@@ -21,7 +22,6 @@
 #include <glm/geometric.hpp>
 #include <glm/matrix.hpp>
 #include <glm/trigonometric.hpp>
-
 
 CGE_DECLARE_STARTUP_MODULE(cge, TestbedModule, "TestbedModule");
 // TODO scene and world not global. Also refactor them, they suck
@@ -128,6 +128,8 @@ void TestbedModule::onTick(float deltaTime)
       g_scene,
       camera.viewTransform(),
       glm::perspective(FOV, aspectRatio(), CLIPDISTANCE, RENDERDISTANCE));
+    g_renderer2D.renderText(
+      "Text", glm::vec3(25.0f, 25.0f, 1.0f), glm::vec3(0.5, 0.8f, 0.2f));
 
     // TODO transparency when
     // Disable depth buffer writes

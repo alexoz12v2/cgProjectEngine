@@ -23,12 +23,14 @@ static F32_t constexpr laneShift = (F32_t)pieceSize / numLanes;
 class Player
 {
   public:
-    static F32_t constexpr baseShiftVelocity = 50.f;
-    static F32_t constexpr baseVelocity     = 200.f;
-    static F32_t constexpr mouseSensitivity = 0.1f;
-    static U8_t constexpr LANE_LEFT         = 1 << 2; // 0000'0100
-    static U8_t constexpr LANE_CENTER       = 1 << 1; // 0000'0010
-    static U8_t constexpr LANE_RIGHT        = 1 << 0; // 0000'0001
+    static F32_t constexpr baseShiftVelocity      = 50.f;
+    static F32_t constexpr baseVelocity           = 200.f;
+    static F32_t constexpr maxBaseVelocity        = 400.f;
+    static F32_t constexpr mouseSensitivity       = 0.1f;
+    static F32_t constexpr multiplierTimeConstant = 0.1f;
+    static U8_t constexpr LANE_LEFT               = 1 << 2; // 0000'0100
+    static U8_t constexpr LANE_CENTER             = 1 << 1; // 0000'0010
+    static U8_t constexpr LANE_RIGHT              = 1 << 0; // 0000'0001
 
     void spawn(Camera_t const &, Sid_t);
 
@@ -64,8 +66,9 @@ class Player
     bool                        m_intersected = false;
 
     // movement related
-    U8_t      m_lane       = LANE_CENTER;
-    F32_t     m_targetXPos = 0.f;
+    U8_t      m_lane               = LANE_CENTER;
+    F32_t     m_targetXPos         = 0.f;
+    F32_t     m_velocityMultiplier = 1.f;
     glm::vec3 m_lastDisplacement{};
 };
 

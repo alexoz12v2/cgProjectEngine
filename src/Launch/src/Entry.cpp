@@ -6,6 +6,7 @@
 #include "Core/Module.h"
 #include "Core/TimeUtils.h"
 #include "Core/Type.h"
+#include "Render/Renderer2d.h"
 #include "Render/Window.h"
 
 #include <GLFW/glfw3.h>
@@ -69,6 +70,7 @@ void disableCursor()
 using namespace cge;
 I32_t main(I32_t argc, Char8_t **argv)
 {
+    g_eventQueue.init();
     Array<U32_t, timeWindowSize> timeWindow;
     std::fill_n(timeWindow.data(), timeWindowSize, timeUnitsIn60FPS);
 
@@ -90,6 +92,7 @@ I32_t main(I32_t argc, Char8_t **argv)
     ModuleInitParams const params{};
     g_startupModule->onInit(params);
 
+    g_renderer2D.init();
     window.emitFramebufferSize();
 
     printf("past initialization\n");
@@ -121,7 +124,7 @@ I32_t main(I32_t argc, Char8_t **argv)
         {
             measuredElapsedTime += timeWindow[i];
         }
-        
+
         // equal to measuredElapsedTime / timeWindowSize
         measuredElapsedTime >>= timeWindowPower;
 

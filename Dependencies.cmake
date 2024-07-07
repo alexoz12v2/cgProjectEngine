@@ -16,10 +16,6 @@ function(cge_setup_dependencies)
     CPMAddPackage("gh:microsoft/GSL@4.0.0")
   endif()
 
-  #if(NOT TARGET glm::glm)
-  #  CPMAddPackage("gh:g-truc/glm@0.9.9.8")
-  #endif()
-
   if(NOT TARGET assimp::assimp)
     CPMAddPackage("gh:assimp/assimp@5.3.1")
   endif()
@@ -28,16 +24,8 @@ function(cge_setup_dependencies)
     CPMAddPackage("gh:skypjack/entt@3.12.2")
   endif()
 
-  if(NOT TARGET freetype)
-    CPMAddPackage("gh:servo/libfreetype2@4.0.7")
-  endif()
-
-  #------------------------------------------------------------------------------
-  # Begin GLFW
-  #------------------------------------------------------------------------------
-
-  find_package(OpenGL REQUIRED) 
   # Fetch and add GLFW
+  find_package(OpenGL REQUIRED) 
   FetchContent_Declare(
     GLFW
     GIT_REPOSITORY https://github.com/glfw/glfw.git
@@ -45,8 +33,14 @@ function(cge_setup_dependencies)
   )
   FetchContent_MakeAvailable(GLFW)
   
-  #------------------------------------------------------------------------------
-  # End GLFW
-  #------------------------------------------------------------------------------
+  # freetype
+  FetchContent_Declare(
+    freetype
+    GIT_REPOSITORY https://github.com/freetype/freetype.git
+    GIT_TAG        VER-2-13-2
+  )
+  FetchContent_MakeAvailable(freetype)
 
+  # add downloaded dependencies, not all of them can be fetched with CPM
+  add_subdirectory(external)
 endfunction()

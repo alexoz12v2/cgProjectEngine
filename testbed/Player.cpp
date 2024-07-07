@@ -73,6 +73,7 @@ void Player::onTick(F32_t deltaTime)
         Ray_t const ray{ .o = m_camera.position, .d = glm::vec3(0, 1, 0) };
         Hit_t       hit;
         g_world.build();
+        m_velocityMultiplier += deltaTime * multiplierTimeConstant;
     }
     else if (m_intersected)
     { //
@@ -97,7 +98,9 @@ void Player::onTick(F32_t deltaTime)
 
 glm::vec3 Player::displacementTick(F32_t deltaTime) const
 {
-    F32_t const velocity = baseVelocity * deltaTime;
+    F32_t const velocity =
+      glm::min(baseVelocity * m_velocityMultiplier, maxBaseVelocity)
+      * deltaTime;
 
     // Calculate the movement direction based on camera's forward vector
     glm::vec3 direction = m_camera.forward;

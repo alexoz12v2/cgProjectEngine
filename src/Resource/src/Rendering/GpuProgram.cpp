@@ -12,14 +12,12 @@ namespace cge
 GLenum bitFromType(GLenum);
 
 GpuProgram_s::GpuProgram_s()
-{
-    //
+{ //
     GL_CHECK(m_id = glCreateProgram());
 }
 
 GpuProgram_s::~GpuProgram_s()
-{
-    //
+{ //
     glDeleteProgram(m_id);
 }
 
@@ -103,9 +101,13 @@ UniformBlockOut_t
 
     return out;
 }
-void GpuProgram_s::build(Char8_t const *name, const Shader_s **ppShaders, U32_t count) {
-    I32_t success = GL_FALSE;
-    Char8_t infoLog[512] {0};
+void GpuProgram_s::build(
+  Char8_t const   *name,
+  const Shader_s **ppShaders,
+  U32_t            count)
+{
+    I32_t   success = GL_FALSE;
+    Char8_t infoLog[512]{ 0 };
 
     std::span pShaders = std::span(ppShaders, count);
     for (auto const *pShader : pShaders)
@@ -118,7 +120,8 @@ void GpuProgram_s::build(Char8_t const *name, const Shader_s **ppShaders, U32_t 
 
     // Check for linking errors
     glGetProgramiv(m_id, GL_LINK_STATUS, &success);
-    if (!success) {
+    if (!success)
+    {
         glGetProgramInfoLog(m_id, 512, nullptr, infoLog);
         printf("Program linking error:\n%s", infoLog);
 
