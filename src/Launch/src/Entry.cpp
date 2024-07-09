@@ -9,62 +9,33 @@
 #include "Render/Renderer2d.h"
 #include "Render/Window.h"
 
-#include <GLFW/glfw3.h>
 #include <cstdio>
+
 namespace cge
 {
-
 
 inline U32_t constexpr timeWindowPower = 2u;
 inline U32_t constexpr timeWindowSize  = 1u << timeWindowPower;
 inline U32_t constexpr timeWindowMask  = (timeWindowSize - 1);
 
-// change in ISceneModule
-IModule               *g_startupModule = nullptr;
-std::function<void()> *g_constructStartupModule;
-
-EErr_t g_initializerStatus;
+ModuleMap &getModuleMap()
+{
+    static ModuleMap modules;
+    return modules;
+}
+Sid_t g_startupModule;
 
 namespace detail
 {
-
-    EErr_t initMemory()
+    void addModule(Char8_t const *moduleStr, std::function<void()> const &f)
     {
-        static U64_t constexpr memoryPower     = 30; // 2^30 = 1 GiB
-        static U64_t constexpr memoryBytes     = 1 << memoryPower;
-        static U64_t constexpr memQuarterBytes = memoryBytes >> 2;
-
-        g_initializerStatus = EErr_t::eSuccess;
-        return g_initializerStatus;
+        getModuleMap().emplace(
+          std::piecewise_construct,
+          std::forward_as_tuple(CGE_SID(moduleStr)),
+          std::forward_as_tuple(nullptr, f));
     }
 
 } // namespace detail
-
-struct AppStatus_t
-{
-    [[nodiscard]] bool all() const { return windowStayOpen; }
-
-    bool windowStayOpen;
-};
-
-bool appShouldRun(AppStatus_t const &status) { return status.all(); }
-
-void *windowPointer = nullptr;
-
-void enableCursor()
-{
-    assert(windowPointer);
-    auto *window = (GLFWwindow *)windowPointer;
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-}
-
-void disableCursor()
-{
-    assert(windowPointer);
-    auto *window = (GLFWwindow *)windowPointer;
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-}
-
 } // namespace cge
 
 using namespace cge;
@@ -81,28 +52,41 @@ I32_t main(I32_t argc, Char8_t **argv)
     WindowSpec_t windowSpec{
         .title = "window", .width = 600, .height = 480
     }; // TODO: read startup config from yaml
-    Window_s      window;
-    ::AppStatus_t appStatus{ true };
-
+    Window_s window;
     window.init(windowSpec);
-    ::windowPointer = window.internal();
+
+    g_focusedWindow.setFocusedWindow(&window);
+
+    // construct startup module
+    getModuleMap().at(g_startupModule).second();
     printf("past pre initialization\n");
-    (*g_constructStartupModule)();
 
     ModuleInitParams const params{};
-    g_startupModule->onInit(params);
+    getModuleMap().at(g_startupModule).first->onInit(params);
 
     g_renderer2D.init();
     window.emitFramebufferSize();
 
     printf("past initialization\n");
 
-    while (appShouldRun(appStatus))
+    while (!window.shouldClose()
+           && !getModuleMap().at(g_startupModule).first->taggedForDestruction())
     {
         U64_t startTime = hiResTimer();
 
+        if (Sid_t sid =
+              getModuleMap().at(g_startupModule).first->moduleSwitched();
+            sid != nullSid)
+        { // destroy current module and set it to nullptr
+            delete getModuleMap().at(g_startupModule).first;
+            getModuleMap().at(g_startupModule).first = nullptr;
+            g_startupModule                          = sid;
+            getModuleMap().at(g_startupModule).second();
+            getModuleMap().at(g_startupModule).first->onInit(params);
+        }
+
         // Do stuff...
-        g_startupModule->onTick(elapsedTimeF);
+        getModuleMap().at(g_startupModule).first->onTick(elapsedTimeF);
 
         U64_t endTime = hiResTimer();
 
@@ -137,12 +121,10 @@ I32_t main(I32_t argc, Char8_t **argv)
 
         // dispatch events
         g_eventQueue.dispatch();
-
-        // if grows move into dedicated function
-        appStatus.windowStayOpen = !window.shouldClose();
     }
 
-    delete g_startupModule;
-    delete g_constructStartupModule;
-    return 0;
+    for (auto &pair : getModuleMap())
+    { // if the pointer is nullptr delete is nop
+        delete pair.second.first;
+    }
 }

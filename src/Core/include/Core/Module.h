@@ -2,6 +2,7 @@
 
 // TODO: Add logging
 #include "Core/Type.h"
+#include "Core/StringUtils.h"
 
 namespace cge
 {
@@ -31,5 +32,16 @@ class IModule
     virtual void onTick(float deltaTime) = 0;
 
     virtual ~IModule() = default;
+
+    bool taggedForDestruction() const;
+    Sid_t moduleSwitched() const;
+
+  protected:
+    void tagForDestruction();
+    void switchToModule(Sid_t moduleSid);
+
+  private:
+    bool  m_taggedForDestruction = false;
+    Sid_t m_nextModule           = nullSid;
 };
 } // namespace cge

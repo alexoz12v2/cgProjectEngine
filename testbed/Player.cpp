@@ -9,6 +9,7 @@
 #include "Entity/CollisionWorld.h"
 #include "Launch/Entry.h"
 #include "Render/Renderer.h"
+#include "Render/Renderer2d.h"
 #include "Resource/HandleTable.h"
 #include "Resource/Rendering/cgeMesh.h"
 #include "Utils.h"
@@ -22,6 +23,35 @@
 
 namespace cge
 {
+
+template<std::integral T> consteval U32_t numDigits(T value)
+{
+    U32_t digits = 1;
+    while (value > 9)
+    {
+        value /= 10;
+        digits++;
+    }
+    return digits;
+}
+
+template<U32_t N> struct FixedString
+{
+    constexpr Char8_t const *cStr() const { return buf; }
+    Char8_t                  buf[N];
+};
+
+FixedString<numDigits(std::numeric_limits<U64_t>::max()) + 1>
+  strFromIntegral(U64_t num)
+{
+    static U32_t constexpr maxLen =
+      numDigits(std::numeric_limits<U64_t>::max());
+    FixedString<maxLen + 1> res;
+    sprintf(res.buf, "%zu", num);
+
+    return res;
+}
+
 void Player::spawn(const Camera_t &view, Sid_t meshSid)
 {
     EventArg_t listenerData{};
@@ -29,8 +59,8 @@ void Player::spawn(const Camera_t &view, Sid_t meshSid)
     g_eventQueue.addListener(evKeyPressed, KeyCallback<Player>, listenerData);
     g_eventQueue.addListener(
       evMouseButtonPressed, mouseButtonCallback<Player>, listenerData);
-    // g_eventQueue.addListener(
-    //   evMouseMoved, mouseMovementCallback<Player>, listenerData);
+    g_eventQueue.addListener(
+      evFramebufferSize, framebufferSizeCallback<Player>, listenerData);
 
     m_sid  = meshSid;
     m_mesh = g_handleTable.get(meshSid);
@@ -58,6 +88,9 @@ void Player::onTick(F32_t deltaTime)
     glm::vec3 const displacement = displacementTick(deltaTime);
     if (!smallOrZero(displacement) && !m_intersected)
     {
+        m_score += glm::max(
+          static_cast<decltype(m_score)>(displacement.y * scoreMultiplier),
+          1ULL);
         m_worldObjPtr->ebox = recomputeGlobalSpaceBB(m_sid, m_box);
 
         // TODO remove when chunking
@@ -82,18 +115,35 @@ void Player::onTick(F32_t deltaTime)
 
     if (glm::abs(m_camera.position.x - m_targetXPos) > eps)
     {
-        auto old = m_camera.position.x;
-        m_camera.position.x +=
-          (m_targetXPos - old) * deltaTime * baseShiftVelocity;
+        auto old  = m_camera.position.x;
+        auto disp = (m_targetXPos - old) * baseShiftVelocity * deltaTime;
+        printf("[Player] deltaTime: %f\n", deltaTime);
+
+        m_camera.position.x += disp;
+
         if (glm::abs(m_camera.position.x - m_targetXPos) <= 0.5f)
         {
             m_camera.position.x = m_targetXPos;
+            disp                = m_camera.position.x - old;
         }
 
-        auto disp = m_camera.position.x - old;
         m_node->transform(
           glm::translate(glm::mat4(1.f), glm::vec3(disp, 0.f, 0.f)));
     }
+
+    auto const      fixedStr = strFromIntegral(m_score);
+    glm::vec3 const xyScale{ m_framebufferSize.x / 1.95f,
+                             m_framebufferSize.y / 1.2f,
+                             1.f };
+    glm::vec3 const color{ 0.2f, 0.2f, 0.2f };
+    g_renderer2D.renderText(fixedStr.cStr(), xyScale, color);
+}
+
+void Player::onFramebufferSize(I32_t width, I32_t height)
+{
+    using V             = decltype(m_framebufferSize)::value_type;
+    m_framebufferSize.x = static_cast<V>(width);
+    m_framebufferSize.y = static_cast<V>(height);
 }
 
 glm::vec3 Player::displacementTick(F32_t deltaTime) const
@@ -136,6 +186,7 @@ void Player::onKey(I32_t key, I32_t action)
         default:
             break;
         }
+        printf("[Player] target position: %f\n", m_targetXPos);
     }
 }
 

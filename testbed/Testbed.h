@@ -33,17 +33,15 @@ class TestbedModule : public IModule
     void onTick(float deltaTime) override;
 
   private:
-    [[nodiscard]] F32_t aspectRatio() const
-    {
-        return (F32_t)framebufferSize.x / (F32_t)framebufferSize.y;
-    }
+    [[nodiscard]] F32_t aspectRatio() const;
 
-    glm::ivec2              framebufferSize{ 800, 600 };
-    Player                  player;
-    WorldSpawner            worldSpawner;
-    ScrollingTerrain        scrollingTerrain;
-    std::pmr::vector<Sid_t> pieces;
-    std::pmr::vector<Sid_t> obstacles;
+  private:
+    glm::ivec2              m_framebufferSize{ 800, 600 };
+    Player                  m_player;
+    WorldSpawner            m_worldSpawner;
+    ScrollingTerrain        m_scrollingTerrain;
+    std::pmr::vector<Sid_t> m_pieces;
+    std::pmr::vector<Sid_t> m_obstacles;
 };
 
 } // namespace cge

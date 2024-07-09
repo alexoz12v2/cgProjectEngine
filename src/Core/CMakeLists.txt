@@ -9,6 +9,7 @@ target_sources(cge-core
   src/StringUtils.cpp
   src/Event.cpp
   src/Random.cpp
+  src/Module.cpp
   PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/Type.h>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/Type.h>

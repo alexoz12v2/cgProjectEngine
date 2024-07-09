@@ -26,6 +26,7 @@ class Window_s
     Window_s &operator=(Window_s &&other)      = default;
     ~Window_s();
 
+  public:
     EErr_t init(WindowSpec_t const &spec);
     bool   shouldClose();
     void   swapBuffers();
@@ -35,9 +36,10 @@ class Window_s
 
     void *internal();
 
-  private:
-    gsl::owner<GLFWwindow *> handle    = nullptr;
+    void enableCursor();
+    void disableCursor();
 
+  private:
     static void keyCallback(
       GLFWwindow *window,
       I32_t       key,
@@ -61,5 +63,21 @@ class Window_s
     void onMouseButton(I32_t button, I32_t action, I32_t mods) const;
     void onCursorMovement(F32_t xpos, F32_t ypos) const;
     void onFramebufferSize(I32_t width, I32_t height) const;
+
+  private:
+    gsl::owner<GLFWwindow *> m_handle = nullptr;
 };
+
+class FocusedWindow_s
+{
+  public:
+    Window_s *operator()() const;
+    void      setFocusedWindow(Window_s *ptr);
+
+  private:
+    Window_s *m_ptr = nullptr;
+};
+
+extern FocusedWindow_s g_focusedWindow;
+
 } // namespace cge

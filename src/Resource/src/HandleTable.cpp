@@ -2,13 +2,22 @@
 #include "HandleTable.h"
 #include "Core/Alloc.h"
 
+#include <assimp/Importer.hpp>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
+#include <glad/gl.h>
+#include <stb/stb_image.h>
+
+#include <algorithm>
 #include <cassert>
 
 namespace cge
 {
 
-HandleTable_s g_handleTable;
-Mesh_s       &HandleTable_s::insertMesh(Sid_t sid)
+HandleTable_s              g_handleTable;
+HandleTable_s::Ref_s const nullRef = HandleTable_s::Ref_s::nullRef();
+
+Mesh_s &HandleTable_s::insertMesh(Sid_t sid)
 {
     auto [it, wasInserted] =
       meshTable.try_emplace(sid /* emplacing a default constructed object */);
@@ -81,9 +90,41 @@ HandleTable_s::Ref_s HandleTable_s::get(Sid_t sid)
     return ref;
 }
 
+Mesh_s &HandleTable_s::Ref_s::asMesh() { return *(Mesh_s *)m_ptr; }
+
+Light_t &HandleTable_s::Ref_s::asLight() { return *(Light_t *)m_ptr; }
+
+TextureData_s &HandleTable_s::Ref_s::asTexture()
+{
+    return *(TextureData_s *)m_ptr;
+}
+
+Mesh_s const &HandleTable_s::Ref_s::asMesh() const
+{
+    return *(Mesh_s const *)m_ptr;
+}
+
+Light_t const &HandleTable_s::Ref_s::asLight() const
+{
+    return *(Light_t const *)m_ptr;
+}
+
+TextureData_s const &HandleTable_s::Ref_s::asTexture() const
+{
+    return *(TextureData_s const *)m_ptr;
+}
+
 B8_t HandleTable_s::Ref_s::hasValue() const
 {
     return m_ptr != nullptr && m_sid != nullSid;
+}
+
+[[nodiscard]] Sid_t HandleTable_s::Ref_s::sid() const { return m_sid; }
+
+[[nodiscard]] HandleTable_s::Ref_s const &HandleTable_s::Ref_s::nullRef()
+{
+    static const Ref_s ref;
+    return ref;
 }
 
 } // namespace cge

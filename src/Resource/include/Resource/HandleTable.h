@@ -13,7 +13,6 @@
 namespace cge
 {
 
-
 enum class EResourceType_t
 {
     eInvalid = 0,
@@ -25,106 +24,25 @@ enum class EResourceType_t
 
 class HandleTable_s
 {
-  private:
-    struct Empty_t
-    {
-    };
-    struct Value_t
-    {
-        explicit Value_t(Mesh_s const &m) : type(EResourceType_t::eMesh), res(m)
-        {
-        }
-        explicit Value_t(Light_t l) : type(EResourceType_t::eLight), res(l) {}
-        explicit Value_t(TextureData_s const &t)
-          : type(EResourceType_t::eTexture), res(t)
-        {
-        }
-        explicit Value_t(Empty_t) : type(EResourceType_t::eInvalid) {}
-
-        Value_t(const Value_t &other) : type(other.type), res()
-        {
-            using enum EResourceType_t;
-            switch (type)
-            {
-            case eMesh:
-                new (&res.mesh) Mesh_s(other.res.mesh);
-                break;
-            case eLight:
-                new (&res.light) Light_t(other.res.light);
-                break;
-            case eTexture:
-                new (&res.texture) TextureData_s(other.res.texture);
-                break;
-            case eInvalid:
-                break;
-            }
-        }
-        Value_t(Value_t &&other)                     = default;
-        Value_t &operator=(Value_t const &other)     = default;
-        Value_t &operator=(Value_t &&other) noexcept = default;
-
-        ~Value_t() noexcept
-        {
-            using enum EResourceType_t;
-            switch (type)
-            {
-            case eMesh:
-                res.mesh.~Mesh_s();
-                break;
-            case eLight:
-                res.light.~Light_t();
-                break;
-            case eTexture:
-                res.texture.~TextureData_s();
-                break;
-            case eInvalid:
-                break;
-            }
-        }
-        EResourceType_t type;
-        union U
-        {
-            U(){};
-            U(Empty_t){};
-            U(Mesh_s const &m) : mesh(m) {}
-            U(Light_t l) : light(l) {}
-            // a unique_ptr is not copyable
-            U(TextureData_s const &t) : texture(t) {}
-            ~U() {}
-            Mesh_s        mesh;
-            Light_t       light;
-            TextureData_s texture;
-        };
-        U res;
-    };
-
   public:
     class Ref_s
     {
         friend HandleTable_s;
 
       public:
-        // TODO optionality
-        Mesh_s        &asMesh() { return *(Mesh_s *)m_ptr; }
-        Light_t       &asLight() { return *(Light_t *)m_ptr; }
-        TextureData_s &asTexture() { return *(TextureData_s *)m_ptr; }
+        Mesh_s        &asMesh();
+        Light_t       &asLight();
+        TextureData_s &asTexture();
 
-        Mesh_s const        &asMesh() const { return *(Mesh_s const *)m_ptr; }
-        Light_t const       &asLight() const { return *(Light_t const *)m_ptr; }
-        TextureData_s const &asTexture() const
-        {
-            return *(TextureData_s const *)m_ptr;
-        }
+        Mesh_s const        &asMesh() const;
+        Light_t const       &asLight() const;
+        TextureData_s const &asTexture() const;
 
         [[nodiscard]] B8_t hasValue() const;
 
-        [[nodiscard]] Sid_t sid() const { return m_sid; }
+        [[nodiscard]] Sid_t sid() const;
 
-        [[nodiscard]] static const Ref_s &nullRef()
-        {
-            static const Ref_s ref;
-            return ref;
-        }
+        [[nodiscard]] static Ref_s const &nullRef();
 
       private:
         constexpr Ref_s() = default;
@@ -134,19 +52,20 @@ class HandleTable_s
         void           *m_ptr  = nullptr;
     };
 
+  public:
     Mesh_s              &insertMesh(Sid_t sid, Mesh_s mesh);
     Mesh_s              &insertMesh(Sid_t sid);
     TextureData_s       &insertTexture(Sid_t sid, TextureData_s const &texture);
     B8_t                 remove(Sid_t sid);
     HandleTable_s::Ref_s get(Sid_t sid);
 
+  private:
     // using map for iterator stability
     std::map<Sid_t, Mesh_s>        meshTable;
     std::map<Sid_t, Light_t>       lightTable;
     std::map<Sid_t, TextureData_s> textureTable;
 };
 
-inline auto nullRef = HandleTable_s::Ref_s::nullRef();
-
-extern HandleTable_s g_handleTable;
+extern HandleTable_s::Ref_s const nullRef;
+extern HandleTable_s              g_handleTable;
 } // namespace cge

@@ -14,18 +14,20 @@
 namespace cge
 {
 
+FocusedWindow_s g_focusedWindow;
+
 Window_s::~Window_s()
 {
-    if (handle)
+    if (m_handle)
     {
-        glfwDestroyWindow(handle);
+        glfwDestroyWindow(m_handle);
         glfwTerminate();
     }
 }
 
 EErr_t Window_s::init(WindowSpec_t const& spec)
 {
-    if (handle) { return EErr_t::eInvalid; }
+    if (m_handle) { return EErr_t::eInvalid; }
     if (!glfwInit()) { return EErr_t::eCreationFailure; }
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -35,15 +37,15 @@ EErr_t Window_s::init(WindowSpec_t const& spec)
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
-    handle =
+    m_handle =
       glfwCreateWindow(spec.width, spec.height, spec.title, nullptr, nullptr);
-    if (!handle)
+    if (!m_handle)
     {
         glfwTerminate();
         return EErr_t::eCreationFailure;
     }
 
-    glfwMakeContextCurrent(handle);
+    glfwMakeContextCurrent(m_handle);
 
     if (!gladLoadGL(glfwGetProcAddress))
     {
@@ -63,22 +65,23 @@ EErr_t Window_s::init(WindowSpec_t const& spec)
     }
 
     if (glfwRawMouseMotionSupported())
-        glfwSetInputMode(handle, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+        glfwSetInputMode(m_handle, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
 
     // set this object as user poI32_ter for callbacks
-    glfwSetWindowUserPointer(handle, this);
+    glfwSetWindowUserPointer(m_handle, this);
 
     // set cursor mode
-//#if !defined(CGE_DEBUG)
-//    glfwSetInputMode(handle, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-//#endif
+    // #if !defined(CGE_DEBUG)
+    //     glfwSetInputMode(handle, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    // #endif
 
     // set member function callbacks
-    glfwSetKeyCallback(handle, &Window_s::keyCallback);
-    glfwSetMouseButtonCallback(handle, &Window_s::mouseButtonCallback);
-    glfwSetCursorPosCallback(handle, &Window_s::cursorPositionCallback);
+    glfwSetKeyCallback(m_handle, &Window_s::keyCallback);
+    glfwSetMouseButtonCallback(m_handle, &Window_s::mouseButtonCallback);
+    glfwSetCursorPosCallback(m_handle, &Window_s::cursorPositionCallback);
     glfwSetErrorCallback(&Window_s::errorCallback);
-    glfwSetFramebufferSizeCallback(handle, &Window_s::framebufferSizeCallback);
+    glfwSetFramebufferSizeCallback(
+      m_handle, &Window_s::framebufferSizeCallback);
 
     // enable V-Sync (TODO configurable?)
     glfwSwapInterval(1);
@@ -88,7 +91,7 @@ EErr_t Window_s::init(WindowSpec_t const& spec)
     return EErr_t::eSuccess;
 }
 
-bool Window_s::shouldClose() { return glfwWindowShouldClose(handle); }
+bool Window_s::shouldClose() { return glfwWindowShouldClose(m_handle); }
 
 void Window_s::keyCallback(
   GLFWwindow* window,
@@ -174,13 +177,13 @@ void Window_s::onCursorMovement(F32_t xpos, F32_t ypos) const
 void Window_s::onFramebufferSize(I32_t width, I32_t height) const
 {
     // Handle framebuffer size changes here
-    EventArg_t framebufferSize{};
-    framebufferSize.idata.i32[0] = width;
-    framebufferSize.idata.i32[1] = height;
-    g_eventQueue.addEvent(evFramebufferSize, framebufferSize);
+    EventArg_t m_framebufferSize{};
+    m_framebufferSize.idata.i32[0] = width;
+    m_framebufferSize.idata.i32[1] = height;
+    g_eventQueue.addEvent(evFramebufferSize, m_framebufferSize);
 }
 
-void Window_s::swapBuffers() { glfwSwapBuffers(handle); }
+void Window_s::swapBuffers() { glfwSwapBuffers(m_handle); }
 
 void Window_s::pollEvents(I32_t waitMillis) const
 {
@@ -195,12 +198,27 @@ void Window_s::emitFramebufferSize() const
 {
     I32_t width;
     I32_t height;
-    glfwGetFramebufferSize(handle, &width, &height);
+    glfwGetFramebufferSize(m_handle, &width, &height);
 
     onFramebufferSize(width, height);
 }
-void* Window_s::internal() {
-    return handle;
+void* Window_s::internal() { return m_handle; }
+
+void Window_s::enableCursor()
+{
+    glfwSetInputMode(m_handle, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+}
+
+void Window_s::disableCursor()
+{
+    glfwSetInputMode(m_handle, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+}
+
+void FocusedWindow_s::setFocusedWindow(Window_s* ptr) { m_ptr = ptr; }
+
+Window_s* FocusedWindow_s::operator()() const
+{ //
+    return m_ptr;
 }
 
 } // namespace cge

@@ -269,7 +269,6 @@ Scene_s Scene_s::fromObj(Char8_t const *relativePath)
       !scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
     {
         assert(false);
-        // return tl::nullopt;
     }
     Scene_s internalScene;
     internalScene.processNode(
