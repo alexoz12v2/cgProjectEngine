@@ -29,6 +29,11 @@ CGE_DECLARE_STARTUP_MODULE(cge, TestbedModule, "TestbedModule");
 namespace cge
 {
 
+TestbedModule::~TestbedModule()
+{ //
+    m_soundEngine->drop();
+}
+
 // boilerplate ----------------------------------------------------------------
 void TestbedModule::onInit(ModuleInitParams params)
 {
@@ -39,6 +44,17 @@ void TestbedModule::onInit(ModuleInitParams params)
 #if defined(CGE_DEBUG)
     printf("DebugMode!\n");
 #endif
+
+    m_soundEngine = irrklang::createIrrKlangDevice();
+    if (!m_soundEngine)
+    { //
+        printf("[TestBed] error creating sound engine");
+    }
+
+    irrklang::ISoundSource *sound =
+      m_soundEngine->addSoundSourceFromFile("../assets/ophelia.mp3");
+
+    m_soundEngine->play2D(sound);
 
     // register to all relevant events pressed
     EventArg_t listenerData{};

@@ -215,6 +215,8 @@ B8_t intersectObj(Ray_t const &ray, CollisionObj_t const &obj, Hit_t &outHit)
         }
         return found;
     }
+
+    return false;
 }
 
 } // namespace cge

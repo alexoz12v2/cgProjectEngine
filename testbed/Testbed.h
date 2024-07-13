@@ -8,6 +8,8 @@
 #include "Render/Window.h"
 #include "WorldSpawner.h"
 
+#include <irrKlang/irrKlang.h>
+
 namespace cge
 {
 
@@ -25,7 +27,7 @@ class TestbedModule : public IModule
     TestbedModule &operator=(TestbedModule const &other)     = delete;
     TestbedModule(TestbedModule &&other)                     = delete;
     TestbedModule &operator=(TestbedModule &&other) noexcept = delete;
-    ~TestbedModule() override                                = default;
+    ~TestbedModule() override;
 
   public:
     void onInit(ModuleInitParams params) override;
@@ -39,12 +41,13 @@ class TestbedModule : public IModule
     [[nodiscard]] F32_t aspectRatio() const;
 
   private:
-    glm::ivec2 m_framebufferSize{ g_focusedWindow()->getFramebufferSize() };
-    Player                  m_player;
-    WorldSpawner            m_worldSpawner;
+    glm::ivec2   m_framebufferSize{ g_focusedWindow()->getFramebufferSize() };
+    Player       m_player;
+    WorldSpawner m_worldSpawner;
     ScrollingTerrain        m_scrollingTerrain;
     std::pmr::vector<Sid_t> m_pieces;
     std::pmr::vector<Sid_t> m_obstacles;
+    irrklang::ISoundEngine *m_soundEngine = nullptr;
 };
 
 } // namespace cge

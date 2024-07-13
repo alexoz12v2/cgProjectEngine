@@ -65,7 +65,7 @@ target_include_directories(cge-res
 # project wise dependencies
 target_link_libraries(cge-res 
   PUBLIC cge::core cge::render-utils glad::glad glm::glm
-  PRIVATE stb::stb)
+  PRIVATE stb::stb irrKlang::irrKlang)
 
 # external dependencies
 target_link_system_libraries(cge-res PUBLIC tl::optional PRIVATE assimp::assimp)
