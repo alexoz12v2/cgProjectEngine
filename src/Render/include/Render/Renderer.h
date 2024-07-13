@@ -23,6 +23,7 @@ struct Camera_t
 class Renderer_s
 {
   public:
+    void init();
     void renderScene(
       Scene_s const   &scene,
       glm::mat4 const &view,
@@ -33,6 +34,8 @@ class Renderer_s
     void renderCube() const;
 
     void viewport(U32_t width, U32_t height) const;
+
+    void onFramebufferSize(I32_t width, I32_t height);
 };
 
 extern Renderer_s g_renderer;

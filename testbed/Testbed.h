@@ -5,6 +5,7 @@
 #include "Core/Type.h"
 #include "Player.h"
 #include "Render/Renderer.h"
+#include "Render/Window.h"
 #include "WorldSpawner.h"
 
 namespace cge
@@ -12,6 +13,7 @@ namespace cge
 
 class TestbedModule : public IModule
 {
+  private:
     static Sid_t constexpr vertShader   = "VERTEX"_sid;
     static Sid_t constexpr fragShader   = "FRAG"_sid;
     static Sid_t constexpr cubeMeshSid  = "Cube"_sid;
@@ -25,18 +27,19 @@ class TestbedModule : public IModule
     TestbedModule &operator=(TestbedModule &&other) noexcept = delete;
     ~TestbedModule() override                                = default;
 
+  public:
     void onInit(ModuleInitParams params) override;
+    void onTick(float deltaTime) override;
     void onKey(I32_t key, I32_t action);
     void onMouseButton(I32_t key, I32_t action);
     void onMouseMovement(F32_t xPos, F32_t yPos);
     void onFramebufferSize(I32_t width, I32_t height);
-    void onTick(float deltaTime) override;
 
   private:
     [[nodiscard]] F32_t aspectRatio() const;
 
   private:
-    glm::ivec2              m_framebufferSize{ 800, 600 };
+    glm::ivec2 m_framebufferSize{ g_focusedWindow()->getFramebufferSize() };
     Player                  m_player;
     WorldSpawner            m_worldSpawner;
     ScrollingTerrain        m_scrollingTerrain;

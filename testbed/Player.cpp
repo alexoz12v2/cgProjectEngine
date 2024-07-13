@@ -47,7 +47,7 @@ FixedString<numDigits(std::numeric_limits<U64_t>::max()) + 1>
     static U32_t constexpr maxLen =
       numDigits(std::numeric_limits<U64_t>::max());
     FixedString<maxLen + 1> res;
-    sprintf(res.buf, "%zu", num);
+    sprintf(res.buf, "%zu\0", num);
 
     return res;
 }
@@ -164,19 +164,19 @@ void Player::onKey(I32_t key, I32_t action)
 {
     static F32_t constexpr eps = std::numeric_limits<F32_t>::epsilon();
     if (
-      action == GLFW_PRESS
+      action == action::CGE_PRESS
       && (glm::abs(m_camera.position.x - m_targetXPos) <= eps))
     {
         switch (key)
         {
-        case GLFW_KEY_A:
+        case key::CGE_KEY_A:
             if ((m_lane & LANE_LEFT) == 0)
             { //
                 m_lane <<= 1;
                 m_targetXPos -= laneShift;
             }
             break;
-        case GLFW_KEY_D:
+        case key::CGE_KEY_D:
             if ((m_lane & LANE_RIGHT) == 0)
             { //
                 m_lane >>= 1;
@@ -192,8 +192,8 @@ void Player::onKey(I32_t key, I32_t action)
 
 void Player::onMouseButton([[maybe_unused]] I32_t key, I32_t action)
 {
-    if (action == GLFW_PRESS) {}
-    else if (action == GLFW_RELEASE) {}
+    if (action == action::CGE_PRESS) {}
+    else if (action == action::CGE_RELEASE) {}
 }
 
 AABB_t Player::boundingBox() const { return m_box; }
@@ -377,7 +377,7 @@ std::pmr::deque<std::array<SceneNode_s *, numLanes>>
         }
 
 
-#if 1
+#if defined(CGE_DEBUG)
         for (auto pNode : m_pieces)
         {
             auto  mat  = pNode->getAbsoluteTransform();

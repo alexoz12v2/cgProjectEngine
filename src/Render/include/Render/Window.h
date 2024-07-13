@@ -16,8 +16,29 @@ struct WindowSpec_t
     I32_t          height;
 };
 
+class Window_s;
+namespace detail
+{
+    class WindowEventDispatcher
+    {
+      public:
+        WindowEventDispatcher(Window_s *);
+
+      public:
+        void onKey(I32_t key, I32_t scancode, I32_t action, I32_t mods) const;
+        void onMouseButton(I32_t button, I32_t action, I32_t mods) const;
+        void onCursorMovement(F32_t xpos, F32_t ypos) const;
+        void onFramebufferSize(I32_t width, I32_t height) const;
+
+      private:
+        Window_s *m_ptr = nullptr;
+    };
+} // namespace detail
+
 class Window_s
 {
+    friend detail::WindowEventDispatcher;
+
   public:
     Window_s()                                 = default;
     Window_s(Window_s const &)                 = default;
@@ -32,7 +53,8 @@ class Window_s
     void   swapBuffers();
     void   pollEvents(I32_t waitMillis = 0) const;
 
-    void emitFramebufferSize() const;
+    void       emitFramebufferSize() const;
+    glm::ivec2 getFramebufferSize() const;
 
     void *internal();
 
@@ -40,32 +62,13 @@ class Window_s
     void disableCursor();
 
   private:
-    static void keyCallback(
-      GLFWwindow *window,
-      I32_t       key,
-      I32_t       scancode,
-      I32_t       action,
-      I32_t       mods);
-
-    static void errorCallback(I32_t error, const char *description);
-    static void
-      cursorPositionCallback(GLFWwindow *window, F64_t xpos, F64_t ypos);
-    static void mouseButtonCallback(
-      GLFWwindow *window,
-      I32_t       button,
-      I32_t       action,
-      I32_t       mods);
-
-    static void
-      framebufferSizeCallback(GLFWwindow *window, I32_t width, I32_t height);
-
     void onKey(I32_t key, I32_t scancode, I32_t action, I32_t mods) const;
     void onMouseButton(I32_t button, I32_t action, I32_t mods) const;
     void onCursorMovement(F32_t xpos, F32_t ypos) const;
     void onFramebufferSize(I32_t width, I32_t height) const;
 
   private:
-    gsl::owner<GLFWwindow *> m_handle = nullptr;
+    gsl::owner<void *> m_handle = nullptr;
 };
 
 class FocusedWindow_s

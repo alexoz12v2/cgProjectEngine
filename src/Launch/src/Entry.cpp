@@ -6,6 +6,7 @@
 #include "Core/Module.h"
 #include "Core/TimeUtils.h"
 #include "Core/Type.h"
+#include "Render/Renderer.h"
 #include "Render/Renderer2d.h"
 #include "Render/Window.h"
 
@@ -38,9 +39,16 @@ namespace detail
 } // namespace detail
 } // namespace cge
 
+void setMXCSR_DAZ_FTZ()
+{
+    _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
+    _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
+}
+
 using namespace cge;
 I32_t main(I32_t argc, Char8_t **argv)
 {
+    setMXCSR_DAZ_FTZ();
     g_eventQueue.init();
     Array<U32_t, timeWindowSize> timeWindow;
     std::fill_n(timeWindow.data(), timeWindowSize, timeUnitsIn60FPS);
@@ -58,35 +66,47 @@ I32_t main(I32_t argc, Char8_t **argv)
     g_focusedWindow.setFocusedWindow(&window);
 
     // construct startup module
-    getModuleMap().at(g_startupModule).second();
+    getModuleMap().at(g_startupModule).ctor();
     printf("past pre initialization\n");
 
     ModuleInitParams const params{};
-    getModuleMap().at(g_startupModule).first->onInit(params);
+    getModuleMap().at(g_startupModule).pModule->onInit(params);
 
+    g_renderer.init();
     g_renderer2D.init();
     window.emitFramebufferSize();
+    g_eventQueue.dispatch();
 
     printf("past initialization\n");
 
-    while (!window.shouldClose()
-           && !getModuleMap().at(g_startupModule).first->taggedForDestruction())
+    while (
+      !window.shouldClose()
+      && !getModuleMap().at(g_startupModule).pModule->taggedForDestruction())
     {
         U64_t startTime = hiResTimer();
 
-        if (Sid_t sid =
-              getModuleMap().at(g_startupModule).first->moduleSwitched();
+        if (Sid_t const sid =
+              getModuleMap().at(g_startupModule).pModule->moduleSwitched();
             sid != nullSid)
-        { // destroy current module and set it to nullptr
-            delete getModuleMap().at(g_startupModule).first;
-            getModuleMap().at(g_startupModule).first = nullptr;
-            g_startupModule                          = sid;
-            getModuleMap().at(g_startupModule).second();
-            getModuleMap().at(g_startupModule).first->onInit(params);
+        {
+            if (getModuleMap().contains(sid))
+            { // destroy current module and set it to nullptr
+                delete getModuleMap().at(g_startupModule).pModule;
+                getModuleMap().at(g_startupModule).pModule = nullptr;
+
+                g_startupModule = sid;
+                getModuleMap().at(g_startupModule).ctor();
+                getModuleMap().at(g_startupModule).pModule->onInit(params);
+            }
+            else
+            { //
+                getModuleMap().at(g_startupModule).pModule->resetSwitchModule();
+            }
         }
 
         // Do stuff...
-        getModuleMap().at(g_startupModule).first->onTick(elapsedTimeF);
+        g_renderer.clear();
+        getModuleMap().at(g_startupModule).pModule->onTick(elapsedTimeF);
 
         U64_t endTime = hiResTimer();
 
@@ -125,6 +145,6 @@ I32_t main(I32_t argc, Char8_t **argv)
 
     for (auto &pair : getModuleMap())
     { // if the pointer is nullptr delete is nop
-        delete pair.second.first;
+        delete pair.second.pModule;
     }
 }

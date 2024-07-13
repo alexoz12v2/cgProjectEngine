@@ -1,5 +1,6 @@
 #pragma once
 /**
+ * @ref core
  * @file Core/Type.h
  * contains all necessary fundamental type definitions
  */
@@ -20,7 +21,8 @@ namespace cge
 {
 
 
-/// @typedef built-in types
+/// @addtogroup built-in types
+/// @{
 using U8_t  = uint8_t;
 using U16_t = uint16_t;
 using U32_t = uint32_t;
@@ -40,6 +42,7 @@ using Char8_t   = char;
 using CharU8_t  = char8_t;
 using CharU16_t = char16_t;
 using CharU32_t = char32_t;
+/// @}
 
 /// @typedef vector registers
 /// @note we only support x86_64. No macro is needed
@@ -68,9 +71,8 @@ union V256_t
 };
 
 /// @enum Error type
-// to add more when needed ...
 enum class EErr_t : U32_t
-{
+{ // to add more when needed ...
     eSuccess,
     eMemory,
     eGeneric,
@@ -354,7 +356,7 @@ concept Monad = requires(M m) {
             m.bind(
               []<typename M1>(typename M::inner b) -> typename M1::inner
               { return std::declval<M1>(); })
-        } -> std::same_as<M>;
+        };
     };
 };
 

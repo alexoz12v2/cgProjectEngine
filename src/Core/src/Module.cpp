@@ -17,4 +17,6 @@ void IModule::switchToModule(Sid_t moduleSid)
 
 Sid_t IModule::moduleSwitched() const { return m_nextModule; }
 
+void IModule::resetSwitchModule() { m_nextModule = nullSid; }
+
 } // namespace cge

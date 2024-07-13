@@ -81,7 +81,20 @@ void TestbedModule::onInit(ModuleInitParams params)
     m_worldSpawner.init();
 }
 
-void TestbedModule::onKey(I32_t key, I32_t action) {}
+void TestbedModule::onKey(I32_t key, I32_t action)
+{
+    if (action == action::CGE_PRESS)
+    {
+        if (key == key::CGE_KEY_1)
+        { //
+            switchToModule(CGE_SID("MenuModule"));
+        }
+        else if (key == key::CGE_KEY_2)
+        { //
+            switchToModule(CGE_SID("non existent"));
+        }
+    }
+}
 
 void TestbedModule::onMouseButton(I32_t key, I32_t action) {}
 
@@ -91,13 +104,15 @@ void TestbedModule::onFramebufferSize(I32_t width, I32_t height)
 {
     m_framebufferSize.x = width;
     m_framebufferSize.y = height;
-    g_renderer.viewport(m_framebufferSize.x, m_framebufferSize.y);
-    printf("width: %u, height: %u\n", m_framebufferSize.x, m_framebufferSize.y);
+    printf(
+      "width: %u, height: %u, aspectRatio: %f\n",
+      m_framebufferSize.x,
+      m_framebufferSize.y,
+      aspectRatio());
 }
 
 void TestbedModule::onTick(float deltaTime)
 {
-    g_renderer.clear();
     m_worldSpawner.renderBackground(m_player.getCamera());
 
     // TODO place randomly m_obstacles with a seed by reading back the height of

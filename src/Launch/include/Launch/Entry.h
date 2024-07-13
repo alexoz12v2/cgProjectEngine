@@ -12,7 +12,13 @@
 namespace cge
 {
 
-using ModuleMap = std::map<Sid_t, std::pair<IModule *, std::function<void()>>>;
+struct ModuleConstructorPair
+{
+    IModule              *pModule;
+    std::function<void()> ctor;
+};
+
+using ModuleMap = std::pmr::map<Sid_t, ModuleConstructorPair>;
 extern Sid_t g_startupModule;
 
 ModuleMap &getModuleMap();
@@ -25,7 +31,7 @@ namespace detail
     {
         Initializer(Char8_t const *moduleStr)
         {
-            getModuleMap().at(CGE_SID(moduleStr)).first = new T();
+            getModuleMap().at(CGE_SID(moduleStr)).pModule = new T();
         }
     };
 
@@ -55,7 +61,7 @@ namespace detail
         std::construct_at(&ptr->m, (moduleStr));                 \
     }
 
-#define CGE_DECLARE__MODULE(ModuleNS, ModuleT, moduleStr)      \
+#define CGE_DECLARE_MODULE(ModuleNS, ModuleT, moduleStr)       \
     static ::cge::Char8_t const *name_##ModuleT = (moduleStr); \
     union U##ModuleT;                                          \
     void initModuleType##ModuleT(U##ModuleT *ptr);             \

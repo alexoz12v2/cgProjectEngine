@@ -1,8 +1,8 @@
 #pragma once
 
 // TODO: Add logging
-#include "Core/Type.h"
 #include "Core/StringUtils.h"
+#include "Core/Type.h"
 
 namespace cge
 {
@@ -33,8 +33,9 @@ class IModule
 
     virtual ~IModule() = default;
 
-    bool taggedForDestruction() const;
+    bool  taggedForDestruction() const;
     Sid_t moduleSwitched() const;
+    void  resetSwitchModule();
 
   protected:
     void tagForDestruction();

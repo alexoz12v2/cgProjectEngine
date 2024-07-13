@@ -1,5 +1,8 @@
 #include "Renderer.h"
 
+#include "Core/Event.h"
+#include "Core/Events.h"
+
 #include <Resource/HandleTable.h>
 #include <glad/gl.h>
 #include <glm/ext/matrix_transform.hpp>
@@ -28,6 +31,15 @@ void Camera_t::setForward(glm::vec3 newForward)
     up = glm::normalize(glm::cross(forward, right));
 }
 
+void Renderer_s::init()
+{ //
+    EventArg_t listenerData{};
+    listenerData.idata.p =
+      reinterpret_cast<decltype(listenerData.idata.p)>(this);
+    g_eventQueue.addListener(
+      evFramebufferSize, framebufferSizeCallback<Renderer_s>, listenerData);
+}
+
 void Renderer_s::renderScene(
   Scene_s const   &scene,
   glm::mat4 const &view,
@@ -35,9 +47,6 @@ void Renderer_s::renderScene(
 {
     glCullFace(GL_BACK);
     glFrontFace(GL_CCW);
-    // glClearColor(0.f, 0.f, 0.f, 1.f);
-
-    // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
 
@@ -143,12 +152,20 @@ void Renderer_s::renderCube() const
     glDeleteBuffers(1, &VBO);
     glDeleteBuffers(1, &EBO);
 }
+
 void Renderer_s::clear() const
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
+
 void Renderer_s::viewport(U32_t width, U32_t height) const
 {
     glViewport(0, 0, width, height);
 }
+
+void Renderer_s::onFramebufferSize(I32_t width, I32_t height)
+{
+    viewport(width, height);
+}
+
 } // namespace cge

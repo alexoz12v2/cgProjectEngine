@@ -182,6 +182,8 @@ U32_t Texture_s::bindFromType(ETexture_t type)
     case eInvalid:
         return 0;
     }
+    
+    return 0;
 }
 
 // the following formula \floor(\log2{width, height}) + 1 = numLevels

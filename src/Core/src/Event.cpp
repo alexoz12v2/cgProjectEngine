@@ -45,6 +45,7 @@ EErr_t EventQueue_t::addListener(
         auto pair = m_map.try_emplace(event);
         it        = pair.first;
     }
+    // check successful insertion or existing
     if (it != m_map.cend())
     {
         it->second.emplace_back(listener, listenerData);
