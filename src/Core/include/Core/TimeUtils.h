@@ -6,8 +6,8 @@
 #if defined(CGE_PLATFORM_WINDOWS)
 #include <windows.h>
 #elif defined(CGE_PLATFORM_LINUX)
-#include <ctime>
 #include <bits/time.h>
+#include <ctime>
 #else
 #error "platform not supported"
 #endif
@@ -30,7 +30,7 @@ inline U64_t hiResTimer()
     QueryPerformanceCounter(&li);
     return static_cast<U64_t>(li.QuadPart);
 #elif defined(CGE_PLATFORM_LINUX)
-    U32_t low = 0;
+    U32_t low  = 0;
     U32_t high = 0;
 
 #if defined(__x86_64__) || defined(__i386__)
@@ -59,7 +59,9 @@ inline U64_t hiResFrequency()
     QueryPerformanceFrequency(&li);
     return static_cast<U64_t>(li.QuadPart);
 #elif defined(CGE_PLATFORM_LINUX)
-    struct timespec res{};
+    struct timespec res
+    {
+    };
     clock_getres(CLOCK_MONOTONIC, &res);
 
     // Convert to frequency (1 / delta time)
@@ -74,6 +76,8 @@ inline U64_t constexpr timeUnit64 = 3000ULL;
 inline F32_t constexpr oneOver60FPS =
   0.0166666693985462188720703125F; // in hex 0x3c88888a;
 inline U32_t constexpr timeUnitsIn60FPS = timeUnit32 / 60U; // 50
+inline U32_t constexpr timeScale =
+  timeUnitsIn60FPS / 16.6666693985462188720703125f;
 
 /**
  * @fn elaspedTimeUnits.
@@ -95,6 +99,6 @@ inline CGE_forceinline U32_t elapsedTimeUnits(U64_t end, U64_t start)
  */
 inline CGE_forceinline F32_t elapsedTimeFloat(U64_t end, U64_t start)
 {
-    return (F32_t) (end - start) / (F32_t) hiResFrequency();
+    return (F32_t)(end - start) / (F32_t)hiResFrequency();
 }
 } // namespace cge

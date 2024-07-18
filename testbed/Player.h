@@ -1,6 +1,7 @@
 #ifndef CGE_PLAYER_H
 #define CGE_PLAYER_H
 
+#include "Core/Event.h"
 #include "Core/StringUtils.h"
 #include "Core/Type.h"
 #include "Entity/CollisionWorld.h"
@@ -34,6 +35,14 @@ class Player
     static U8_t constexpr LANE_RIGHT              = 1 << 0; // 0000'0001
 
   public:
+    Player()                                   = default;
+    Player(Player const &other)                = default;
+    Player &operator=(Player const &other)     = default;
+    Player(Player &&other) noexcept            = default;
+    Player &operator=(Player &&other) noexcept = default;
+    ~Player();
+
+  public:
     void spawn(Camera_t const &, Sid_t);
 
     void onKey(I32_t key, I32_t action);
@@ -57,12 +66,14 @@ class Player
     void      yawPitchRotate(F32_t yaw, F32_t pitch);
     glm::vec3 displacementTick(F32_t deltaTime) const;
 
+  private:
     // main components
     Sid_t                m_sid{ nullSid };
     SceneNode_s         *m_node{ nullptr };
     HandleTable_s::Ref_s m_mesh{ nullRef };
     Camera_t             m_camera{};
     U64_t                m_score{ 0 };
+    B8_t                 m_init{ false };
 
     // collision related
     AABB_t                      m_box;
@@ -77,6 +88,16 @@ class Player
 
     // event data
     glm::uvec2 m_framebufferSize{ 0, 0 };
+    union
+    {
+        struct
+        {
+            std::pair<Event_t, Sid_t> keyListener;
+            std::pair<Event_t, Sid_t> mouseButtonListener;
+            std::pair<Event_t, Sid_t> framebufferSizeListener;
+        };
+        std::array<std::pair<Event_t, Sid_t>, 3> arr;
+    } m_listeners{};
 };
 
 class ScrollingTerrain

@@ -185,7 +185,7 @@ void Window_s::onKey(I32_t key, I32_t scancode, I32_t action, I32_t mods) const
     EventArg_t keyPressedData{};
     keyPressedData.idata.i32[0] = key;
     keyPressedData.idata.i32[1] = action;
-    g_eventQueue.addEvent(evKeyPressed, keyPressedData);
+    g_eventQueue.emit(evKeyPressed, keyPressedData);
 }
 
 void Window_s::onMouseButton(I32_t button, I32_t action, I32_t mods) const
@@ -194,7 +194,7 @@ void Window_s::onMouseButton(I32_t button, I32_t action, I32_t mods) const
     EventArg_t keyPressedData{};
     keyPressedData.idata.i32[0] = button;
     keyPressedData.idata.i32[1] = action;
-    g_eventQueue.addEvent(evMouseButtonPressed, keyPressedData);
+    g_eventQueue.emit(evMouseButtonPressed, keyPressedData);
 }
 
 void Window_s::onCursorMovement(F32_t xpos, F32_t ypos) const
@@ -203,7 +203,7 @@ void Window_s::onCursorMovement(F32_t xpos, F32_t ypos) const
     EventArg_t cursorCoords{};
     cursorCoords.fdata.f32[0] = xpos;
     cursorCoords.fdata.f32[1] = ypos;
-    g_eventQueue.addEvent(evMouseMoved, cursorCoords);
+    g_eventQueue.emit(evMouseMoved, cursorCoords);
 }
 
 void Window_s::onFramebufferSize(I32_t width, I32_t height) const
@@ -212,7 +212,7 @@ void Window_s::onFramebufferSize(I32_t width, I32_t height) const
     EventArg_t m_framebufferSize{};
     m_framebufferSize.idata.i32[0] = width;
     m_framebufferSize.idata.i32[1] = height;
-    g_eventQueue.addEvent(evFramebufferSize, m_framebufferSize);
+    g_eventQueue.emit(evFramebufferSize, m_framebufferSize);
 }
 
 void Window_s::swapBuffers()

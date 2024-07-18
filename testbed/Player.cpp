@@ -52,14 +52,26 @@ FixedString<numDigits(std::numeric_limits<U64_t>::max()) + 1>
     return res;
 }
 
+Player::~Player()
+{
+    if (m_init)
+    {
+        for (auto const &pair : m_listeners.arr)
+        { //
+            g_eventQueue.removeListener(pair);
+        }
+    }
+}
+
 void Player::spawn(const Camera_t &view, Sid_t meshSid)
 {
     EventArg_t listenerData{};
     listenerData.idata.p = reinterpret_cast<Byte_t *>(this);
-    g_eventQueue.addListener(evKeyPressed, KeyCallback<Player>, listenerData);
-    g_eventQueue.addListener(
+    m_listeners.keyListener =
+      g_eventQueue.addListener(evKeyPressed, KeyCallback<Player>, listenerData);
+    m_listeners.mouseButtonListener = g_eventQueue.addListener(
       evMouseButtonPressed, mouseButtonCallback<Player>, listenerData);
-    g_eventQueue.addListener(
+    m_listeners.framebufferSizeListener = g_eventQueue.addListener(
       evFramebufferSize, framebufferSizeCallback<Player>, listenerData);
 
     m_sid  = meshSid;
@@ -78,6 +90,8 @@ void Player::spawn(const Camera_t &view, Sid_t meshSid)
     m_node->transform(
       glm::inverse(m_camera.viewTransform())
       * glm::translate(glm::mat4(1.F), glm::vec3(0, -2, -10)));
+
+    m_init = true;
 }
 
 void Player::onTick(F32_t deltaTime)
@@ -115,8 +129,9 @@ void Player::onTick(F32_t deltaTime)
 
     if (glm::abs(m_camera.position.x - m_targetXPos) > eps)
     {
-        auto old  = m_camera.position.x;
-        auto disp = (m_targetXPos - old) * baseShiftVelocity * deltaTime;
+        auto old = m_camera.position.x;
+        auto disp =
+          (m_targetXPos - old) * baseShiftVelocity * 0.004f; //* deltaTime;
         printf("[Player] deltaTime: %f\n", deltaTime);
 
         m_camera.position.x += disp;
@@ -164,19 +179,19 @@ void Player::onKey(I32_t key, I32_t action)
 {
     static F32_t constexpr eps = std::numeric_limits<F32_t>::epsilon();
     if (
-      action == action::CGE_PRESS
+      action == action::PRESS
       && (glm::abs(m_camera.position.x - m_targetXPos) <= eps))
     {
         switch (key)
         {
-        case key::CGE_KEY_A:
+        case key::A:
             if ((m_lane & LANE_LEFT) == 0)
             { //
                 m_lane <<= 1;
                 m_targetXPos -= laneShift;
             }
             break;
-        case key::CGE_KEY_D:
+        case key::D:
             if ((m_lane & LANE_RIGHT) == 0)
             { //
                 m_lane >>= 1;
@@ -192,8 +207,8 @@ void Player::onKey(I32_t key, I32_t action)
 
 void Player::onMouseButton([[maybe_unused]] I32_t key, I32_t action)
 {
-    if (action == action::CGE_PRESS) {}
-    else if (action == action::CGE_RELEASE) {}
+    if (action == action::PRESS) {}
+    else if (action == action::RELEASE) {}
 }
 
 AABB_t Player::boundingBox() const { return m_box; }

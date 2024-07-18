@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Core/Event.h"
 #include "Core/Module.h"
 #include "Core/StringUtils.h"
 #include "Core/Type.h"
@@ -47,7 +48,19 @@ class TestbedModule : public IModule
     ScrollingTerrain        m_scrollingTerrain;
     std::pmr::vector<Sid_t> m_pieces;
     std::pmr::vector<Sid_t> m_obstacles;
+    union
+    {
+        struct
+        {
+            std::pair<Event_t, Sid_t> keyListener;
+            std::pair<Event_t, Sid_t> mouseMovementListener;
+            std::pair<Event_t, Sid_t> mouseButtonListener;
+            std::pair<Event_t, Sid_t> framebufferSizeListener;
+        };
+        std::array<std::pair<Event_t, Sid_t>, 4> arr;
+    } m_listeners{};
     irrklang::ISoundEngine *m_soundEngine = nullptr;
+    B8_t                    m_init{ false };
 };
 
 } // namespace cge

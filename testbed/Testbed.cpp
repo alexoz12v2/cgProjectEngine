@@ -30,8 +30,15 @@ namespace cge
 {
 
 TestbedModule::~TestbedModule()
-{ //
-    m_soundEngine->drop();
+{
+    if (m_init)
+    {
+        m_soundEngine->drop();
+        for (auto const &pair : m_listeners.arr)
+        { //
+            g_eventQueue.removeListener(pair);
+        }
+    }
 }
 
 // boilerplate ----------------------------------------------------------------
@@ -58,14 +65,14 @@ void TestbedModule::onInit(ModuleInitParams params)
 
     // register to all relevant events pressed
     EventArg_t listenerData{};
-    listenerData.idata.p = (Byte_t *)this;
-    g_eventQueue.addListener(
+    listenerData.idata.p    = (Byte_t *)this;
+    m_listeners.keyListener = g_eventQueue.addListener(
       evKeyPressed, KeyCallback<TestbedModule>, listenerData);
-    g_eventQueue.addListener(
+    m_listeners.mouseMovementListener = g_eventQueue.addListener(
       evMouseMoved, mouseMovementCallback<TestbedModule>, listenerData);
-    g_eventQueue.addListener(
+    m_listeners.mouseButtonListener = g_eventQueue.addListener(
       evMouseButtonPressed, mouseButtonCallback<TestbedModule>, listenerData);
-    g_eventQueue.addListener(
+    m_listeners.framebufferSizeListener = g_eventQueue.addListener(
       evFramebufferSize, framebufferSizeCallback<TestbedModule>, listenerData);
 
     // open mesh file
@@ -95,17 +102,18 @@ void TestbedModule::onInit(ModuleInitParams params)
 
     // background, terrain, terrain collisions
     m_worldSpawner.init();
+    m_init = true;
 }
 
 void TestbedModule::onKey(I32_t key, I32_t action)
 {
-    if (action == action::CGE_PRESS)
+    if (action == action::PRESS)
     {
-        if (key == key::CGE_KEY_1)
+        if (key == key::_1)
         { //
             switchToModule(CGE_SID("MenuModule"));
         }
-        else if (key == key::CGE_KEY_2)
+        else if (key == key::_2)
         { //
             switchToModule(CGE_SID("non existent"));
         }

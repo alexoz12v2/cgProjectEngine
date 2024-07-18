@@ -85,15 +85,28 @@ class EventQueue_t
 
     EErr_t dispatch();
 
-    EErr_t addEvent(Event_t event, EventArg_t eventData);
-    EErr_t
+    EErr_t emit(Event_t event, EventArg_t eventData);
+    std::pair<Event_t, Sid_t>
       addListener(Event_t event, EventFunc_t listener, EventArg_t listenerData);
+    void removeListener(std::pair<Event_t, Sid_t> pair);
 
   private:
-    // TODO custom container
-    std::unordered_map<Event_t, std::vector<std::pair<EventFunc_t, EventArg_t>>>
-                                               m_map;
-    std::queue<std::pair<Event_t, EventArg_t>> m_queue;
+    struct DispatcherListenerPair
+    {
+        EventFunc_t listenerFunc;
+        EventArg_t  listenerData;
+    };
+
+  private:
+    std::pmr::unordered_multimap<Event_t, DispatcherListenerPair> m_multimap;
+
+    /**
+     * Data structure containing emitted events to be handled on dispatch
+     */
+    std::queue<
+      std::pair<Event_t, EventArg_t>,
+      std::pmr::deque<std::pair<Event_t, EventArg_t>>>
+      m_queue;
 };
 
 // TODO: when finish group all globals into singleton

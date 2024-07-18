@@ -10,6 +10,7 @@
 #include "Render/Renderer2d.h"
 #include "Render/Window.h"
 
+#include <chrono>
 #include <cstdio>
 
 namespace cge
