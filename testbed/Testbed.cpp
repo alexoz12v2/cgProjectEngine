@@ -22,13 +22,17 @@
 #include <glm/geometric.hpp>
 #include <glm/matrix.hpp>
 #include <glm/trigonometric.hpp>
+#include <nlohmann/json.hpp>
 #include <stb/stb_image.h>
+
+#include <fstream>
 
 CGE_DECLARE_STARTUP_MODULE(cge, TestbedModule, "TestbedModule");
 // TODO scene and world not global. Also refactor them, they suck
 
 namespace cge
 {
+nlohmann::json json;
 
 TestbedModule::~TestbedModule()
 {
@@ -75,6 +79,8 @@ void TestbedModule::onInit(ModuleInitParams params)
       evMouseButtonPressed, mouseButtonCallback<TestbedModule>, listenerData);
     m_listeners.framebufferSizeListener = g_eventQueue.addListener(
       evFramebufferSize, framebufferSizeCallback<TestbedModule>, listenerData);
+    m_listeners.gameOverListener = g_eventQueue.addListener(
+      evGameOver, gameOverCallback<TestbedModule>, listenerData);
 
     // open mesh file
     printf("Opening Scene file\n");
@@ -106,6 +112,18 @@ void TestbedModule::onInit(ModuleInitParams params)
       stbi_load(imagePath, &width, &height, &channels, STBI_rgb);
     getBackgroundRenderer().init(image, width, height);
     stbi_image_free(image);
+
+    // load saves, if existent, otherwise create new ones
+    std::ifstream file{ "../assets/saves.json" };
+    if (file)
+    { //
+        json = nlohmann::json::parse(file);
+    }
+    else
+    { //
+        json = nlohmann::json::object({ { "bestScore", 0ULL } });
+    }
+
     m_init = true;
 }
 
@@ -139,13 +157,24 @@ void TestbedModule::onFramebufferSize(I32_t width, I32_t height)
       aspectRatio());
 }
 
+void TestbedModule::onGameOver(U64_t score)
+{
+    U64_t curr = json["bestScore"].template get<U64_t>();
+    if (score > curr)
+    { //
+        json["bestScore"] = score;
+    }
+
+    std::ofstream file{ "../assets/saves.json",
+                        std::ios::out | std::ios::trunc };
+    file << json.dump();
+    switchToModule(CGE_SID("MenuModule"));
+}
+
 void TestbedModule::onTick(float deltaTime)
 {
     getBackgroundRenderer().renderBackground(
       m_player.getCamera(), aspectRatio(), CLIPDISTANCE, RENDERDISTANCE);
-    // TODO place randomly m_obstacles with a seed by reading back the height of
-    // the mesh
-    // TODO astronave che spara su ostacoli!
 
     m_player.onTick(deltaTime);
 
@@ -157,28 +186,14 @@ void TestbedModule::onTick(float deltaTime)
     Hit_t hit{};
     m_player.intersectPlayerWith(obsVec, hit);
 
-    // worldSpawner.transformTerrain(glm::translate(glm::mat4(1.F),
-    // glm::vec3(p.x, p.y, 0)));
-
-    // worldSpawner.renderTerrain(camera); // TODO deltaTime is broken
-    // printf(
-    //  "Testbed::onTick camera.position = { %f %f %f }\n",
-    //  camera.position.x,
-    //  camera.position.y,
-    //  camera.position.z);
-
     g_renderer.renderScene(
       g_scene,
       camera.viewTransform(),
       glm::perspective(FOV, aspectRatio(), CLIPDISTANCE, RENDERDISTANCE));
+    FixedString str = fixedStringWithNumber<FixedString("Best Score")>(
+      json["bestScore"].template get<U64_t>());
     g_renderer2D.renderText(
-      "Text", glm::vec3(25.0f, 25.0f, 1.0f), glm::vec3(0.5, 0.8f, 0.2f));
-
-    // TODO transparency when
-    // Disable depth buffer writes
-    // glDepthMask(GL_FALSE);
-
-    // worldSpawner.detectTerrainCollisions(camera.viewTransform());
+      str.cStr(), glm::vec3(25.0f, 25.0f, 1.0f), glm::vec3(0.5, 0.8f, 0.2f));
 }
 
 [[nodiscard]] F32_t TestbedModule::aspectRatio() const

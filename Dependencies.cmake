@@ -41,6 +41,10 @@ function(cge_setup_dependencies)
   )
   FetchContent_MakeAvailable(freetype)
 
-  # add downloaded dependencies, not all of them can be fetched with CPM
+  if(NOT TARGET nlohmann_json::nlohmann_json)
+    CPMAddPackage("gh:nlohmann/json@3.11.3")
+  endif()
+
+  # add downloaded dependencies, not all of them can be fetched
   add_subdirectory(external)
 endfunction()

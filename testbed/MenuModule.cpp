@@ -91,8 +91,11 @@ void MenuModule::buttonPressed(Sid_t buttonSid)
 { //
     switch (buttonSid.id)
     {
-    case "BUTTON"_sid.id:
+    case CGE_CONSTEXPR_SID(names[0]).id:
         switchToModule(CGE_SID("TestbedModule"));
+        break;
+    case CGE_CONSTEXPR_SID(names[1]).id:
+        tagForDestruction();
         break;
     }
 }

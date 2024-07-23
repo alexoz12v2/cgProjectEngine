@@ -167,9 +167,13 @@ Char8_t const *dbg_lookupString(Sid_t sid);
 #if defined(CGE_DEBUG)
 #define CGE_DBG_SID(x) ::cge::dbg_internString(x)
 #define CGE_SID(x) ::cge::dbg_internString(x)
+#define CGE_CONSTEXPR_SID(x) \
+    (::cge::operator""_sid((x), std::string_view((x)).size()))
 #define CGE_DBG_STRLOOKUP(x) ::cge::dbg_lookupString(x)
 #else
 #define CGE_DBG_SID(x) \
+    (::cge::operator""_sid((x), std::string_view((x)).size()))
+#define CGE_CONSTEXPR_SID(x) \
     (::cge::operator""_sid((x), std::string_view((x)).size()))
 #define CGE_SID(x) (::cge::operator""_sid((x), std::string_view((x)).size()))
 #define CGE_DBG_STRLOOKUP(x) ("")

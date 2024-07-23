@@ -1,5 +1,6 @@
 #include "Player.h"
 
+#include "ConstantsAndStructs.h"
 #include "Core/Event.h"
 #include "Core/Events.h"
 #include "Core/KeyboardKeys.h"
@@ -23,34 +24,6 @@
 
 namespace cge
 {
-
-template<std::integral T> consteval U32_t numDigits(T value)
-{
-    U32_t digits = 1;
-    while (value > 9)
-    {
-        value /= 10;
-        digits++;
-    }
-    return digits;
-}
-
-template<U32_t N> struct FixedString
-{
-    constexpr Char8_t const *cStr() const { return buf; }
-    Char8_t                  buf[N];
-};
-
-FixedString<numDigits(std::numeric_limits<U64_t>::max()) + 1>
-  strFromIntegral(U64_t num)
-{
-    static U32_t constexpr maxLen =
-      numDigits(std::numeric_limits<U64_t>::max());
-    FixedString<maxLen + 1> res;
-    sprintf(res.buf, "%zu\0", num);
-
-    return res;
-}
 
 Player::~Player()
 {
@@ -124,7 +97,9 @@ void Player::onTick(F32_t deltaTime)
     }
     else if (m_intersected)
     { //
-        printf("[Player] INTERSECTION\n");
+        EventArg_t evData{};
+        evData.idata.u64 = m_score;
+        g_eventQueue.emit(evGameOver, evData);
     }
 
     if (glm::abs(m_camera.position.x - m_targetXPos) > eps)

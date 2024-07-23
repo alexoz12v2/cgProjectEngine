@@ -36,6 +36,7 @@ class TestbedModule : public IModule
     void onMouseButton(I32_t key, I32_t action);
     void onMouseMovement(F32_t xPos, F32_t yPos);
     void onFramebufferSize(I32_t width, I32_t height);
+    void onGameOver(U64_t score);
 
   private:
     [[nodiscard]] F32_t aspectRatio() const;
@@ -54,8 +55,9 @@ class TestbedModule : public IModule
             std::pair<Event_t, Sid_t> mouseMovementListener;
             std::pair<Event_t, Sid_t> mouseButtonListener;
             std::pair<Event_t, Sid_t> framebufferSizeListener;
+            std::pair<Event_t, Sid_t> gameOverListener;
         };
-        std::array<std::pair<Event_t, Sid_t>, 4> arr;
+        std::array<std::pair<Event_t, Sid_t>, 5> arr;
     } m_listeners{};
     irrklang::ISoundEngine *m_soundEngine = nullptr;
     B8_t                    m_init{ false };

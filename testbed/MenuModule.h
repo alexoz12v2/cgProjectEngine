@@ -12,7 +12,11 @@ namespace cge
 class MenuModule : public IModule
 {
   public:
-    static U32_t constexpr numButtons = 1;
+    static U32_t constexpr numButtons = 2;
+    static std::array<const char *, numButtons> constexpr names{
+        "START", ///////
+        "EXIT"
+    };
     static inline std::array<ButtonSpec, numButtons> const buttons{
         //
         ButtonSpec{
@@ -21,7 +25,16 @@ class MenuModule : public IModule
           .borderColor{ glm::vec3{ 0.5098f, 0.45098f, 0.294118f } },
           .borderWidth{ 0.02f },
           .backgroundColor{ glm::vec3{ 0.2f } },
-          .text{ "BUTTON" },
+          .text{ names[0] },
+          .textColor{ glm::vec3{ 0.7f } },
+        },
+        ButtonSpec{
+          .position{ glm::vec2{ 0.05f, 0.3f } },
+          .size{ glm::vec2{ 0.2f, 0.1f } },
+          .borderColor{ glm::vec3{ 0.5098f, 0.45098f, 0.294118f } },
+          .borderWidth{ 0.02f },
+          .backgroundColor{ glm::vec3{ 0.2f } },
+          .text{ names[1] },
           .textColor{ glm::vec3{ 0.7f } },
         }
     };
