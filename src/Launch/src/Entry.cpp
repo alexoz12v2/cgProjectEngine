@@ -51,7 +51,7 @@ I32_t main(I32_t argc, Char8_t **argv)
 {
     setMXCSR_DAZ_FTZ();
     g_eventQueue.init();
-    Array<U32_t, timeWindowSize> timeWindow;
+    Array<U32_t, timeWindowSize> timeWindow{};
     std::fill_n(timeWindow.data(), timeWindowSize, timeUnitsIn60FPS);
 
     U32_t timeWindowIndex = 0;
@@ -98,6 +98,10 @@ I32_t main(I32_t argc, Char8_t **argv)
                 g_startupModule = sid;
                 getModuleMap().at(g_startupModule).ctor();
                 getModuleMap().at(g_startupModule).pModule->onInit(params);
+                // Doesn't make sense, but needed, otherwise viewport breaks
+                // when changing modules
+                window.emitFramebufferSize();
+                g_eventQueue.dispatch();
             }
             else
             { //

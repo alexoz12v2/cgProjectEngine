@@ -2,8 +2,10 @@
 
 #include "Core/Containers.h"
 #include "Core/Type.h"
+#include "Resource/Rendering/GpuProgram.h"
+#include "Resource/Rendering/cgeScene.h"
+#include "Resource/Rendering/cgeTexture.h"
 
-#include <Resource/Rendering/cgeScene.h>
 #include <glm/glm.hpp>
 
 namespace cge
@@ -39,5 +41,24 @@ class Renderer_s
 };
 
 extern Renderer_s g_renderer;
+
+
+class BackgroundRenderer
+{ //
+  public:
+    void init(unsigned char *image, I32_t width, I32_t height);
+    void renderBackground(
+      Camera_t const &camera,
+      F32_t           aspectRatio,
+      F32_t           clipDistance,
+      F32_t           renderDistance) const;
+
+  private:
+    Texture_s    m_cubeBackground;
+    GpuProgram_s m_backgrProgram;
+    B8_t         m_init{ false };
+};
+
+BackgroundRenderer &getBackgroundRenderer();
 
 } // namespace cge

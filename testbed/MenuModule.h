@@ -42,6 +42,9 @@ class MenuModule : public IModule
     void onMouseButton(I32_t key, I32_t action);
 
   private:
+    void buttonPressed(Sid_t buttonSid);
+
+  private:
     glm::ivec2 m_framebufferSize{ g_focusedWindow()->getFramebufferSize() };
     glm::vec2  m_mousePosition{ 0.f, 0.f };
     union

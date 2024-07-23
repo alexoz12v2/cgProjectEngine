@@ -81,8 +81,19 @@ void MenuModule::onMouseButton(I32_t key, I32_t action)
               && m_mousePosition.y < button.position.y + button.size.y)
             { //
                 printf("[MenuModule] pressed button \"%s\"\n", button.text);
+                buttonPressed(CGE_SID(button.text));
             }
         }
+    }
+}
+
+void MenuModule::buttonPressed(Sid_t buttonSid)
+{ //
+    switch (buttonSid.id)
+    {
+    case "BUTTON"_sid.id:
+        switchToModule(CGE_SID("TestbedModule"));
+        break;
     }
 }
 

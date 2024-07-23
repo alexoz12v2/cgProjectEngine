@@ -6,8 +6,6 @@ target_sources(testbed
     ConstantsAndStructs.h
     Testbed.h
     Testbed.cpp
-    WorldSpawner.h
-    WorldSpawner.cpp
     StbImageImplementation.cpp
     Utils.h
     MenuModule.h

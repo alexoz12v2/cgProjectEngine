@@ -7,7 +7,6 @@
 #include "Player.h"
 #include "Render/Renderer.h"
 #include "Render/Window.h"
-#include "WorldSpawner.h"
 
 #include <irrKlang/irrKlang.h>
 
@@ -42,9 +41,8 @@ class TestbedModule : public IModule
     [[nodiscard]] F32_t aspectRatio() const;
 
   private:
-    glm::ivec2   m_framebufferSize{ g_focusedWindow()->getFramebufferSize() };
-    Player       m_player;
-    WorldSpawner m_worldSpawner;
+    glm::ivec2 m_framebufferSize{ g_focusedWindow()->getFramebufferSize() };
+    Player     m_player;
     ScrollingTerrain        m_scrollingTerrain;
     std::pmr::vector<Sid_t> m_pieces;
     std::pmr::vector<Sid_t> m_obstacles;

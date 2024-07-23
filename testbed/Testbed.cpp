@@ -22,6 +22,7 @@
 #include <glm/geometric.hpp>
 #include <glm/matrix.hpp>
 #include <glm/trigonometric.hpp>
+#include <stb/stb_image.h>
 
 CGE_DECLARE_STARTUP_MODULE(cge, TestbedModule, "TestbedModule");
 // TODO scene and world not global. Also refactor them, they suck
@@ -97,11 +98,14 @@ void TestbedModule::onInit(ModuleInitParams params)
     camera.forward  = glm::vec3(0.f, 1.f, 0.f);
     m_player.spawn(camera, cubeMeshSid);
 
-    // set up the viewport
-    g_renderer.viewport(m_framebufferSize.x, m_framebufferSize.y);
-
     // background, terrain, terrain collisions
-    m_worldSpawner.init();
+    stbi_set_flip_vertically_on_load(true);
+    const char    *imagePath = "../assets/background.png";
+    int            width, height, channels;
+    unsigned char *image =
+      stbi_load(imagePath, &width, &height, &channels, STBI_rgb);
+    getBackgroundRenderer().init(image, width, height);
+    stbi_image_free(image);
     m_init = true;
 }
 
@@ -137,8 +141,8 @@ void TestbedModule::onFramebufferSize(I32_t width, I32_t height)
 
 void TestbedModule::onTick(float deltaTime)
 {
-    m_worldSpawner.renderBackground(m_player.getCamera());
-
+    getBackgroundRenderer().renderBackground(
+      m_player.getCamera(), aspectRatio(), CLIPDISTANCE, RENDERDISTANCE);
     // TODO place randomly m_obstacles with a seed by reading back the height of
     // the mesh
     // TODO astronave che spara su ostacoli!
