@@ -109,7 +109,7 @@ EErr_t Window_s::init(WindowSpec_t const& spec)
       reinterpret_cast<GLFWwindow*>(m_handle), &framebufferSizeCallback);
 
     // enable V-Sync (TODO configurable?)
-    glfwSwapInterval(1);
+    glfwSwapInterval(0);
 
     glViewport(0, 0, spec.width, spec.height);
 

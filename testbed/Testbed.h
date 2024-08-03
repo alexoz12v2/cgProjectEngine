@@ -44,9 +44,14 @@ class TestbedModule : public IModule
   private:
     glm::ivec2 m_framebufferSize{ g_focusedWindow()->getFramebufferSize() };
     Player     m_player;
+    tl::optional<SceneNodeHandle> m_cubeHandle{ tl::nullopt };
+
+    // terrain data
     ScrollingTerrain        m_scrollingTerrain;
-    std::pmr::vector<Sid_t> m_pieces;
+    std::pmr::vector<Sid_t> m_pieces{ getMemoryPool() };
     std::pmr::vector<Sid_t> m_obstacles;
+
+    // event data
     union
     {
         struct
@@ -59,8 +64,11 @@ class TestbedModule : public IModule
         };
         std::array<std::pair<Event_t, Sid_t>, 5> arr;
     } m_listeners{};
-    irrklang::ISoundEngine *m_soundEngine = nullptr;
-    B8_t                    m_init{ false };
+    B8_t m_init{ false };
+
+    // sound data
+    irrklang::ISoundSource *m_bgmSource{ nullptr };
+    irrklang::ISound       *m_bgm{ nullptr };
 };
 
 } // namespace cge

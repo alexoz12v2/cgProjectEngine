@@ -47,8 +47,8 @@ tl::optional<Shader_s *> cge::ShaderLibrary_s::open(const char *path)
 
     std::stringstream stream;
     stream << file.rdbuf();
-    std::string source    = stream.str();
-    const char *sourcePtr = source.c_str();
+    std::pmr::string source{ stream.str(), getMemoryPool() };
+    const char      *sourcePtr = source.c_str();
 
     U32_t glid = glCreateShader(stage);
 

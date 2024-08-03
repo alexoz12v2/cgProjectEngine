@@ -22,7 +22,7 @@ inline U32_t constexpr timeWindowMask  = (timeWindowSize - 1);
 
 ModuleMap &getModuleMap()
 {
-    static ModuleMap modules;
+    static ModuleMap modules{ getMemoryPool() };
     return modules;
 }
 Sid_t g_startupModule;
@@ -142,7 +142,7 @@ I32_t main(I32_t argc, Char8_t **argv)
 
         // swap buffers and poll events (and queue them)
         window.swapBuffers();
-        window.pollEvents(min(timeUnitsIn60FPS - elapsedTime, 0U));
+        window.pollEvents(elapsedTime / timeUnitsIn60FPS << 4);
 
         // dispatch events
         g_eventQueue.dispatch();

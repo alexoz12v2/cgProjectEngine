@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/Containers.h"
+#include "Core/Module.h"
 #include "Core/Type.h"
 #include "StringUtils.h"
 
@@ -98,7 +99,9 @@ class EventQueue_t
     };
 
   private:
-    std::pmr::unordered_multimap<Event_t, DispatcherListenerPair> m_multimap;
+    std::pmr::unordered_multimap<Event_t, DispatcherListenerPair> m_multimap{
+        getMemoryPool()
+    };
 
     /**
      * Data structure containing emitted events to be handled on dispatch
@@ -106,7 +109,7 @@ class EventQueue_t
     std::queue<
       std::pair<Event_t, EventArg_t>,
       std::pmr::deque<std::pair<Event_t, EventArg_t>>>
-      m_queue;
+      m_queue{ getMemoryPool() };
 };
 
 // TODO: when finish group all globals into singleton

@@ -6,6 +6,8 @@
 #include "Render/Renderer2d.h"
 #include "Render/Window.h"
 
+#include "SoundEngine.h"
+
 namespace cge
 {
 
@@ -58,8 +60,12 @@ class MenuModule : public IModule
     void buttonPressed(Sid_t buttonSid);
 
   private:
+    // main data
     glm::ivec2 m_framebufferSize{ g_focusedWindow()->getFramebufferSize() };
     glm::vec2  m_mousePosition{ 0.f, 0.f };
+    B8_t       m_init{ false };
+
+    // event data
     union
     {
         struct
@@ -70,7 +76,10 @@ class MenuModule : public IModule
         };
         std::array<std::pair<Event_t, Sid_t>, 3> arr;
     } m_listeners{};
-    B8_t m_init{ false };
+
+    // sound data
+    irrklang::ISoundSource *m_bopSource{ nullptr };
+    irrklang::ISound       *m_bop{ nullptr };
 };
 
 } // namespace cge

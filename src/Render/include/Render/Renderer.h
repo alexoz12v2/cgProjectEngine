@@ -29,7 +29,8 @@ class Renderer_s
     void renderScene(
       Scene_s const   &scene,
       glm::mat4 const &view,
-      glm::mat4 const &proj) const;
+      glm::mat4 const &proj,
+      glm::vec3        eye) const;
     void clear() const;
 
     // TODO configuration program

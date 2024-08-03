@@ -7,7 +7,6 @@
 #include "Core/Random.h"
 #include "Core/StringUtils.h"
 #include "Core/Type.h"
-#include "Entity/CollisionWorld.h"
 #include "Launch/Entry.h"
 #include "Render/Renderer.h"
 #include "Render/Renderer2d.h"
@@ -33,6 +32,14 @@ Player::~Player()
         { //
             g_eventQueue.removeListener(pair);
         }
+
+        if (m_swishSound)
+        { //
+            m_swishSound->stop();
+            m_swishSound->drop();
+        }
+
+        g_soundEngine()->removeSoundSource(m_swishSoundSource);
     }
 }
 
@@ -48,51 +55,42 @@ void Player::spawn(const Camera_t &view, Sid_t meshSid)
       evFramebufferSize, framebufferSizeCallback<Player>, listenerData);
 
     m_sid  = meshSid;
-    m_mesh = g_handleTable.get(meshSid);
-    m_box  = m_mesh.asMesh().box;
-    m_node = g_scene.getNodeBySid(m_sid);
+    m_mesh = &g_handleTable.get(meshSid).asMesh();
+    m_node = g_scene.getNodeBySid(m_sid); // optional initialized
 
     m_camera = view;
 
-    CollisionObj_t cubeCollisionMesh = { .ebox =
-                                           recomputeGlobalSpaceBB(m_sid, m_box),
-                                         .sid = m_sid };
-
-    m_worldObjPtr = g_world.addObject(cubeCollisionMesh);
-
-    m_node->transform(
+    (*m_node)->transform(
       glm::inverse(m_camera.viewTransform())
       * glm::translate(glm::mat4(1.F), glm::vec3(0, -2, -10)));
+
+    m_swishSoundSource =
+      g_soundEngine()->addSoundSourceFromFile("../assets/swish.mp3");
 
     m_init = true;
 }
 
 void Player::onTick(F32_t deltaTime)
 {
-    static F32_t constexpr eps = std::numeric_limits<F32_t>::epsilon();
-    // printf("Player::onTick deltaTime = %f\n", deltaTime);
-    //  update bounding box
+    static F32_t constexpr eps   = std::numeric_limits<F32_t>::epsilon();
     glm::vec3 const displacement = displacementTick(deltaTime);
     if (!smallOrZero(displacement) && !m_intersected)
     {
         m_score += glm::max(
           static_cast<decltype(m_score)>(displacement.y * scoreMultiplier),
           1ULL);
-        m_worldObjPtr->ebox = recomputeGlobalSpaceBB(m_sid, m_box);
 
-        // TODO remove when chunking
         m_lastDisplacement = displacement;
 
-        // TODO add effective movement
         m_camera.position += displacement;
 
-        m_node->transform(glm::translate(glm::mat4(1.f), displacement));
+        (*m_node)->transform(glm::translate(glm::mat4(1.f), displacement));
 
-        auto const meshCenter = centroid(m_worldObjPtr->ebox);
+        auto const meshCenter =
+          centroid(recomputeGlobalSpaceBB(*m_node, m_mesh->box));
 
         Ray_t const ray{ .o = m_camera.position, .d = glm::vec3(0, 1, 0) };
         Hit_t       hit;
-        g_world.build();
         m_velocityMultiplier += deltaTime * multiplierTimeConstant;
     }
     else if (m_intersected)
@@ -115,9 +113,15 @@ void Player::onTick(F32_t deltaTime)
         {
             m_camera.position.x = m_targetXPos;
             disp                = m_camera.position.x - old;
+            if (m_swishSound)
+            {
+                m_swishSound->stop();
+                m_swishSound->drop();
+                m_swishSound = nullptr;
+            }
         }
 
-        m_node->transform(
+        (*m_node)->transform(
           glm::translate(glm::mat4(1.f), glm::vec3(disp, 0.f, 0.f)));
     }
 
@@ -153,30 +157,29 @@ glm::vec3 Player::displacementTick(F32_t deltaTime) const
 void Player::onKey(I32_t key, I32_t action)
 {
     static F32_t constexpr eps = std::numeric_limits<F32_t>::epsilon();
-    if (
-      action == action::PRESS
-      && (glm::abs(m_camera.position.x - m_targetXPos) <= eps))
+    if (action == action::PRESS)
     {
         switch (key)
         {
         case key::A:
             if ((m_lane & LANE_LEFT) == 0)
-            { //
+            {
                 m_lane <<= 1;
                 m_targetXPos -= laneShift;
+                m_swishSound = g_soundEngine()->play2D(m_swishSoundSource);
             }
             break;
         case key::D:
             if ((m_lane & LANE_RIGHT) == 0)
-            { //
+            {
                 m_lane >>= 1;
                 m_targetXPos += laneShift;
+                m_swishSound = g_soundEngine()->play2D(m_swishSoundSource);
             }
             break;
         default:
             break;
         }
-        printf("[Player] target position: %f\n", m_targetXPos);
     }
 }
 
@@ -186,7 +189,7 @@ void Player::onMouseButton([[maybe_unused]] I32_t key, I32_t action)
     else if (action == action::RELEASE) {}
 }
 
-AABB_t Player::boundingBox() const { return m_box; }
+AABB_t Player::boundingBox() const { return m_mesh->box; }
 
 void Player::yawPitchRotate(F32_t yaw, F32_t pitch)
 {
@@ -214,193 +217,111 @@ Camera_t  Player::getCamera() const { return m_camera; }
 glm::vec3 Player::lastDisplacement() const { return m_lastDisplacement; }
 glm::vec3 Player::getCentroid() const
 {
-    return centroid(recomputeGlobalSpaceBB(m_node, m_mesh.asMesh().box));
+    return centroid(recomputeGlobalSpaceBB(*m_node, m_mesh->box));
 }
 
-void ScrollingTerrain::init(
-  Scene_s                                &scene,
-  std::pmr::vector<Sid_t>::const_iterator begin,
-  std::pmr::vector<Sid_t>::const_iterator end)
+void ScrollingTerrain::init(Scene_s &scene, std::span<Sid_t> pieces)
 {
-    static std::array<SceneNode_s *, numLanes> constexpr arr = { nullptr };
-    glm::mat4 const identity                                 = glm::mat4(1.f);
+    static ObstacleList::value_type const arr      = { tl::nullopt };
+    glm::mat4 const                       identity = glm::mat4(1.f);
     printf("ScrollingTerrain::init\n");
     // fill the m_pieces array and
     // trasform all pieces such that the middle one is in the origin
 
-    U32_t const offset = std::distance(begin, end) / 2;
-    U32_t       index  = 0;
-    for (auto it = begin; it != end; ++it)
+    static U32_t constexpr offset = 1;
+    U32_t index                   = 0;
+    for (auto it = pieces.begin(); it != pieces.end() && index < numPieces;
+         ++it)
     {
         F32_t const     yOff = (static_cast<F32_t>(index) - offset) * pieceSize;
         glm::mat4 const t = glm::translate(identity, glm::vec3(0.f, yOff, 0.f));
 
-        m_pieces.push_back(scene.addChild(*it, t));
-        m_obstacles.push_back(arr);
-        printf("adding object at y %f\n", yOff);
+        m_pieces[index]    = scene.addChild(*it, t);
+        m_obstacles[index] = arr;
 
         ++index;
     }
 }
 
-std::pmr::deque<std::array<SceneNode_s *, numLanes>>
-  ScrollingTerrain::updateTilesFromPosition(
-    glm::vec3                      position,
-    std::pmr::vector<Sid_t> const &sidSet,
-    std::pmr::vector<Sid_t> const &obstacles)
+ScrollingTerrain::ObstacleList const &ScrollingTerrain::updateTilesFromPosition(
+  glm::vec3               position,
+  std::span<Sid_t> const &sidSet,
+  std::span<Sid_t> const &obstacles)
 {
-    static std::array<SceneNode_s *, numLanes> constexpr arr = { nullptr };
-    glm::mat4 const identity                                 = glm::mat4(1.f);
-    // Calculate number of pieces in the terrain
-    U32_t numPieces = m_pieces.size();
+    // check if player moved one tile forward
+    U32_t const     nextPieceIdx = (m_first + 1) % numPieces;
+    glm::mat4 const pieceTransform =
+      (*m_pieces[nextPieceIdx])->getAbsoluteTransform();
+    glm::vec4 const piecePosition = pieceTransform[3];
 
-    // Check for empty terrain
-    if (numPieces == 0)
-    { //
-        return m_obstacles;
-    }
-
-    // Calculate the "middle" tile index (halfway point of the vector)
-    U32_t middleTile = numPieces / 2;
-    F32_t middleYOff = m_pieces[middleTile]->getAbsoluteTransform()[3][1];
-
-    // Calculate the difference between player tile and middle tile
-    I32_t difference =
-      static_cast<I32_t>((position.y - middleYOff) / pieceSize);
-
-    // Handle potential negative difference for modulo operation
-    difference = (difference + numPieces) % numPieces;
-
-    // Update terrain tiles if there's a difference
-    if (difference != 0)
+    // if yes, then update first and last and traslate everything from first
+    // to last
+    if (position.y - piecePosition.y > static_cast<F32_t>(pieceSize >> 1))
     {
-        // Number of tiles to move (absolute difference)
-        U32_t numToMove = std::abs(difference);
-        U32_t numPieces = m_pieces.size();
-        F32_t yOffset   = numPieces * pieceSize;
+        (*m_pieces[m_first])
+          ->transform(glm::translate(
+            glm::mat4(1.f), glm::vec3(0.f, pieceSize * numPieces, 0.f)));
 
-        // Temporary storage for moved pieces
-        std::vector<SceneNode_s *> temp(numToMove);
-
-        // Move tiles from back to front (if difference is positive)
-        if (difference > 0)
+        // remove the obstacles from the moved piece
+        for (U32_t i = 0; i < m_obstacles[m_first].size(); ++i)
         {
-            // Copy elements from the back
-            std::copy(
-              m_pieces.begin(), m_pieces.begin() + numToMove, temp.begin());
-
-            // Remove elements from the front
-            m_pieces.erase(m_pieces.begin(), m_pieces.begin() + numToMove);
-
-            // translate each piece in temp
-            for (U32_t i = 0; i != temp.size(); ++i)
-            {
-                temp[i]->transform(glm::translate(
-                  identity, glm::vec3(0.f, yOffset - i * pieceSize, 0.f)));
-            }
-
-            // Insert elements at the back
-            m_pieces.insert(m_pieces.end(), temp.begin(), temp.end());
-        }
-        else
-        {
-            // Move tiles from front to back (if difference is negative)
-            // Copy elements from the front
-            std::copy(m_pieces.end() - numToMove, m_pieces.end(), temp.begin());
-
-            // Remove elements from the back
-            m_pieces.erase(m_pieces.end() - numToMove, m_pieces.end());
-
-            // translate each piece in temp
-            for (U32_t i = 0; i != temp.size(); ++i)
-            {
-                temp[i]->transform(glm::translate(
-                  identity, glm::vec3(0.f, -yOffset + i * pieceSize, 0.f)));
-            }
-
-            // Insert elements at the front
-            m_pieces.insert(m_pieces.begin(), temp.begin(), temp.end());
-        }
-
-        for (auto pNode : temp)
-        {
-            // Update SIDs of moved pieces
-            U32_t const setIndex = g_random.next<U32_t>() % temp.size();
-            Sid_t const sid      = sidSet[setIndex];
-            pNode->setSid(sid);
-
-            m_obstacles.pop_front();
-            m_obstacles.push_back(arr);
-            auto &back = m_obstacles.back();
-            // TODO: spawn props in the new tiles
-            if (!obstacles.empty())
-            {
-                U32_t              numObstacles = g_random.next<U32_t>() % 3;
-                std::vector<F32_t> availableLanes{ -laneShift, 0, laneShift };
-                for (U32_t i = 0; i != numObstacles; ++i)
-                {
-                    U32_t const index =
-                      g_random.next<U32_t>() % availableLanes.size();
-                    F32_t const positionX = availableLanes[index];
-                    F32_t const positionYFromPieceCenter =
-                      (g_random.next<F32_t>() - 0.5f) * pieceSize / 2.3f;
-                    availableLanes.erase(availableLanes.begin() + index);
-
-                    Sid_t const obstacle =
-                      obstacles[g_random.next<U32_t>() % obstacles.size()];
-                    auto const transform = glm::translate(
-                      pNode->getAbsoluteTransform(),
-                      glm::vec3(positionX, positionYFromPieceCenter, 0.f));
-
-                    back[i] = g_scene.addChild(obstacle, transform);
-
-                    CollisionObj_t collision = {
-                        .ebox = recomputeGlobalSpaceBB(
-                          obstacle,
-                          computeAABB(g_handleTable.get(obstacle).asMesh())),
-                        .sid = obstacle
-                    };
-
-                    g_world.addObject(collision);
-                }
+            if (m_obstacles[m_first][i].has_value())
+            { // remove from scene
+                g_scene.removeNode(*m_obstacles[m_first][i]);
+                m_obstacles[m_first][i] = tl::nullopt;
             }
         }
 
+        // add new obstacles in the moved piece
+        U32_t const numObstacles = g_random.next<U32_t>(0, 2);
 
-#if defined(CGE_DEBUG)
-        for (auto pNode : m_pieces)
+        std::array<F32_t, 3> arr = { -laneShift, 0, laneShift };
+        std::ranges::shuffle(arr, g_random.getGen());
+
+        for (U32_t idx = 0; idx < numObstacles; ++idx)
         {
-            auto  mat  = pNode->getAbsoluteTransform();
-            F32_t yOff = mat[3][1];
-            printf("piece at %f\n", yOff);
+            U32_t const obstacleIdx =
+              g_random.next<U32_t>(0, obstacles.size() - 1);
+            Sid_t const obstacleId    = obstacles[obstacleIdx];
+            m_obstacles[m_first][idx] = g_scene.addChild(
+              obstacleId,
+              glm::translate(
+                pieceTransform,
+                glm::vec3(arr[idx], pieceSize * (numPieces - 1), 0.f)));
         }
-        printf("\n\n");
+
+        // maintain indices
+        m_first = nextPieceIdx;
+        m_last  = (m_last + 1) % numPieces;
     }
-#endif
 
     return m_obstacles;
 }
 
 bool Player::intersectPlayerWith(
-  std::pmr::deque<std::array<SceneNode_s *, numLanes>> const &obstacles,
-  Hit_t                                                      &outHit)
+  std::span<std::array<tl::optional<SceneNodeHandle>, numLanes>> const
+        &obstacles,
+  Hit_t &outHit)
 {
     bool res = false;
     if (!obstacles.empty())
     {
-        auto const playerBox = recomputeGlobalSpaceBB(m_sid, m_box);
+        auto const playerBox = recomputeGlobalSpaceBB(*m_node, m_mesh->box);
         for (auto const &obsArr : obstacles)
         {
-            for (auto const *pNode : obsArr)
+            for (auto pNode : obsArr)
             {
-                if (!pNode)
-                { //
-                    break;
+                if (pNode.has_value() && pNode->isValid())
+                {
+                    auto const ref = g_handleTable.get((*pNode)->getSid());
+                    if (ref.hasValue())
+                    {
+                        auto const &mesh  = ref.asMesh();
+                        auto const  box   = mesh.box;
+                        auto const obsBox = recomputeGlobalSpaceBB(*pNode, box);
+                        res |= intersect(playerBox, obsBox);
+                    }
                 }
-                auto const &mesh = g_handleTable.get(pNode->getSid()).asMesh();
-                auto const  box  = mesh.box;
-                auto const  obsBox = recomputeGlobalSpaceBB(pNode, box);
-                res |= intersect(playerBox, obsBox);
             }
 
             if (res)
@@ -412,6 +333,11 @@ bool Player::intersectPlayerWith(
 
     m_intersected = res;
     return res;
+}
+
+void Player::setSwishSound(irrklang::ISoundSource *sound)
+{ //
+    m_swishSoundSource = sound;
 }
 
 } // namespace cge

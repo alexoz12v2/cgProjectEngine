@@ -3,6 +3,10 @@
 namespace cge
 {
 // Static mutex initialization (only once)
-std::mutex Random::mtx;
 thread_local Random g_random;
+
+std::mt19937 &Random::getGen()
+{ //
+    return m_generator;
 }
+} // namespace cge

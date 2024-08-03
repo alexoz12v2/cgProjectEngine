@@ -19,7 +19,7 @@ add_dependencies(cge-cge cge-copy-assets)
 add_subdirectory(Core/)
 add_subdirectory(RenderUtils/)
 add_subdirectory(Resource/)
-add_subdirectory(Entity/)
+# add_subdirectory(Entity/)
 add_subdirectory(Render/)
 add_subdirectory(Launch/)
 
@@ -27,7 +27,7 @@ target_link_libraries(cge-cge INTERFACE
   cge::core
   cge::render-utils
   cge::res
-  cge::entity
+#  cge::entity
   cge::renderer
   cge::launch
 )

@@ -1,12 +1,12 @@
-#ifndef CGE_PLAYER_H
-#define CGE_PLAYER_H
+#pragma once
 
 #include "Core/Event.h"
 #include "Core/StringUtils.h"
 #include "Core/Type.h"
-#include "Entity/CollisionWorld.h"
 #include "Render/Renderer.h"
 #include "Resource/HandleTable.h"
+
+#include "SoundEngine.h"
 
 #include <glm/ext/vector_float2.hpp>
 #include <glm/ext/vector_int2.hpp>
@@ -23,7 +23,7 @@ inline F32_t constexpr laneShift = (F32_t)pieceSize / numLanes;
 
 class Player
 {
-  public:
+  private:
     static F32_t constexpr scoreMultiplier        = 0.1f;
     static F32_t constexpr baseShiftVelocity      = 50.f;
     static F32_t constexpr baseVelocity           = 200.f;
@@ -59,8 +59,10 @@ class Player
     [[nodiscard]] glm::vec3 lastDisplacement() const;
 
     bool intersectPlayerWith(
-      std::pmr::deque<std::array<SceneNode_s *, numLanes>> const &obstacles,
-      Hit_t                                                      &outHit);
+      std::span<std::array<tl::optional<SceneNodeHandle>, numLanes>> const
+            &obstacles,
+      Hit_t &outHit);
+    void setSwishSound(irrklang::ISoundSource *sound);
 
   private:
     void      yawPitchRotate(F32_t yaw, F32_t pitch);
@@ -68,17 +70,15 @@ class Player
 
   private:
     // main components
-    Sid_t                m_sid{ nullSid };
-    SceneNode_s         *m_node{ nullptr };
-    HandleTable_s::Ref_s m_mesh{ nullRef };
-    Camera_t             m_camera{};
-    U64_t                m_score{ 0 };
-    B8_t                 m_init{ false };
+    Sid_t                         m_sid{ nullSid };
+    tl::optional<SceneNodeHandle> m_node{ tl::nullopt };
+    Mesh_s                       *m_mesh{ nullptr };
+    Camera_t                      m_camera{};
+    U64_t                         m_score{ 0 };
+    B8_t                          m_init{ false };
 
     // collision related
-    AABB_t                      m_box;
-    CollisionWorld_s::ObjHandle m_worldObjPtr;
-    bool                        m_intersected{ false };
+    bool m_intersected{ false };
 
     // movement related
     U8_t      m_lane{ LANE_CENTER };
@@ -98,10 +98,22 @@ class Player
         };
         std::array<std::pair<Event_t, Sid_t>, 3> arr;
     } m_listeners{};
+
+    // sound data
+    irrklang::ISoundSource *m_swishSoundSource{ nullptr };
+    irrklang::ISound       *m_swishSound{ nullptr };
 };
 
 class ScrollingTerrain
 {
+  private:
+    static U32_t constexpr numPieces = 10;
+
+  public:
+    using ObstacleList = std::
+      array<std::array<tl::optional<SceneNodeHandle>, numLanes>, numPieces>;
+    using PieceList = std::array<tl::optional<SceneNodeHandle>, numPieces>;
+
   public:
     /**
      * @brief assuming each piece is 10 m x 10 m, they are placed such that the
@@ -113,10 +125,7 @@ class ScrollingTerrain
      * @param end end iterator for the pieces of the terrain. Can be obtained
      * with Scene_s::namesEnd()
      */
-    void init(
-      Scene_s                                &scene,
-      std::pmr::vector<Sid_t>::const_iterator begin,
-      std::pmr::vector<Sid_t>::const_iterator end);
+    void init(Scene_s &scene, std::span<Sid_t> pieces);
 
     /**
      * @brief given the player position, find in which of the tiles the player
@@ -128,19 +137,21 @@ class ScrollingTerrain
      * @param sidSet set of meshes to pick from
      * @return deque with obstacles for each tile (hence size = m_pieces.size())
      */
-    std::pmr::deque<std::array<SceneNode_s *, numLanes>>
-      updateTilesFromPosition(
-        glm::vec3                      position,
-        std::pmr::vector<Sid_t> const &sidSet,
-        std::pmr::vector<Sid_t> const &obstacles);
+    ObstacleList const &updateTilesFromPosition(
+      glm::vec3               position,
+      std::span<Sid_t> const &sidSet,
+      std::span<Sid_t> const &obstacles);
 
   private:
     // the front is the furthest piece backwards, hence the first to be moved
     // and swapped with the back
-    std::pmr::vector<SceneNode_s *>                      m_pieces;
-    std::pmr::deque<std::array<SceneNode_s *, numLanes>> m_obstacles;
+    PieceList    m_pieces;
+    ObstacleList m_obstacles;
+
+    // indices managed such that the m_pieces array is a ring buffer, with its
+    // elements fixed and varying indices
+    U32_t m_first{ 0 };
+    U32_t m_last{ numPieces - 1 };
 };
 
 } // namespace cge
-
-#endif // CGE_PLAYER_H

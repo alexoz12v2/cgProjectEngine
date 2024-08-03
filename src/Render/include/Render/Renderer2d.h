@@ -1,5 +1,5 @@
+#include "Core/Module.h"
 #include "Core/Type.h"
-
 #include "Resource/Rendering/GpuProgram.h"
 
 #include <unordered_map>
@@ -72,7 +72,7 @@ class Renderer2D
 
     glm::mat4                                m_projection{ glm::mat4(1.f) };
     void                                    *m_freeType{ nullptr };
-    std::pmr::unordered_map<char, Character> m_characterMap;
+    std::pmr::unordered_map<char, Character> m_characterMap{ getMemoryPool() };
     U32_t                                    m_textVAO{ 0 }, m_textVBO{ 0 };
     U32_t                                    m_buttonVAO{ 0 }, m_buttonVBO{ 0 };
     U                                        m_textProgram;

@@ -59,13 +59,17 @@ void Mesh_s::streamUniforms(MeshUniform_t const &uniforms) const
 void Mesh_s::allocateTexturesToGpu()
 {
     uploadedTextures.reserve(64); // reserve is no op for counts < 64
-    uploadedTextures.reserve(textures.size());
+    uploadedTextures.reserve(textures.arr.size());
     uploadedTextures.clear();
 
     U32_t i = 0;
-    for (Sid_t texid : textures)
+    for (Sid_t texid : textures.arr)
     {
-        auto texData = g_handleTable.get(texid).asTexture();
+        if (texid == nullSid)
+        { //
+            continue;
+        }
+        auto &texData = g_handleTable.get(texid).asTexture();
 
         // upload texture to gpu
         glActiveTexture(GL_TEXTURE0 + i);
@@ -104,24 +108,49 @@ void Mesh_s::allocateTexturesToGpu()
     }
 
     // assign default texture binder function (TODO better)
-    if (!textures.empty())
+    if (!textures.arr.empty())
     {
         bindTextures = [](Mesh_s const *mesh)
         {
-            U32_t fragId     = mesh->shaderProgram.id();
-            U32_t samplerLoc = glGetUniformLocation(fragId, "sampler");
-            glUniform1i(samplerLoc, 0);
+            static char const *namesBools[3]{ "hasAlbedoTexture",
+                                              "hasNormalSampler",
+                                              "hasShininessSampler" };
+            static char const *namesSamplers[3]{ "albedoSampler",
+                                                 "normalSampler",
+                                                 "shininessSampler" };
+            U32_t              fragId = mesh->shaderProgram.id();
 
-            glUniform1i(glGetUniformLocation(fragId, "hasTexture"), 1);
+            for (U32_t i = 0; i != 3; ++i)
+            {
+                if (
+                  (i == 0 && mesh->hasDiffuse) || (i == 1 && mesh->hasNormal)
+                  || (i == 2 && mesh->hasSpecular))
+                {
+                    glActiveTexture(GL_TEXTURE0 + i);
+                    glBindTexture(
+                      GL_TEXTURE_2D, mesh->uploadedTextures[i].id());
+
+                    // U32_t samplerLoc =
+                    // glGetUniformLocation(fragId, namesSamplers[i]);
+                    // glUniform1i(samplerLoc, 0);
+                    glUniform1i(
+                      glGetUniformLocation(fragId, namesBools[i]), true);
+                }
+            }
         };
     }
     else
-    {
+    { // method used when there are no textures to bind
         bindTextures = [](Mesh_s const *mesh)
         {
-            // method used when there are no textures to bind
-            U32_t fragId = mesh->shaderProgram.id();
-            glUniform1i(glGetUniformLocation(fragId, "hasTexture"), 0);
+            static char const *namesBools[3]{ "hasAlbedoTexture",
+                                              "hasNormalSampler",
+                                              "hasShininessSampler" };
+            U32_t              fragId = mesh->shaderProgram.id();
+            for (auto const &n : namesBools)
+            {
+                glUniform1i(glGetUniformLocation(fragId, n), false);
+            }
         };
     }
 }
@@ -154,16 +183,29 @@ void Mesh_s::allocateGeometryBuffersToGpu()
     // buffer layout
     vertexBuffer.bind();
     BufferLayout_s layout;
+    // -- aPos
     layout.push({ .type       = GL_FLOAT,
                   .count      = 3,
                   .targetType = ETargetType::eFloating,
                   .normalized = false });
+    // -- aNorm
     layout.push({ .type       = GL_FLOAT,
                   .count      = 3,
                   .targetType = ETargetType::eFloating,
                   .normalized = false });
+    // -- aTexCoord
     layout.push({ .type       = GL_FLOAT,
                   .count      = 3,
+                  .targetType = ETargetType::eFloating,
+                  .normalized = false });
+    // -- aColor
+    layout.push({ .type       = GL_FLOAT,
+                  .count      = 4,
+                  .targetType = ETargetType::eFloating,
+                  .normalized = false });
+    // -- aShininess
+    layout.push({ .type       = GL_FLOAT,
+                  .count      = 1,
                   .targetType = ETargetType::eFloating,
                   .normalized = false });
     vertexArray.addBuffer(vertexBuffer, layout);

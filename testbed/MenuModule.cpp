@@ -19,6 +19,14 @@ MenuModule::~MenuModule()
         { //
             g_eventQueue.removeListener(pair);
         }
+
+        if (m_bop)
+        {
+            m_bop->stop();
+            m_bop->drop();
+        }
+
+        g_soundEngine()->removeSoundSource(m_bopSource);
     }
 }
 
@@ -33,6 +41,8 @@ void MenuModule::onInit(ModuleInitParams params)
       evMouseMoved, mouseMovementCallback<MenuModule>, listenerData);
     m_listeners.mouseButtonListener = g_eventQueue.addListener(
       evMouseButtonPressed, mouseButtonCallback<MenuModule>, listenerData);
+
+    m_bopSource = g_soundEngine()->addSoundSourceFromFile("../assets/bop.mp3");
 
     m_init = true;
 }
@@ -81,7 +91,9 @@ void MenuModule::onMouseButton(I32_t key, I32_t action)
               && m_mousePosition.y < button.position.y + button.size.y)
             { //
                 printf("[MenuModule] pressed button \"%s\"\n", button.text);
+                m_bop = g_soundEngine()->play2D(m_bopSource);
                 buttonPressed(CGE_SID(button.text));
+                break;
             }
         }
     }

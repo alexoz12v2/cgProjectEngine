@@ -10,6 +10,8 @@ target_sources(testbed
     Utils.h
     MenuModule.h
     MenuModule.cpp
+    SoundEngine.h
+    SoundEngine.cpp
 )
 
 target_include_directories(testbed

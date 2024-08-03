@@ -47,11 +47,101 @@ void Renderer_s::init()
       evFramebufferSize, framebufferSizeCallback<Renderer_s>, listenerData);
 }
 
+static void uploadLightData(
+  const Light_t::Properties *lights,
+  I32_t                      numLights,
+  I32_t                      shaderProgramID)
+{
+    // Get the location of the lights array
+    GLint lightsLocation = glGetUniformLocation(shaderProgramID, "lights");
+
+    for (int i = 0; i < numLights; ++i)
+    {
+        std::string index = std::to_string(i);
+
+        glUniform1i(
+          glGetUniformLocation(
+            shaderProgramID, ("lights[" + index + "].isEnabled").c_str()),
+          lights[i].isEnabled);
+        glUniform1i(
+          glGetUniformLocation(
+            shaderProgramID, ("lights[" + index + "].isLocal").c_str()),
+          lights[i].isLocal);
+        glUniform1i(
+          glGetUniformLocation(
+            shaderProgramID, ("lights[" + index + "].isSpot").c_str()),
+          lights[i].isSpot);
+        glUniform3fv(
+          glGetUniformLocation(
+            shaderProgramID, ("lights[" + index + "].ambient").c_str()),
+          1,
+          &lights[i].ambient[0]);
+        glUniform3fv(
+          glGetUniformLocation(
+            shaderProgramID, ("lights[" + index + "].color").c_str()),
+          1,
+          &lights[i].color[0]);
+        glUniform3fv(
+          glGetUniformLocation(
+            shaderProgramID, ("lights[" + index + "].position").c_str()),
+          1,
+          &lights[i].position[0]);
+        glUniform3fv(
+          glGetUniformLocation(
+            shaderProgramID, ("lights[" + index + "].halfVector").c_str()),
+          1,
+          &lights[i].halfVector[0]);
+        glUniform3fv(
+          glGetUniformLocation(
+            shaderProgramID, ("lights[" + index + "].coneDirection").c_str()),
+          1,
+          &lights[i].coneDirection[0]);
+        glUniform1f(
+          glGetUniformLocation(
+            shaderProgramID, ("lights[" + index + "].spotCosCutoff").c_str()),
+          lights[i].spotCosCutoff);
+        glUniform1f(
+          glGetUniformLocation(
+            shaderProgramID, ("lights[" + index + "].spotExponent").c_str()),
+          lights[i].spotExponent);
+        glUniform1f(
+          glGetUniformLocation(
+            shaderProgramID,
+            ("lights[" + index + "].constantAttenuation").c_str()),
+          lights[i].constantAttenuation);
+        glUniform1f(
+          glGetUniformLocation(
+            shaderProgramID,
+            ("lights[" + index + "].linearAttenuation").c_str()),
+          lights[i].linearAttenuation);
+        glUniform1f(
+          glGetUniformLocation(
+            shaderProgramID,
+            ("lights[" + index + "].quadraticAttenuation").c_str()),
+          lights[i].quadraticAttenuation);
+    }
+}
+
 void Renderer_s::renderScene(
   Scene_s const   &scene,
   glm::mat4 const &view,
-  glm::mat4 const &proj) const
+  glm::mat4 const &proj,
+  glm::vec3        eye) const
 {
+    static U32_t constexpr maxLights = 10;
+    Light_t::Properties lights[maxLights]{};
+
+    // TODO: take lights from scene, not from table
+    if (g_handleTable.lightsBegin() != g_handleTable.lightsEnd())
+    { //
+        std::transform(
+          g_handleTable.lightsBegin(),
+          g_handleTable.lightsEnd(),
+          std::begin(lights),
+          [](const std::pair<const Sid_t, Light_t> &p)
+          { return p.second.props; });
+    }
+
     glCullFace(GL_BACK);
     glFrontFace(GL_CCW);
     glEnable(GL_DEPTH_TEST);
@@ -61,8 +151,12 @@ void Renderer_s::renderScene(
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     for (auto const &[sid, sceneNode] : scene.m_bnodes)
     {
-        auto          meshRef = g_handleTable.get(sid);
-        Mesh_s const &mesh    = meshRef.asMesh();
+        auto meshRef = g_handleTable.get(sceneNode.getSid());
+        if (!meshRef.hasValue())
+        { //
+            assert(false && "all refs in the scene should be valid meshes");
+        }
+        Mesh_s const &mesh = meshRef.asMesh();
 
         glm::mat4 const     modelView = view * sceneNode.getAbsoluteTransform();
         MeshUniform_t const uniforms{ .modelView     = modelView,
@@ -72,6 +166,13 @@ void Renderer_s::renderScene(
         mesh.vertexArray.bind();
         mesh.bindTextures(&mesh);
         mesh.streamUniforms(uniforms);
+
+        glUniform3f(
+          glGetUniformLocation(mesh.shaderProgram.id(), "eyeDirection"),
+          eye.x,
+          eye.y,
+          eye.z);
+        uploadLightData(lights, maxLights, mesh.shaderProgram.id());
 
         glDrawElements(
           GL_TRIANGLES,

@@ -5,7 +5,6 @@
 #include "Core/KeyboardKeys.h"
 #include "Core/StringUtils.h"
 #include "Core/Type.h"
-#include "Entity/CollisionWorld.h"
 #include "Launch/Entry.h"
 #include "Render/Renderer.h"
 #include "Render/Renderer2d.h"
@@ -15,6 +14,7 @@
 #include "Resource/Rendering/cgeScene.h"
 
 #include "ConstantsAndStructs.h"
+#include "SoundEngine.h"
 
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_float4x4.hpp>
@@ -38,11 +38,19 @@ TestbedModule::~TestbedModule()
 {
     if (m_init)
     {
-        m_soundEngine->drop();
         for (auto const &pair : m_listeners.arr)
         { //
             g_eventQueue.removeListener(pair);
         }
+
+        if (m_bgm)
+        { //
+            m_bgm->stop();
+            m_bgm->drop();
+        }
+        g_soundEngine()->removeSoundSource(m_bgmSource);
+
+        g_scene.removeNode(*m_cubeHandle);
     }
 }
 
@@ -57,16 +65,8 @@ void TestbedModule::onInit(ModuleInitParams params)
     printf("DebugMode!\n");
 #endif
 
-    m_soundEngine = irrklang::createIrrKlangDevice();
-    if (!m_soundEngine)
-    { //
-        printf("[TestBed] error creating sound engine");
-    }
-
-    irrklang::ISoundSource *sound =
-      m_soundEngine->addSoundSourceFromFile("../assets/ophelia.mp3");
-
-    m_soundEngine->play2D(sound);
+    m_bgmSource = g_soundEngine()->addSoundSourceFromFile("../assets/bgm0.mp3");
+    m_bgm       = g_soundEngine()->play2D(m_bgmSource, true);
 
     // register to all relevant events pressed
     EventArg_t listenerData{};
@@ -84,17 +84,45 @@ void TestbedModule::onInit(ModuleInitParams params)
 
     // open mesh file
     printf("Opening Scene file\n");
-    g_scene         = Scene_s::fromObj("../assets/lightTestScene.obj");
-    auto planeScene = Scene_s::fromObj("../assets/plane.obj");
-    auto planeSid   = *planeScene.names();
-    m_pieces        = std::pmr::vector<Sid_t>(10);
+
+    // lightTestScene.obj has 1 mesh called Cube
+    g_handleTable.loadFromObj("../assets/lightTestScene.obj");
+    m_cubeHandle = g_scene.addChild(CGE_SID("Cube"));
+
+    // plane.obj has 1 mesh called Plane01
+    g_handleTable.loadFromObj("../assets/plane.obj");
+    auto planeSid = CGE_SID("Plane01");
+    m_pieces.resize(10);
     std::fill(m_pieces.begin(), m_pieces.end(), planeSid);
 
-    auto obstaclesScene = Scene_s::fromObj("../assets/prop.obj");
-    auto obstacleSid    = *obstaclesScene.names();
+    // prop.obj has 1 mesh called Obstacle
+    g_handleTable.loadFromObj("../assets/prop.obj");
+    auto obstacleSid = CGE_SID("Obstacle");
     m_obstacles.push_back(obstacleSid);
 
-    m_scrollingTerrain.init(g_scene, m_pieces.begin(), m_pieces.end());
+    m_scrollingTerrain.init(g_scene, m_pieces);
+
+    // add light to the scene
+    Light_t const sunLight{ 
+        .sid   = CGE_SID("SUN LIGHT"),
+        .props = { 
+            .isEnabled = true,
+            .isLocal = false,
+            .isSpot = false,
+            .ambient   = {0,0,0},
+            .color = {2.f, 2.f, 2.f},
+            .position  = {-0.4f, 0.3f, -1.f},
+            .halfVector = {-0.4f, 0.3f, -1.f},
+            .coneDirection = {0,0,0},
+            .spotCosCutoff = 0,
+            .spotExponent = 0,
+            .constantAttenuation = 0,
+            .linearAttenuation = 0,
+            .quadraticAttenuation = 0,
+        },
+    };
+
+    g_handleTable.insertLight(sunLight.sid, sunLight);
 
     // setup player
     Camera_t camera{};
@@ -189,7 +217,8 @@ void TestbedModule::onTick(float deltaTime)
     g_renderer.renderScene(
       g_scene,
       camera.viewTransform(),
-      glm::perspective(FOV, aspectRatio(), CLIPDISTANCE, RENDERDISTANCE));
+      glm::perspective(FOV, aspectRatio(), CLIPDISTANCE, RENDERDISTANCE),
+      camera.forward);
     FixedString str = fixedStringWithNumber<FixedString("Best Score")>(
       json["bestScore"].template get<U64_t>());
     g_renderer2D.renderText(
