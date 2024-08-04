@@ -50,7 +50,7 @@ TestbedModule::~TestbedModule()
         }
         g_soundEngine()->removeSoundSource(m_bgmSource);
 
-        g_scene.removeNode(*m_cubeHandle);
+        g_scene.removeNode(m_cubeHandle->first);
     }
 }
 
@@ -64,6 +64,7 @@ void TestbedModule::onInit(ModuleInitParams params)
 #if defined(CGE_DEBUG)
     printf("DebugMode!\n");
 #endif
+    g_scene.clear();
 
     m_bgmSource = g_soundEngine()->addSoundSourceFromFile("../assets/bgm0.mp3");
     m_bgm       = g_soundEngine()->play2D(m_bgmSource, true);
@@ -87,7 +88,7 @@ void TestbedModule::onInit(ModuleInitParams params)
 
     // lightTestScene.obj has 1 mesh called Cube
     g_handleTable.loadFromObj("../assets/lightTestScene.obj");
-    m_cubeHandle = g_scene.addChild(CGE_SID("Cube"));
+    m_cubeHandle = g_scene.addNode(CGE_SID("Cube"));
 
     // plane.obj has 1 mesh called Plane01
     g_handleTable.loadFromObj("../assets/plane.obj");

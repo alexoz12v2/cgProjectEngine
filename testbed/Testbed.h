@@ -44,7 +44,7 @@ class TestbedModule : public IModule
   private:
     glm::ivec2 m_framebufferSize{ g_focusedWindow()->getFramebufferSize() };
     Player     m_player;
-    tl::optional<SceneNodeHandle> m_cubeHandle{ tl::nullopt };
+    tl::optional<Scene_s::PairNode &> m_cubeHandle{ tl::nullopt };
 
     // terrain data
     ScrollingTerrain        m_scrollingTerrain;

@@ -149,7 +149,7 @@ void Renderer_s::renderScene(
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-    for (auto const &[sid, sceneNode] : scene.m_bnodes)
+    for (auto const &[sid, sceneNode] : scene.m_nodeMap)
     {
         auto meshRef = g_handleTable.get(sceneNode.getSid());
         if (!meshRef.hasValue())
@@ -158,7 +158,7 @@ void Renderer_s::renderScene(
         }
         Mesh_s const &mesh = meshRef.asMesh();
 
-        glm::mat4 const     modelView = view * sceneNode.getAbsoluteTransform();
+        glm::mat4 const     modelView = view * sceneNode.getTransform();
         MeshUniform_t const uniforms{ .modelView     = modelView,
                                       .modelViewProj = proj * modelView };
 

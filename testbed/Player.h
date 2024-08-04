@@ -59,7 +59,7 @@ class Player
     [[nodiscard]] glm::vec3 lastDisplacement() const;
 
     bool intersectPlayerWith(
-      std::span<std::array<tl::optional<SceneNodeHandle>, numLanes>> const
+      std::span<std::array<tl::optional<Scene_s::PairNode &>, numLanes>> const
             &obstacles,
       Hit_t &outHit);
     void setSwishSound(irrklang::ISoundSource *sound);
@@ -70,12 +70,12 @@ class Player
 
   private:
     // main components
-    Sid_t                         m_sid{ nullSid };
-    tl::optional<SceneNodeHandle> m_node{ tl::nullopt };
-    Mesh_s                       *m_mesh{ nullptr };
-    Camera_t                      m_camera{};
-    U64_t                         m_score{ 0 };
-    B8_t                          m_init{ false };
+    Sid_t                             m_sid{ nullSid };
+    tl::optional<Scene_s::PairNode &> m_node{ tl::nullopt };
+    Mesh_s                           *m_mesh{ nullptr };
+    Camera_t                          m_camera{};
+    U64_t                             m_score{ 0 };
+    B8_t                              m_init{ false };
 
     // collision related
     bool m_intersected{ false };
@@ -110,9 +110,12 @@ class ScrollingTerrain
     static U32_t constexpr numPieces = 10;
 
   public:
-    using ObstacleList = std::
-      array<std::array<tl::optional<SceneNodeHandle>, numLanes>, numPieces>;
-    using PieceList = std::array<tl::optional<SceneNodeHandle>, numPieces>;
+    using ObstacleList = //
+      std::array<
+        std::array<tl::optional<Scene_s::PairNode &>, numLanes>,
+        numPieces>;
+
+    using PieceList = std::array<tl::optional<Scene_s::PairNode &>, numPieces>;
 
   public:
     /**
