@@ -76,6 +76,9 @@ void Player::onTick(F32_t deltaTime)
     glm::vec3 const displacement = displacementTick(deltaTime);
     if (!smallOrZero(displacement) && !m_intersected)
     {
+        auto const meshCenter =
+          centroid(globalSpaceBB(m_node->second, m_mesh->box));
+        m_oldPosition = meshCenter;
         m_score += glm::max(
           static_cast<decltype(m_score)>(displacement.y * scoreMultiplier),
           1ULL);
@@ -86,11 +89,6 @@ void Player::onTick(F32_t deltaTime)
 
         m_node->second.transform(glm::translate(glm::mat4(1.f), displacement));
 
-        auto const meshCenter =
-          centroid(recomputeGlobalSpaceBB(m_node->second, m_mesh->box));
-
-        Ray_t const ray{ .o = m_camera.position, .d = glm::vec3(0, 1, 0) };
-        Hit_t       hit;
         m_velocityMultiplier += deltaTime * multiplierTimeConstant;
     }
     else if (m_intersected)
@@ -189,7 +187,7 @@ void Player::onMouseButton([[maybe_unused]] I32_t key, I32_t action)
     else if (action == action::RELEASE) {}
 }
 
-AABB_t Player::boundingBox() const { return m_mesh->box; }
+AABB Player::boundingBox() const { return m_mesh->box; }
 
 void Player::yawPitchRotate(F32_t yaw, F32_t pitch)
 {
@@ -217,7 +215,7 @@ Camera_t  Player::getCamera() const { return m_camera; }
 glm::vec3 Player::lastDisplacement() const { return m_lastDisplacement; }
 glm::vec3 Player::getCentroid() const
 {
-    return centroid(recomputeGlobalSpaceBB(m_node->second, m_mesh->box));
+    return centroid(globalSpaceBB(m_node->second, m_mesh->box));
 }
 
 void ScrollingTerrain::init(Scene_s &scene, std::span<Sid_t> pieces)
@@ -297,43 +295,68 @@ ScrollingTerrain::ObstacleList const &ScrollingTerrain::updateTilesFromPosition(
     return m_obstacles;
 }
 
+static constexpr std::pair<HandleTable_s::Ref_s, B8_t>
+  checkOptObstacle(tl::optional<Scene_s::PairNode &> const &opt)
+{
+    std::pair<HandleTable_s::Ref_s, B8_t> p{ std::make_pair(nullRef, false) };
+    if (opt.has_value())
+    {
+        auto const ref = g_handleTable.get(opt->first);
+        if (ref.hasValue())
+        {
+            p.first  = ref;
+            p.second = true;
+        }
+    }
+
+    return p;
+}
+
 bool Player::intersectPlayerWith(
   std::span<std::array<tl::optional<Scene_s::PairNode &>, numLanes>> const
         &obstacles,
   Hit_t &outHit)
 {
-    bool res = false;
+    m_intersected = false;
     if (!obstacles.empty())
     {
-        auto const playerBox =
-          recomputeGlobalSpaceBB(m_node->second, m_mesh->box);
+        AABB const playerBox{ globalSpaceBB(m_node->second, m_mesh->box) };
+        glm::vec3  newPosition{ centroid(playerBox) };
+        Ray const  playerRay{ m_oldPosition, newPosition - m_oldPosition };
+        glm::vec3  halfExtent{ (playerBox.max - playerBox.min) * 0.5f };
+        AABB const playerMovementBox{ aUnion(
+          AABB{ m_oldPosition - halfExtent - .3f,
+                newPosition + halfExtent + .3f },
+          playerBox) };
+        F32_t      movementDistance = newPosition.y - m_oldPosition.y;
+
         for (auto const &obsArr : obstacles)
         {
             for (auto pNode : obsArr)
             {
-                if (pNode.has_value())
+                if (auto const &p{ checkOptObstacle(pNode) }; p.second)
                 {
-                    auto const ref = g_handleTable.get(pNode->first);
-                    if (ref.hasValue())
+                    auto const &mesh   = p.first.asMesh();
+                    auto const  box    = mesh.box;
+                    auto const  obsBox = globalSpaceBB(pNode->second, box);
+                    if (testOverlap(playerRay, obsBox))
                     {
-                        auto const &mesh = ref.asMesh();
-                        auto const  box  = mesh.box;
-                        auto const  obsBox =
-                          recomputeGlobalSpaceBB(pNode->second, box);
-                        res |= intersect(playerBox, obsBox);
+                        Hit_t res = intersect(playerRay, obsBox);
+                        if (
+                          res.isect
+                          && (res.t <= movementDistance || isPointInsideAABB(res.p, playerMovementBox)))
+                        {
+                            m_intersected = true;
+                            goto player$end_intersection;
+                        }
                     }
                 }
-            }
-
-            if (res)
-            { //
-                break;
             }
         }
     }
 
-    m_intersected = res;
-    return res;
+player$end_intersection:
+    return m_intersected;
 }
 
 void Player::setSwishSound(irrklang::ISoundSource *sound)

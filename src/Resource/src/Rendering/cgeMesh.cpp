@@ -8,9 +8,9 @@
 
 namespace cge
 {
-AABB_t computeAABB(const Mesh_s &mesh)
+AABB computeAABB(const Mesh_s &mesh)
 {
-    AABB_t aabb{ AABB_t{ glm::vec3(0.0f), glm::vec3(0.0f) } };
+    AABB aabb{ glm::vec3(0.0f), glm::vec3(0.0f) };
     aabb.min = glm::vec3(std::numeric_limits<float>::max());
     aabb.max = glm::vec3(std::numeric_limits<float>::min());
 

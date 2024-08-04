@@ -3,6 +3,7 @@
 // TODO: Add logging
 #include "Core/StringUtils.h"
 #include "Core/Type.h"
+#include "Core/Utility.h"
 
 #include <memory_resource>
 
@@ -46,13 +47,6 @@ class IModule
   private:
     bool  m_taggedForDestruction = false;
     Sid_t m_nextModule           = nullSid;
-};
-
-struct Hit_t
-{
-    Sid_t     objId = nullSid;
-    glm::vec3 p{ -1.f };
-    F32_t     t = std::numeric_limits<float>::max();
 };
 
 std::pmr::unsynchronized_pool_resource *getMemoryPool();

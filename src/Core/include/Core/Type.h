@@ -1,9 +1,11 @@
 #pragma once
+
 /**
  * @ref core
  * @file Core/Type.h
  * contains all necessary fundamental type definitions
  */
+
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
@@ -46,7 +48,8 @@ using CharU32_t = char32_t;
 
 /// @typedef vector registers
 /// @note we only support x86_64. No macro is needed
-/// @warning do not put these into structs!
+/// @warning by putting these into structs the generated assembly will
+///          continuously load them from and to memory into registers
 using V128f_t = __m128;
 using V128d_t = __m128d;
 using V128i_t = __m128i;
@@ -301,7 +304,7 @@ class TaggedStruct
         requires(executeDestructor)
     {
         auto f = [&]<typename T>(T *ptr)
-        { std::destroy_at(reIerpret_cast<T>(data)); };
+        { std::destroy_at(reinterpret_cast<T>(data)); };
         dispatch(f);
     }
 
@@ -340,104 +343,5 @@ class TaggedStruct
   private:
     U8_t m_index;
 };
-
-/** Utilities */
-
-template<typename M>
-concept Monad = requires(M m) {
-    typename M::inner;
-
-    {
-        m.unit(std::declval<M::inner>())
-    } -> std::same_as<M>;
-
-    requires requires(typename M::inner t) {
-        {
-            m.bind(
-              []<typename M1>(typename M::inner b) -> typename M1::inner
-              { return std::declval<M1>(); })
-        };
-    };
-};
-
-struct AABB_t
-{
-    glm::vec3 min;
-    glm::vec3 max;
-};
-inline AABB_t aUnion(AABB_t a, AABB_t b)
-{
-    AABB_t const c{ glm::min(a.min, b.min), glm::min(a.max, b.max) };
-    return c;
-}
-
-inline bool intersect(const AABB_t &first, const AABB_t &other)
-{
-    // Check for overlap on each axis
-    return (first.min.x <= other.max.x && first.max.x >= other.min.x)
-           && (first.min.y <= other.max.y && first.max.y >= other.min.y)
-           && (first.min.z <= other.max.z && first.max.z >= other.min.z);
-}
-
-// 00 -> x, 01 -> y, 10 -> z
-inline int32_t largestAxis(AABB_t box, float *plane)
-{
-    glm::vec3 diag = box.max - box.min;
-    glm::vec3 mid  = (box.max + box.min) * 0.5f;
-    int32_t   res  = 0;
-    *plane         = mid.x;
-    if (diag.x < diag.y)
-    {
-        res    = 1;
-        *plane = mid.y;
-        if (diag.y < diag.z)
-        {
-            *plane = mid.z;
-            res    = 2;
-        }
-    }
-    else if (diag.x < diag.z)
-    {
-        *plane = mid.z;
-        res    = 2;
-    }
-
-    return res;
-}
-
-inline float aArea(AABB_t a)
-{
-    glm::vec3 const d = a.max - a.min;
-    return 2.f * (d.x * d.y + d.y * d.z + d.z * d.x);
-}
-
-inline glm::vec3 centroid(AABB_t b) { return (b.max + b.min) * 0.5f; }
-inline glm::vec3 diagonal(AABB_t b) { return b.max - b.min; }
-
-struct Ray_t
-{
-    glm::vec3 o;
-    glm::vec3 d;
-};
-
-// preliminary intersection test on AABB
-inline bool testOverlap(Ray_t const &ray, AABB_t const &box)
-{
-    // for each dimension, ray plane intersection
-    for (int i = 0; i < 3; i++)
-    {
-        // if ray is parallel to the slab...
-        if (fabsf(ray.d[i]) < std::numeric_limits<F32_t>::epsilon())
-        {
-            // ... and ray coord is not within, no hit
-            // does this work with NaN?
-            if (ray.o[i] < box.min[i] || ray.o[i] > box.max[i])
-            {
-                return false;
-            }
-        }
-    }
-    return true;
-}
 
 } // namespace cge

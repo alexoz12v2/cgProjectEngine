@@ -6,40 +6,44 @@ include(GNUInstallDirs)
 add_library(cge-core STATIC)
 target_sources(cge-core
   PRIVATE
-  src/StringUtils.cpp
-  src/Event.cpp
-  src/Random.cpp
-  src/Module.cpp
+    src/StringUtils.cpp
+    src/Event.cpp
+    src/Random.cpp
+    src/Module.cpp
+    src/Utility.cpp
   PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/Type.h>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/Type.h>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/Type.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/Type.h>
 
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/MacroDefs.h>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/MacroDefs.h>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/MacroDefs.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/MacroDefs.h>
 
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/StringUtils.h>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/StringUtils.h>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/StringUtils.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/StringUtils.h>
 
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/Module.h>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/Module.h>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/Module.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/Module.h>
 
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/Containers.h>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/Containers.h>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/Containers.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/Containers.h>
 
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/Event.h>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/Event.h>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/Event.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/Event.h>
 
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/TimeUtils.h>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/TimeUtils.h>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/TimeUtils.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/TimeUtils.h>
 
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/Events.h>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/Events.h>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/Events.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/Events.h>
 
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/KeyboardKeys.h>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/KeyboardKeys.h>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/KeyboardKeys.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/KeyboardKeys.h>
 
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/Random.h>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/Random.h>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/Random.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/Random.h>
+
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Core/Utility.h>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Core/Utility.h>
 )
 
 
@@ -47,12 +51,12 @@ target_compile_features(cge-core INTERFACE cxx_std_20 c_std_11)
 
 target_include_directories(cge-core
   PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/src
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/Core
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/Core
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
   INTERFACE
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
 # project-wise dependencies

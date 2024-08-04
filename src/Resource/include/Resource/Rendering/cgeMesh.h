@@ -67,7 +67,7 @@ struct Mesh_s
     std::pmr::vector<Vertex_t>        vertices{ getMemoryPool() };
     std::pmr::vector<Array<U32_t, 3>> indices{ getMemoryPool() };
 
-    AABB_t box;
+    AABB box{ glm::vec3(0.f), glm::vec3(0.f) };
 
     Buffer_s       uniformBuffer;
     VertexBuffer_s vertexBuffer;
@@ -99,6 +99,6 @@ struct Mesh_s
     void allocateGeometryBuffersToGpu();
 };
 
-AABB_t computeAABB(const Mesh_s &mesh);
+AABB computeAABB(const Mesh_s &mesh);
 
 } // namespace cge

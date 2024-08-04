@@ -50,7 +50,7 @@ class Player
     void onTick(F32_t deltaTime);
     void onFramebufferSize(I32_t width, I32_t height);
 
-    [[nodiscard]] AABB_t    boundingBox() const;
+    [[nodiscard]] AABB      boundingBox() const;
     [[nodiscard]] glm::mat4 viewTransform() const;
     [[nodiscard]] Camera_t  getCamera() const;
     [[nodiscard]] glm::vec3 getCentroid() const;
@@ -78,7 +78,8 @@ class Player
     B8_t                              m_init{ false };
 
     // collision related
-    bool m_intersected{ false };
+    bool      m_intersected{ false };
+    glm::vec3 m_oldPosition{ 0.f };
 
     // movement related
     U8_t      m_lane{ LANE_CENTER };

@@ -43,7 +43,6 @@ class Renderer_s
 
 extern Renderer_s g_renderer;
 
-
 class BackgroundRenderer
 { //
   public:
