@@ -49,8 +49,6 @@ TestbedModule::~TestbedModule()
             m_bgm->drop();
         }
         g_soundEngine()->removeSoundSource(m_bgmSource);
-
-        g_scene.removeNode(m_cubeHandle->first);
     }
 }
 
@@ -88,7 +86,6 @@ void TestbedModule::onInit(ModuleInitParams params)
 
     // lightTestScene.obj has 1 mesh called Cube
     g_handleTable.loadFromObj("../assets/lightTestScene.obj");
-    m_cubeHandle = g_scene.addNode(CGE_SID("Cube"));
 
     // plane.obj has 1 mesh called Plane01
     g_handleTable.loadFromObj("../assets/plane.obj");

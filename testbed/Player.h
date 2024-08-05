@@ -28,9 +28,9 @@ class ScrollingTerrain
 
   public:
     using ObstacleList =
-      std::array<tl::optional<Scene_s::PairNode &>, numPieces>;
+      std::array<Sid_t, numPieces>;
 
-    using PieceList = std::array<tl::optional<Scene_s::PairNode &>, numPieces>;
+    using PieceList = std::array<Sid_t, numPieces>;
 
   public:
     /**
@@ -121,7 +121,6 @@ class Player
   private:
     // main components
     Sid_t                             m_sid{ nullSid };
-    tl::optional<Scene_s::PairNode &> m_node{ tl::nullopt };
     Mesh_s                           *m_mesh{ nullptr };
     Camera_t                          m_camera{};
     U64_t                             m_score{ 0 };

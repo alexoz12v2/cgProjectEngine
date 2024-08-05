@@ -47,9 +47,9 @@ class Scene_s
     PairNode const    &getNodePairByNodeRef(SceneNode_s const &ref) const;
     PairNode          &getNodePairByNodeRef(SceneNode_s const &ref);
 
-    PairNode &addNode(Sid_t const meshSid);
-    B8_t      removeNode(Sid_t node);
-    void      clear();
+    Sid_t addNode(Sid_t const meshSid);
+    B8_t  removeNode(Sid_t node);
+    void  clear();
 
   private:
     std::pmr::unordered_map<Sid_t, SceneNode_s> m_nodeMap{ getMemoryPool() };

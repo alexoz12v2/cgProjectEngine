@@ -75,7 +75,7 @@ Scene_s::PairNode &Scene_s::getNodePairByNodeRef(SceneNode_s const &ref)
     return *it;
 }
 
-std::pair<Sid_t const, SceneNode_s> &Scene_s::addNode(Sid_t const meshSid)
+Sid_t Scene_s::addNode(Sid_t const meshSid)
 {
     Sid_t sceneSid = meshSid;
     auto  p        = m_nodeMap.try_emplace(sceneSid, SceneNode_s(meshSid));
@@ -85,7 +85,7 @@ std::pair<Sid_t const, SceneNode_s> &Scene_s::addNode(Sid_t const meshSid)
         p = m_nodeMap.try_emplace(sceneSid, SceneNode_s(meshSid));
     }
 
-    return *p.first;
+    return p.first->first;
 }
 
 B8_t Scene_s::removeNode(Sid_t nodeSid)

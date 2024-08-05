@@ -40,6 +40,7 @@ Player::~Player()
         }
 
         g_soundEngine()->removeSoundSource(m_swishSoundSource);
+        g_scene.removeNode(m_sid);
     }
 }
 
@@ -54,13 +55,12 @@ void Player::spawn(const Camera_t &view, Sid_t meshSid)
     m_listeners.framebufferSizeListener = g_eventQueue.addListener(
       evFramebufferSize, framebufferSizeCallback<Player>, listenerData);
 
-    m_sid  = meshSid;
+    m_sid  = g_scene.addNode(meshSid);
     m_mesh = &g_handleTable.get(meshSid).asMesh();
-    m_node = g_scene.getNodePairByNodeRef(g_scene.getNodeBySid(m_sid));
 
     m_camera = view;
 
-    m_node->second.transform(
+    g_scene.getNodeBySid(m_sid).transform(
       glm::inverse(m_camera.viewTransform())
       * glm::translate(glm::mat4(1.F), glm::vec3(0, -2, -10)));
 
@@ -77,7 +77,7 @@ void Player::onTick(F32_t deltaTime)
     if (!smallOrZero(displacement) && !m_intersected)
     {
         auto const meshCenter =
-          centroid(globalSpaceBB(m_node->second, m_mesh->box));
+          centroid(globalSpaceBB(g_scene.getNodeBySid(m_sid), m_mesh->box));
         m_oldPosition = meshCenter;
         m_score += glm::max(
           static_cast<decltype(m_score)>(displacement.y * scoreMultiplier),
@@ -87,7 +87,8 @@ void Player::onTick(F32_t deltaTime)
 
         m_camera.position += displacement;
 
-        m_node->second.transform(glm::translate(glm::mat4(1.f), displacement));
+        g_scene.getNodeBySid(m_sid).transform(
+          glm::translate(glm::mat4(1.f), displacement));
 
         m_velocityMultiplier += deltaTime * multiplierTimeConstant;
     }
@@ -119,7 +120,7 @@ void Player::onTick(F32_t deltaTime)
             }
         }
 
-        m_node->second.transform(
+        g_scene.getNodeBySid(m_sid).transform(
           glm::translate(glm::mat4(1.f), glm::vec3(disp, 0.f, 0.f)));
     }
 
@@ -215,7 +216,7 @@ Camera_t  Player::getCamera() const { return m_camera; }
 glm::vec3 Player::lastDisplacement() const { return m_lastDisplacement; }
 glm::vec3 Player::getCentroid() const
 {
-    return centroid(globalSpaceBB(m_node->second, m_mesh->box));
+    return centroid(globalSpaceBB(g_scene.getNodeBySid(m_sid), m_mesh->box));
 }
 
 void ScrollingTerrain::init(Scene_s &scene, std::span<Sid_t> pieces)
@@ -234,8 +235,8 @@ void ScrollingTerrain::init(Scene_s &scene, std::span<Sid_t> pieces)
         glm::mat4 const t = glm::translate(identity, glm::vec3(0.f, yOff, 0.f));
 
         m_pieces[index] = scene.addNode(*it);
-        m_pieces[index]->second.transform(t);
-        m_obstacles[index] = tl::nullopt;
+        scene.getNodeBySid(m_pieces[index]).transform(t);
+        m_obstacles[index] = nullSid;
 
         ++index;
     }
@@ -249,21 +250,22 @@ void ScrollingTerrain::updateTilesFromPosition(
     // check if player moved one tile forward
     U32_t const     nextPieceIdx = (m_first + 1) % numPieces;
     glm::mat4 const pieceTransform =
-      m_pieces[nextPieceIdx]->second.getTransform();
+      g_scene.getNodeBySid(m_pieces[nextPieceIdx]).getTransform();
     glm::vec4 const piecePosition = pieceTransform[3];
 
     // if yes, then update first and last and traslate everything from first
     // to last
     if (position.y - piecePosition.y > static_cast<F32_t>(pieceSize >> 1))
     {
-        m_pieces[m_first]->second.transform(glm::translate(
-          glm::mat4(1.f), glm::vec3(0.f, pieceSize * numPieces, 0.f)));
+        g_scene.getNodeBySid(m_pieces[m_first])
+          .transform(glm::translate(
+            glm::mat4(1.f), glm::vec3(0.f, pieceSize * numPieces, 0.f)));
 
         // remove the obstacle from the moved piece
-        if (m_obstacles[m_first].has_value())
+        if (m_obstacles[m_first] != nullSid)
         { // remove from scene
-            g_scene.removeNode(m_obstacles[m_first]->first);
-            m_obstacles[m_first] = tl::nullopt;
+            g_scene.removeNode(m_obstacles[m_first]);
+            m_obstacles[m_first] = nullSid;
         }
 
         std::array<F32_t, 3> arr = { -laneShift, 0, laneShift };
@@ -277,9 +279,10 @@ void ScrollingTerrain::updateTilesFromPosition(
               g_random.next<U32_t>(0, obstacles.size() - 1);
             Sid_t const obstacleId = obstacles[obstacleIdx];
             m_obstacles[m_first]   = g_scene.addNode(obstacleId);
-            m_obstacles[m_first]->second.transform(glm::translate(
-              pieceTransform,
-              glm::vec3(arr[0], pieceSize * (numPieces - 1), 0.f)));
+            g_scene.getNodeBySid(m_obstacles[m_first])
+              .transform(glm::translate(
+                pieceTransform,
+                glm::vec3(arr[0], pieceSize * (numPieces - 1), 0.f)));
         }
 
         // maintain indices
@@ -293,27 +296,12 @@ ScrollingTerrain::ObstacleList const &ScrollingTerrain::getObstacles() const
     return m_obstacles;
 }
 
-static constexpr std::pair<HandleTable_s::Ref_s, B8_t>
-  checkOptObstacle(tl::optional<Scene_s::PairNode &> const &opt)
-{
-    std::pair<HandleTable_s::Ref_s, B8_t> p{ std::make_pair(nullRef, false) };
-    if (opt.has_value())
-    {
-        auto const ref = g_handleTable.get(opt->first);
-        if (ref.hasValue())
-        {
-            p.first  = ref;
-            p.second = true;
-        }
-    }
-
-    return p;
-}
 
 bool Player::intersectPlayerWith(
   ScrollingTerrain::ObstacleList const &obstacles)
 {
-    AABB const      playerBox{ globalSpaceBB(m_node->second, m_mesh->box) };
+    AABB const      playerBox{ globalSpaceBB(
+      g_scene.getNodeBySid(m_sid), m_mesh->box) };
     glm::vec3 const newPosition{ centroid(playerBox) };
     Ray const       playerRay{ m_oldPosition, newPosition - m_oldPosition };
     F32_t const     movementDistance = newPosition.y - m_oldPosition.y;
@@ -321,11 +309,17 @@ bool Player::intersectPlayerWith(
     m_intersected = false;
     for (auto const &pObs : obstacles)
     {
-        if (auto const &p{ checkOptObstacle(pObs) }; p.second)
+        HandleTable_s::Ref_s ref{ nullRef };
+        Sid_t                meshSid{ nullSid };
+        if (
+          pObs != nullSid
+          && (ref = g_handleTable.get(
+                meshSid = g_scene.getNodeBySid(pObs).getSid()))
+               .hasValue())
         {
-            auto const &mesh   = p.first.asMesh();
+            auto const &mesh   = ref.asMesh();
             auto const  box    = mesh.box;
-            auto const  obsBox = globalSpaceBB(pObs->second, box);
+            auto const  obsBox = globalSpaceBB(g_scene.getNodeBySid(pObs), box);
             Hit_t const res    = intersect(playerRay, obsBox);
             if (
               res.isect
