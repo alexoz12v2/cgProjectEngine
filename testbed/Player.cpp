@@ -220,8 +220,7 @@ glm::vec3 Player::getCentroid() const
 
 void ScrollingTerrain::init(Scene_s &scene, std::span<Sid_t> pieces)
 {
-    static ObstacleList::value_type const arr      = { tl::nullopt };
-    glm::mat4 const                       identity = glm::mat4(1.f);
+    glm::mat4 const identity = glm::mat4(1.f);
     printf("ScrollingTerrain::init\n");
     // fill the m_pieces array and
     // trasform all pieces such that the middle one is in the origin
@@ -236,13 +235,13 @@ void ScrollingTerrain::init(Scene_s &scene, std::span<Sid_t> pieces)
 
         m_pieces[index] = scene.addNode(*it);
         m_pieces[index]->second.transform(t);
-        m_obstacles[index] = arr;
+        m_obstacles[index] = tl::nullopt;
 
         ++index;
     }
 }
 
-ScrollingTerrain::ObstacleList const &ScrollingTerrain::updateTilesFromPosition(
+void ScrollingTerrain::updateTilesFromPosition(
   glm::vec3               position,
   std::span<Sid_t> const &sidSet,
   std::span<Sid_t> const &obstacles)
@@ -260,38 +259,37 @@ ScrollingTerrain::ObstacleList const &ScrollingTerrain::updateTilesFromPosition(
         m_pieces[m_first]->second.transform(glm::translate(
           glm::mat4(1.f), glm::vec3(0.f, pieceSize * numPieces, 0.f)));
 
-        // remove the obstacles from the moved piece
-        for (U32_t i = 0; i < m_obstacles[m_first].size(); ++i)
-        {
-            if (m_obstacles[m_first][i].has_value())
-            { // remove from scene
-                g_scene.removeNode(m_obstacles[m_first][i]->first);
-                m_obstacles[m_first][i] = tl::nullopt;
-            }
+        // remove the obstacle from the moved piece
+        if (m_obstacles[m_first].has_value())
+        { // remove from scene
+            g_scene.removeNode(m_obstacles[m_first]->first);
+            m_obstacles[m_first] = tl::nullopt;
         }
-
-        // add new obstacles in the moved piece
-        U32_t const numObstacles = g_random.next<U32_t>(0, 2);
 
         std::array<F32_t, 3> arr = { -laneShift, 0, laneShift };
         std::ranges::shuffle(arr, g_random.getGen());
 
-        for (U32_t idx = 0; idx < numObstacles; ++idx)
+        // add new obstacles in the moved piece
+        U32_t const hasObstacle = g_random.next<U32_t>(0, 1);
+        if (hasObstacle)
         {
             U32_t const obstacleIdx =
               g_random.next<U32_t>(0, obstacles.size() - 1);
-            Sid_t const obstacleId    = obstacles[obstacleIdx];
-            m_obstacles[m_first][idx] = g_scene.addNode(obstacleId);
-            m_obstacles[m_first][idx]->second.transform(glm::translate(
+            Sid_t const obstacleId = obstacles[obstacleIdx];
+            m_obstacles[m_first]   = g_scene.addNode(obstacleId);
+            m_obstacles[m_first]->second.transform(glm::translate(
               pieceTransform,
-              glm::vec3(arr[idx], pieceSize * (numPieces - 1), 0.f)));
+              glm::vec3(arr[0], pieceSize * (numPieces - 1), 0.f)));
         }
 
         // maintain indices
         m_first = nextPieceIdx;
         m_last  = (m_last + 1) % numPieces;
     }
+}
 
+ScrollingTerrain::ObstacleList const &ScrollingTerrain::getObstacles() const
+{ // getter
     return m_obstacles;
 }
 
@@ -313,49 +311,30 @@ static constexpr std::pair<HandleTable_s::Ref_s, B8_t>
 }
 
 bool Player::intersectPlayerWith(
-  std::span<std::array<tl::optional<Scene_s::PairNode &>, numLanes>> const
-        &obstacles,
-  Hit_t &outHit)
+  ScrollingTerrain::ObstacleList const &obstacles)
 {
-    m_intersected = false;
-    if (!obstacles.empty())
-    {
-        AABB const playerBox{ globalSpaceBB(m_node->second, m_mesh->box) };
-        glm::vec3  newPosition{ centroid(playerBox) };
-        Ray const  playerRay{ m_oldPosition, newPosition - m_oldPosition };
-        glm::vec3  halfExtent{ (playerBox.max - playerBox.min) * 0.5f };
-        AABB const playerMovementBox{ aUnion(
-          AABB{ m_oldPosition - halfExtent - .3f,
-                newPosition + halfExtent + .3f },
-          playerBox) };
-        F32_t      movementDistance = newPosition.y - m_oldPosition.y;
+    AABB const      playerBox{ globalSpaceBB(m_node->second, m_mesh->box) };
+    glm::vec3 const newPosition{ centroid(playerBox) };
+    Ray const       playerRay{ m_oldPosition, newPosition - m_oldPosition };
+    F32_t const     movementDistance = newPosition.y - m_oldPosition.y;
 
-        for (auto const &obsArr : obstacles)
+    m_intersected = false;
+    for (auto const &pObs : obstacles)
+    {
+        if (auto const &p{ checkOptObstacle(pObs) }; p.second)
         {
-            for (auto pNode : obsArr)
+            auto const &mesh   = p.first.asMesh();
+            auto const  box    = mesh.box;
+            auto const  obsBox = globalSpaceBB(pObs->second, box);
+            Hit_t const res    = intersect(playerRay, obsBox);
+            if (res.isect && (res.t <= movementDistance))
             {
-                if (auto const &p{ checkOptObstacle(pNode) }; p.second)
-                {
-                    auto const &mesh   = p.first.asMesh();
-                    auto const  box    = mesh.box;
-                    auto const  obsBox = globalSpaceBB(pNode->second, box);
-                    if (testOverlap(playerRay, obsBox))
-                    {
-                        Hit_t res = intersect(playerRay, obsBox);
-                        if (
-                          res.isect
-                          && (res.t <= movementDistance || isPointInsideAABB(res.p, playerMovementBox)))
-                        {
-                            m_intersected = true;
-                            goto player$end_intersection;
-                        }
-                    }
-                }
+                m_intersected = true;
+                break;
             }
         }
     }
 
-player$end_intersection:
     return m_intersected;
 }
 

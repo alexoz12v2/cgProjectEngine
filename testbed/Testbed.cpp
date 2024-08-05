@@ -202,18 +202,16 @@ void TestbedModule::onGameOver(U64_t score)
 
 void TestbedModule::onTick(float deltaTime)
 {
+    auto const p      = m_player.lastDisplacement();
+    auto const camera = m_player.getCamera();
+    auto const center = m_player.getCentroid();
+
+    m_scrollingTerrain.updateTilesFromPosition(center, m_pieces, m_obstacles);
     getBackgroundRenderer().renderBackground(
       m_player.getCamera(), aspectRatio(), CLIPDISTANCE, RENDERDISTANCE);
 
     m_player.onTick(deltaTime);
-
-    auto const p      = m_player.lastDisplacement();
-    auto const camera = m_player.getCamera();
-    auto const center = m_player.getCentroid();
-    auto       obsVec =
-      m_scrollingTerrain.updateTilesFromPosition(center, m_pieces, m_obstacles);
-    Hit_t hit{};
-    m_player.intersectPlayerWith(obsVec, hit);
+    m_player.intersectPlayerWith(m_scrollingTerrain.getObstacles());
 
     g_renderer.renderScene(
       g_scene,
