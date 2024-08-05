@@ -327,7 +327,9 @@ bool Player::intersectPlayerWith(
             auto const  box    = mesh.box;
             auto const  obsBox = globalSpaceBB(pObs->second, box);
             Hit_t const res    = intersect(playerRay, obsBox);
-            if (res.isect && (res.t <= movementDistance))
+            if (
+              res.isect
+              && (res.t <= movementDistance && res.p.y > m_oldPosition.y))
             {
                 m_intersected = true;
                 break;

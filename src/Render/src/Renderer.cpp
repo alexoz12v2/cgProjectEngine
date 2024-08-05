@@ -2,6 +2,7 @@
 
 #include "Core/Event.h"
 #include "Core/Events.h"
+#include "Render/Window.h"
 
 #include <Resource/HandleTable.h>
 #include <glad/gl.h>
@@ -45,10 +46,60 @@ void Renderer_s::init()
       reinterpret_cast<decltype(listenerData.idata.p)>(this);
     g_eventQueue.addListener(
       evFramebufferSize, framebufferSizeCallback<Renderer_s>, listenerData);
+
+    m_width  = static_cast<U32_t>(g_focusedWindow()->getFramebufferSize().x);
+    m_height = static_cast<U32_t>(g_focusedWindow()->getFramebufferSize().y);
+    glViewport(0, 0, m_width, m_height);
+}
+
+static void
+  uploadLightData(Light_t::Properties const &light, I32_t shaderProgramID)
+{
+    GLint lightsLocation = glGetUniformLocation(shaderProgramID, "lights");
+    glUniform1i(
+      glGetUniformLocation(shaderProgramID, "light.isEnabled"),
+      light.isEnabled);
+    glUniform1i(
+      glGetUniformLocation(shaderProgramID, "light.isLocal"), light.isLocal);
+    glUniform1i(
+      glGetUniformLocation(shaderProgramID, "lights.isSpot"), light.isSpot);
+    glUniform3fv(
+      glGetUniformLocation(shaderProgramID, "lights.ambient"),
+      1,
+      &light.ambient[0]);
+    glUniform3fv(
+      glGetUniformLocation(shaderProgramID, "light.color"), 1, &light.color[0]);
+    glUniform3fv(
+      glGetUniformLocation(shaderProgramID, "light.position"),
+      1,
+      &light.position[0]);
+    glUniform3fv(
+      glGetUniformLocation(shaderProgramID, "light.halfVector"),
+      1,
+      &light.halfVector[0]);
+    glUniform3fv(
+      glGetUniformLocation(shaderProgramID, "light.coneDirection"),
+      1,
+      &light.coneDirection[0]);
+    glUniform1f(
+      glGetUniformLocation(shaderProgramID, "light.spotCosCutoff"),
+      light.spotCosCutoff);
+    glUniform1f(
+      glGetUniformLocation(shaderProgramID, "light.spotExponent"),
+      light.spotExponent);
+    glUniform1f(
+      glGetUniformLocation(shaderProgramID, "light.constantAttenuation"),
+      light.constantAttenuation);
+    glUniform1f(
+      glGetUniformLocation(shaderProgramID, "light.linearAttenuation"),
+      light.linearAttenuation);
+    glUniform1f(
+      glGetUniformLocation(shaderProgramID, "light.quadraticAttenuation"),
+      light.quadraticAttenuation);
 }
 
 static void uploadLightData(
-  const Light_t::Properties *lights,
+  Light_t::Properties const *lights,
   I32_t                      numLights,
   I32_t                      shaderProgramID)
 {
@@ -128,19 +179,7 @@ void Renderer_s::renderScene(
   glm::mat4 const &proj,
   glm::vec3        eye) const
 {
-    static U32_t constexpr maxLights = 10;
-    Light_t::Properties lights[maxLights]{};
-
-    // TODO: take lights from scene, not from table
-    if (g_handleTable.lightsBegin() != g_handleTable.lightsEnd())
-    { //
-        std::transform(
-          g_handleTable.lightsBegin(),
-          g_handleTable.lightsEnd(),
-          std::begin(lights),
-          [](const std::pair<const Sid_t, Light_t> &p)
-          { return p.second.props; });
-    }
+    Light_t::Properties light{ g_handleTable.lightsBegin()->second.props };
 
     glCullFace(GL_BACK);
     glFrontFace(GL_CCW);
@@ -172,7 +211,7 @@ void Renderer_s::renderScene(
           eye.x,
           eye.y,
           eye.z);
-        uploadLightData(lights, maxLights, mesh.shaderProgram.id());
+        uploadLightData(light, mesh.shaderProgram.id());
 
         glDrawElements(
           GL_TRIANGLES,
@@ -266,14 +305,11 @@ void Renderer_s::clear() const
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
-void Renderer_s::viewport(U32_t width, U32_t height) const
-{
-    glViewport(0, 0, width, height);
-}
-
 void Renderer_s::onFramebufferSize(I32_t width, I32_t height)
 {
-    viewport(width, height);
+    m_width  = width;
+    m_height = height;
+    glViewport(0, 0, width, height);
 }
 
 // BUG: you can use this function only once. Otherwise, background is black

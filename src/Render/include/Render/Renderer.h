@@ -36,9 +36,11 @@ class Renderer_s
     // TODO configuration program
     void renderCube() const;
 
-    void viewport(U32_t width, U32_t height) const;
-
     void onFramebufferSize(I32_t width, I32_t height);
+
+  private:
+    U32_t m_width;
+    U32_t m_height;
 };
 
 extern Renderer_s g_renderer;

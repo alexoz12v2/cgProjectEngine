@@ -76,9 +76,8 @@ struct LightProperties {
     float quadraticAttenuation;
 };
 
-// the set of lights to apply, per invocation of this shader
-const int maxLights = 10;
-uniform LightProperties lights[maxLights];
+// only light of the scene
+uniform LightProperties light;
 
 // albedo
 uniform sampler2D albedoSampler;
@@ -132,38 +131,34 @@ void main() {
     vec3 scatteredLight = vec3(0.f);
     vec3 reflectedLight = vec3(0.f);
 
-    for (int light = 0; light < maxLights; ++light) {
-        if (!lights[light].isEnabled) {
-            continue;
-        }
-
+    if (light.isEnabled) {
         vec3 halfVector;
-        vec3 lightDirection = lights[light].position;
+        vec3 lightDirection = light.position;
         float attenuation = 1.f;
         
         // for local lights, compute per-fragment direction, halfVector and attenuation
-        if (lights[light].isLocal) {
+        if (light.isLocal) {
             lightDirection = lightDirection - vPosition;
             float lightDistance = length(lightDirection);
             lightDirection = lightDirection / lightDistance;
-    
-            attenuation = 1.f / (
-                lights[light].constantAttenuation +
-                lights[light].linearAttenuation * lightDistance + 
-                lights[light].quadraticAttenuation * lightDistance * lightDistance);
 
-            if (lights[light].isSpot) {
-                float spotCos = dot(lightDirection, -lights[light].coneDirection);
-                if (spotCos < lights[light].spotCosCutoff) {
+            attenuation = 1.f / (
+                light.constantAttenuation +
+                light.linearAttenuation * lightDistance + 
+                light.quadraticAttenuation * lightDistance * lightDistance);
+
+            if (light.isSpot) {
+                float spotCos = dot(lightDirection, -light.coneDirection);
+                if (spotCos < light.spotCosCutoff) {
                     attenuation = 0.f;
                 } else {
-                    attenuation *= pow(spotCos, lights[light].spotExponent);
+                    attenuation *= pow(spotCos, light.spotExponent);
                 }
             }
 
             halfVector = normalize(lightDirection + eyeDirection);
         } else {
-            halfVector = lights[light].halfVector;
+            halfVector = light.halfVector;
         }
 
         // compute diffuse and specular contributions of the current light
@@ -176,8 +171,8 @@ void main() {
             specular = pow(specular, vShininess);
         }
 
-        scatteredLight += (lights[light].ambient + lights[light].color * diffuse) * attenuation;
-        reflectedLight += lights[light].color * specular * attenuation;
+        scatteredLight += (light.ambient + light.color * diffuse) * attenuation;
+        reflectedLight += light.color * specular * attenuation;
     }
 
     vec3 rgb = min(mColor.rgb * scatteredLight + reflectedLight, vec3(1.f));
