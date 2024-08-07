@@ -1,10 +1,6 @@
-//
-// Created by alessio on 07/01/24.
-//
+#pragma once
 
-#ifndef CGE_SHADERLIBRARY_H
-#define CGE_SHADERLIBRARY_H
-
+#include "Core/Module.h"
 #include "Core/StringUtils.h"
 #include "Core/Type.h"
 
@@ -17,9 +13,9 @@ namespace cge
 
 struct Shader_s
 {
-    Sid_t       sid;
-    U32_t       glid;
-    std::string source;
+    Sid_t            sid;
+    U32_t            glid;
+    std::pmr::string source;
 };
 
 class ShaderLibrary_s
@@ -28,11 +24,9 @@ class ShaderLibrary_s
     tl::optional<Shader_s *> open(char const *);
 
   private:
-    std::map<Sid_t, Shader_s> m_shaderMap;
+    std::pmr::map<Sid_t, Shader_s> m_shaderMap{ getMemoryPool() };
 };
 
 extern ShaderLibrary_s g_shaderLibrary;
 
 } // namespace cge
-
-#endif // CGE_SHADERLIBRARY_H

@@ -8,31 +8,26 @@
 
 namespace cge
 {
-AABB_t computeAABB(const Mesh_s &mesh)
+AABB computeAABB(const Mesh_s &mesh)
 {
-    if (mesh.vertices.empty())
+    AABB aabb{ glm::vec3(0.0f), glm::vec3(0.0f) };
+    aabb.min = glm::vec3(std::numeric_limits<float>::max());
+    aabb.max = glm::vec3(std::numeric_limits<float>::min());
+
+    // Loop through each indexed vertex
+    for (size_t i = 0; i < mesh.indices.size(); ++i)
     {
-        // Handle the case when the mesh has no vertices
-        // You might want to return an AABB with some default values or handle
-        // it differently
-        return AABB_t{ glm::vec3(0.0f), glm::vec3(0.0f) };
+        for (U32_t j : mesh.indices[i])
+        {
+            const auto &vertex = mesh.vertices[j];
+
+            // Update AABB based on vertex position
+            aabb.min = glm::min(aabb.min, vertex.pos);
+            aabb.max = glm::max(aabb.max, vertex.pos);
+        }
     }
 
-    // Initialize the min and max coordinates with the first vertex
-    glm::vec3 minCoord = mesh.vertices[0].pos;
-    glm::vec3 maxCoord = mesh.vertices[0].pos;
-
-    // Iterate through all vertices to find the min and max coordinates
-    for (const auto &vertex : mesh.vertices)
-    {
-        // Update min coordinates
-        minCoord = glm::min(minCoord, vertex.pos);
-
-        // Update max coordinates
-        maxCoord = glm::max(maxCoord, vertex.pos);
-    }
-
-    return AABB_t{ minCoord, maxCoord };
+    return aabb;
 }
 
 void Mesh_s::streamUniforms(MeshUniform_t const &uniforms) const
@@ -64,13 +59,17 @@ void Mesh_s::streamUniforms(MeshUniform_t const &uniforms) const
 void Mesh_s::allocateTexturesToGpu()
 {
     uploadedTextures.reserve(64); // reserve is no op for counts < 64
-    uploadedTextures.reserve(textures.size());
+    uploadedTextures.reserve(textures.arr.size());
     uploadedTextures.clear();
 
     U32_t i = 0;
-    for (Sid_t texid : textures)
+    for (Sid_t texid : textures.arr)
     {
-        auto texData = g_handleTable.get(texid).asTexture();
+        if (texid == nullSid)
+        { //
+            continue;
+        }
+        auto &texData = g_handleTable.get(texid).asTexture();
 
         // upload texture to gpu
         glActiveTexture(GL_TEXTURE0 + i);
@@ -109,12 +108,51 @@ void Mesh_s::allocateTexturesToGpu()
     }
 
     // assign default texture binder function (TODO better)
-    bindTextures = [](Mesh_s const *mesh)
+    if (!textures.arr.empty())
     {
-        U32_t fragId     = mesh->shaderProgram.id();
-        U32_t samplerLoc = glGetUniformLocation(fragId, "sampler");
-        glUniform1i(samplerLoc, 0);
-    };
+        bindTextures = [](Mesh_s const *mesh)
+        {
+            static char const *namesBools[3]{ "hasAlbedoTexture",
+                                              "hasNormalSampler",
+                                              "hasShininessSampler" };
+            static char const *namesSamplers[3]{ "albedoSampler",
+                                                 "normalSampler",
+                                                 "shininessSampler" };
+            U32_t              fragId = mesh->shaderProgram.id();
+
+            for (U32_t i = 0; i != 3; ++i)
+            {
+                if (
+                  (i == 0 && mesh->hasDiffuse) || (i == 1 && mesh->hasNormal)
+                  || (i == 2 && mesh->hasSpecular))
+                {
+                    glActiveTexture(GL_TEXTURE0 + i);
+                    glBindTexture(
+                      GL_TEXTURE_2D, mesh->uploadedTextures[i].id());
+
+                    // U32_t samplerLoc =
+                    // glGetUniformLocation(fragId, namesSamplers[i]);
+                    // glUniform1i(samplerLoc, 0);
+                    glUniform1i(
+                      glGetUniformLocation(fragId, namesBools[i]), true);
+                }
+            }
+        };
+    }
+    else
+    { // method used when there are no textures to bind
+        bindTextures = [](Mesh_s const *mesh)
+        {
+            static char const *namesBools[3]{ "hasAlbedoTexture",
+                                              "hasNormalSampler",
+                                              "hasShininessSampler" };
+            U32_t              fragId = mesh->shaderProgram.id();
+            for (auto const &n : namesBools)
+            {
+                glUniform1i(glGetUniformLocation(fragId, n), false);
+            }
+        };
+    }
 }
 
 void Mesh_s::setupUniforms() const
@@ -145,16 +183,29 @@ void Mesh_s::allocateGeometryBuffersToGpu()
     // buffer layout
     vertexBuffer.bind();
     BufferLayout_s layout;
+    // -- aPos
     layout.push({ .type       = GL_FLOAT,
                   .count      = 3,
                   .targetType = ETargetType::eFloating,
                   .normalized = false });
+    // -- aNorm
     layout.push({ .type       = GL_FLOAT,
                   .count      = 3,
                   .targetType = ETargetType::eFloating,
                   .normalized = false });
+    // -- aTexCoord
     layout.push({ .type       = GL_FLOAT,
                   .count      = 3,
+                  .targetType = ETargetType::eFloating,
+                  .normalized = false });
+    // -- aColor
+    layout.push({ .type       = GL_FLOAT,
+                  .count      = 4,
+                  .targetType = ETargetType::eFloating,
+                  .normalized = false });
+    // -- aShininess
+    layout.push({ .type       = GL_FLOAT,
+                  .count      = 1,
                   .targetType = ETargetType::eFloating,
                   .normalized = false });
     vertexArray.addBuffer(vertexBuffer, layout);

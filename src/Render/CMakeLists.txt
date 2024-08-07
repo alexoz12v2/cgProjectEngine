@@ -42,12 +42,15 @@ target_include_directories(cge-renderer
 target_link_libraries(cge-renderer 
   PUBLIC 
     cge::core cge::res cge::render-utils glad::glad
+  PRIVATE
+    freetype
 )
 
 # external dependencies
 target_link_system_libraries(cge-renderer 
   PUBLIC 
-    glfw Microsoft.GSL::GSL
+    glfw 
+    Microsoft.GSL::GSL
     glm::glm
 )
 
@@ -56,7 +59,7 @@ add_library(cge::renderer ALIAS cge-renderer)
 # export library interface 
 set_target_properties(cge-renderer PROPERTIES LINKER_LANGUAGE CXX)
 install(TARGETS
-  cge-renderer glm
+  cge-renderer glm freetype
   EXPORT cgeTargets
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   COMPONENT cge_Runtime

@@ -15,8 +15,6 @@ namespace cge
 #if defined(CGE_DEBUG)
 struct Sid_t
 {
-    Sid_t &operator=(Sid_t const &other) = default;
-
     U64_t           id;
     Char8_t const **pStr = nullptr;
 };
@@ -167,13 +165,18 @@ inline Sid_t constexpr operator""_sid(Char8_t const *str, U64_t size)
 Sid_t          dbg_internString(Char8_t const *str);
 Char8_t const *dbg_lookupString(Sid_t sid);
 #if defined(CGE_DEBUG)
-#define CGE_DBG_SID(x) dbg_internString(x)
-#define CGE_SID(x) dbg_internString(x)
-#define CGE_DBG_STRLOOKUP(x) dbg_lookupString(x)
+#define CGE_DBG_SID(x) ::cge::dbg_internString(x)
+#define CGE_SID(x) ::cge::dbg_internString(x)
+#define CGE_CONSTEXPR_SID(x) \
+    (::cge::operator""_sid((x), std::string_view((x)).size()))
+#define CGE_DBG_STRLOOKUP(x) ::cge::dbg_lookupString(x)
 #else
-#define CGE_DBG_SID(x)
-#define CGE_SID(x) dbg_internString(x)
-#define CGE_DBG_STRLOOKUP(x) dbg_lookupString(x)
+#define CGE_DBG_SID(x) \
+    (::cge::operator""_sid((x), std::string_view((x)).size()))
+#define CGE_CONSTEXPR_SID(x) \
+    (::cge::operator""_sid((x), std::string_view((x)).size()))
+#define CGE_SID(x) (::cge::operator""_sid((x), std::string_view((x)).size()))
+#define CGE_DBG_STRLOOKUP(x) ("")
 #endif
 
 inline Sid_t constexpr nullSid = { .id = 0ULL };

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/Containers.h"
+#include "Core/Module.h"
 #include "Core/Type.h"
 #include "StringUtils.h"
 
@@ -85,21 +86,39 @@ class EventQueue_t
 
     EErr_t dispatch();
 
-    EErr_t addEvent(Event_t event, EventArg_t eventData);
-    EErr_t
+    EErr_t emit(Event_t event, EventArg_t eventData);
+    std::pair<Event_t, Sid_t>
       addListener(Event_t event, EventFunc_t listener, EventArg_t listenerData);
+    void removeListener(std::pair<Event_t, Sid_t> pair);
 
   private:
-    // TODO custom container
-    std::unordered_map<Event_t, std::vector<std::pair<EventFunc_t, EventArg_t>>>
-                                               m_map;
-    std::queue<std::pair<Event_t, EventArg_t>> m_queue;
+    struct DispatcherListenerPair
+    {
+        EventFunc_t listenerFunc;
+        EventArg_t  listenerData;
+    };
+
+  private:
+    std::pmr::unordered_multimap<Event_t, DispatcherListenerPair> m_multimap{
+        getMemoryPool()
+    };
+
+    /**
+     * Data structure containing emitted events to be handled on dispatch
+     */
+    std::queue<
+      std::pair<Event_t, EventArg_t>,
+      std::pmr::deque<std::pair<Event_t, EventArg_t>>>
+      m_queue{ getMemoryPool() };
 };
 
 // TODO: when finish group all globals into singleton
 extern EventQueue_t g_eventQueue;
 
 template<typename T>
+concept KeyListener = requires(T obj, I32_t x, I32_t y) { obj.onKey(x, y); };
+
+template<KeyListener T>
 void KeyCallback(EventArg_t eventData, EventArg_t listenerData)
 {
     auto self = (T *)listenerData.idata.p;
@@ -107,6 +126,10 @@ void KeyCallback(EventArg_t eventData, EventArg_t listenerData)
 }
 
 template<typename T>
+concept MouseButtonListener =
+  requires(T obj, I32_t x, I32_t y) { obj.onMouseButton(x, y); };
+
+template<MouseButtonListener T>
 void mouseButtonCallback(EventArg_t eventData, EventArg_t listenerData)
 {
     auto self = (T *)listenerData.idata.p;
@@ -114,6 +137,10 @@ void mouseButtonCallback(EventArg_t eventData, EventArg_t listenerData)
 };
 
 template<typename T>
+concept MouseMovementListener =
+  requires(T obj, F32_t x, F32_t y) { obj.onMouseMovement(x, y); };
+
+template<MouseMovementListener T>
 void mouseMovementCallback(EventArg_t eventData, EventArg_t listenerData)
 {
     auto self = (T *)listenerData.idata.p;
@@ -121,6 +148,10 @@ void mouseMovementCallback(EventArg_t eventData, EventArg_t listenerData)
 }
 
 template<typename T>
+concept FrameBufferSizeListener =
+  requires(T obj, I32_t x, I32_t y) { obj.onFramebufferSize(x, y); };
+
+template<FrameBufferSizeListener T>
 void framebufferSizeCallback(EventArg_t eventData, EventArg_t listenerData)
 {
     auto self = (T *)listenerData.idata.p;

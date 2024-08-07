@@ -129,8 +129,7 @@ void BufferMapping_s::synchronizeWithDevice()
 void BufferMapping_s::unmap() const
 {
     if (m_access & GL_MAP_WRITE_BIT)
-    {
-        // flush
+    { // flush
         GL_CHECK(glFlushMappedBufferRange(m_target, m_offset, m_size));
     }
 
@@ -170,7 +169,6 @@ BufferMapping_s::BufferMapping_s(
   : m_ptr(ptr), m_id(id), m_size(size), m_offset(offset), m_access(access),
     m_target(target), m_currentOffset(m_offset)
 {
-
 }
 
 // vertex Array ---------------------------------------------------------------
@@ -266,6 +264,6 @@ U32_t sizeFromGLEnum(U32_t type)
 std::underlying_type_t<EAccess> operator&(EAccess a, EAccess b)
 {
     using IntType = std::underlying_type_t<EAccess>;
-    return (IntType)a & (IntType)b;
+    return static_cast<IntType>(a) & static_cast<IntType>(b);
 }
 } // namespace cge

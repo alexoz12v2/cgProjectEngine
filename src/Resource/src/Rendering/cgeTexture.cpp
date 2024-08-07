@@ -9,7 +9,10 @@ namespace cge
 void Texture_s::useTextureUnit(U32_t unit) { GL_CHECK(glActiveTexture(unit)); }
 Texture_s::Texture_s() { GL_CHECK(glGenTextures(1, &m_id)); }
 
-Texture_s::~Texture_s() { GL_CHECK(glDeleteTextures(1, &m_id)); }
+Texture_s::~Texture_s()
+{ //
+    GL_CHECK(glDeleteTextures(1, &m_id));
+}
 
 U32_t Texture_s::id() const { return m_id; }
 
@@ -182,6 +185,8 @@ U32_t Texture_s::bindFromType(ETexture_t type)
     case eInvalid:
         return 0;
     }
+
+    return 0;
 }
 
 // the following formula \floor(\log2{width, height}) + 1 = numLevels

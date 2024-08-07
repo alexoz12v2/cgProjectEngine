@@ -15,3 +15,5 @@ if (NOT DEFINED CPM_GLM_DEGREES)
   set("-DGLM_FORCE_RADIANS")
 endif()
 add_subdirectory(glm/)
+
+add_subdirectory(irrKlang/)

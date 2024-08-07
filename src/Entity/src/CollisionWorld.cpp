@@ -34,7 +34,6 @@ void CollisionWorld_s::build()
     nodesUsed = 1;
     subdivide(rootIdx);
 }
-
 bool CollisionWorld_s::intersect(Ray_t const &ray, U32_t nodeIdx, Hit_t &outHit)
   const
 {
@@ -79,12 +78,15 @@ void CollisionWorld_s::subdivide(U32_t nodeIdx)
     F32_t splitPos = node.ebox.min[axis] + extent[axis] * 0.5f;
 
     // Phase 2: split the group in 2 halves
-    U32_t i = node.firstPrimOffset;
-    U32_t j = i + node.primitivesCount - 1;
+    I64_t i = node.firstPrimOffset;
+    I64_t j = i + node.primitivesCount - 1;
     while (i <= j)
     {
         if (centroid(objs[i].ebox)[axis] < splitPos) { i++; }
-        else { std::swap(objs[i], objs[j--]); }
+        else
+        { //
+            std::swap(objs[i], objs[j--]);
+        }
     }
 
     // Phase 3: create child nodes for each half
@@ -176,7 +178,7 @@ B8_t intersectObj(Ray_t const &ray, CollisionObj_t const &obj, Hit_t &outHit)
         for (Mesh_s const &mesh = ref.asMesh(); auto const &face : mesh.indices)
         {
             glm::mat4 const &transform =
-              g_scene.getNodeBySid(obj.sid)->absoluteTransform;
+              g_scene.getNodeBySid(obj.sid)->getAbsoluteTransform();
             glm::vec3 v0 =
               transform * glm::vec4(mesh.vertices[face[0]].pos, 1.f);
             glm::vec3 v1 =
@@ -213,6 +215,8 @@ B8_t intersectObj(Ray_t const &ray, CollisionObj_t const &obj, Hit_t &outHit)
         }
         return found;
     }
+
+    return false;
 }
 
 } // namespace cge
