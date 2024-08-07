@@ -20,21 +20,15 @@ union ModuleInitParams
 };
 static_assert(sizeof(ModuleInitParams) == 16);
 
-/** @class IModule
- * @brief
- */
 class IModule
 {
   public:
-    /** @fn onInit
-     * @brief callback function called after all modules have been initialized
-     * @param params initialization parameters. Contains arbitrary data
-     */
-    virtual void onInit(ModuleInitParams params) = 0;
-
-    virtual void onTick(float deltaTime) = 0;
-
+    IModule(Sid_t id);
     virtual ~IModule() = default;
+
+  public:
+    virtual void onInit(ModuleInitParams params);
+    virtual void onTick(float deltaTime) = 0;
 
     bool  taggedForDestruction() const;
     Sid_t moduleSwitched() const;
@@ -43,10 +37,12 @@ class IModule
   protected:
     void tagForDestruction();
     void switchToModule(Sid_t moduleSid);
+    bool initializedOnce() const;
 
   private:
-    bool  m_taggedForDestruction = false;
     Sid_t m_nextModule           = nullSid;
+    bool  m_taggedForDestruction = false;
+    Sid_t m_id                   = nullSid;
 };
 
 std::pmr::unsynchronized_pool_resource *getMemoryPool();

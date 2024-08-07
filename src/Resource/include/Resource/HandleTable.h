@@ -59,6 +59,7 @@ class HandleTable_s
     Light_t             &insertLight(Sid_t sid, Light_t const &light);
     B8_t                 remove(Sid_t sid);
     HandleTable_s::Ref_s get(Sid_t sid);
+    Mesh_s              &getMesh(Sid_t sid);
     std::pmr::map<Sid_t, Light_t>::const_iterator lightsBegin() const;
     std::pmr::map<Sid_t, Light_t>::const_iterator lightsEnd() const;
 

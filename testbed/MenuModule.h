@@ -15,10 +15,8 @@ class MenuModule : public IModule
 {
   public:
     static U32_t constexpr numButtons = 2;
-    static std::array<const char *, numButtons> constexpr names{
-        "START", ///////
-        "EXIT"
-    };
+    static std::array<const char *, numButtons> constexpr names{ "START", ///////
+                                                                 "EXIT" };
     static inline std::array<ButtonSpec, numButtons> const buttons{
         //
         ButtonSpec{
@@ -42,7 +40,7 @@ class MenuModule : public IModule
     };
 
   public:
-    MenuModule()                                       = default;
+    MenuModule(Sid_t id) : IModule(id) {}
     MenuModule(MenuModule const &other)                = delete;
     MenuModule &operator=(MenuModule const &other)     = delete;
     MenuModule(MenuModule &&other)                     = delete;

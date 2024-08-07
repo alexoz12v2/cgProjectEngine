@@ -22,7 +22,7 @@ class TestbedModule : public IModule
     static Sid_t constexpr planeMeshSid = "Plane"_sid;
 
   public:
-    TestbedModule()                                          = default;
+    TestbedModule(Sid_t id) : IModule(id) {}
     TestbedModule(TestbedModule const &other)                = delete;
     TestbedModule &operator=(TestbedModule const &other)     = delete;
     TestbedModule(TestbedModule &&other)                     = delete;
@@ -37,6 +37,7 @@ class TestbedModule : public IModule
     void onMouseMovement(F32_t xPos, F32_t yPos);
     void onFramebufferSize(I32_t width, I32_t height);
     void onGameOver(U64_t score);
+    void onShoot(Ray const &ray);
 
   private:
     [[nodiscard]] F32_t aspectRatio() const;
@@ -46,9 +47,7 @@ class TestbedModule : public IModule
     Player     m_player;
 
     // terrain data
-    ScrollingTerrain        m_scrollingTerrain;
-    std::pmr::vector<Sid_t> m_pieces{ getMemoryPool() };
-    std::pmr::vector<Sid_t> m_obstacles;
+    ScrollingTerrain m_scrollingTerrain;
 
     // event data
     union
@@ -60,8 +59,9 @@ class TestbedModule : public IModule
             std::pair<Event_t, Sid_t> mouseButtonListener;
             std::pair<Event_t, Sid_t> framebufferSizeListener;
             std::pair<Event_t, Sid_t> gameOverListener;
+            std::pair<Event_t, Sid_t> shootListener;
         };
-        std::array<std::pair<Event_t, Sid_t>, 5> arr;
+        std::array<std::pair<Event_t, Sid_t>, 6> arr;
     } m_listeners{};
     B8_t m_init{ false };
 

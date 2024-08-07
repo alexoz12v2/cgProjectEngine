@@ -70,57 +70,63 @@ void TestbedModule::onInit(ModuleInitParams params)
     // register to all relevant events pressed
     EventArg_t listenerData{};
     listenerData.idata.p    = (Byte_t *)this;
-    m_listeners.keyListener = g_eventQueue.addListener(
-      evKeyPressed, KeyCallback<TestbedModule>, listenerData);
-    m_listeners.mouseMovementListener = g_eventQueue.addListener(
-      evMouseMoved, mouseMovementCallback<TestbedModule>, listenerData);
-    m_listeners.mouseButtonListener = g_eventQueue.addListener(
-      evMouseButtonPressed, mouseButtonCallback<TestbedModule>, listenerData);
-    m_listeners.framebufferSizeListener = g_eventQueue.addListener(
-      evFramebufferSize, framebufferSizeCallback<TestbedModule>, listenerData);
-    m_listeners.gameOverListener = g_eventQueue.addListener(
-      evGameOver, gameOverCallback<TestbedModule>, listenerData);
+    m_listeners.keyListener = g_eventQueue.addListener(evKeyPressed, KeyCallback<TestbedModule>, listenerData);
+    m_listeners.mouseMovementListener =
+      g_eventQueue.addListener(evMouseMoved, mouseMovementCallback<TestbedModule>, listenerData);
+    m_listeners.mouseButtonListener =
+      g_eventQueue.addListener(evMouseButtonPressed, mouseButtonCallback<TestbedModule>, listenerData);
+    m_listeners.framebufferSizeListener =
+      g_eventQueue.addListener(evFramebufferSize, framebufferSizeCallback<TestbedModule>, listenerData);
+    m_listeners.gameOverListener = g_eventQueue.addListener(evGameOver, gameOverCallback<TestbedModule>, listenerData);
+    m_listeners.shootListener    = g_eventQueue.addListener(evShoot, shootCallback<TestbedModule>, listenerData);
 
     // open mesh file
     printf("Opening Scene file\n");
 
-    // lightTestScene.obj has 1 mesh called Cube
-    g_handleTable.loadFromObj("../assets/lightTestScene.obj");
+    if (!initializedOnce())
+    {
+        g_handleTable.loadFromObj("../assets/lightTestScene.obj");
+        g_handleTable.loadFromObj("../assets/plane.obj");
+        g_handleTable.loadFromObj("../assets/piece.obj");
+        g_handleTable.loadFromObj("../assets/prop.obj");
+        g_handleTable.loadFromObj("../assets/destructible.obj");
+        g_handleTable.loadFromObj("../assets/magnet.obj");
+        g_handleTable.loadFromObj("../assets/coin.obj");
 
-    // plane.obj has 1 mesh called Plane01
-    g_handleTable.loadFromObj("../assets/plane.obj");
-    auto planeSid = CGE_SID("Plane01");
-    m_pieces.resize(10);
-    std::fill(m_pieces.begin(), m_pieces.end(), planeSid);
+        // add light to the scene
+        Light_t const sunLight{ 
+            .sid   = CGE_SID("SUN LIGHT"),
+            .props = { 
+                .isEnabled = true,
+                .isLocal = false,
+                .isSpot = false,
+                .ambient   = {0.1f,0.1f,0.1f},
+                .color = {1.f, 1.f, 1.f},
+                .position  = glm::normalize(glm::vec3{-0.4f, 0.3f, 1.f}),
+                .halfVector = glm::normalize(glm::vec3{-0.4f, 0.3f, 1.f}),
+                .coneDirection = {0,0,0},
+                .spotCosCutoff = 0,
+                .spotExponent = 0,
+                .constantAttenuation = 0,
+                .linearAttenuation = 0,
+                .quadraticAttenuation = 0,
+            },
+        };
 
-    // prop.obj has 1 mesh called Obstacle
-    g_handleTable.loadFromObj("../assets/prop.obj");
-    auto obstacleSid = CGE_SID("Obstacle");
-    m_obstacles.push_back(obstacleSid);
+        g_handleTable.insertLight(sunLight.sid, sunLight);
+    }
 
-    m_scrollingTerrain.init(g_scene, m_pieces);
+    std::pmr::vector<Sid_t> pieces{ { CGE_SID("Piece") }, getMemoryPool() };
+    std::pmr::vector<Sid_t> obstacles{ { CGE_SID("Obstacle") }, getMemoryPool() };
+    std::pmr::vector<Sid_t> destructables{ { CGE_SID("Destructible") }, getMemoryPool() };
+    Sid_t                   magnet = CGE_SID("Magnet");
+    Sid_t                   coin   = CGE_SID("Coin");
+    m_scrollingTerrain.init({ .pieces        = pieces,
+                              .obstacles     = obstacles,
+                              .destructables = destructables,
+                              .magnetPowerUp = magnet,
+                              .coin          = coin });
 
-    // add light to the scene
-    Light_t const sunLight{ 
-        .sid   = CGE_SID("SUN LIGHT"),
-        .props = { 
-            .isEnabled = true,
-            .isLocal = false,
-            .isSpot = false,
-            .ambient   = {0,0,0},
-            .color = {2.f, 2.f, 2.f},
-            .position  = {-0.4f, 0.3f, -1.f},
-            .halfVector = {-0.4f, 0.3f, -1.f},
-            .coneDirection = {0,0,0},
-            .spotCosCutoff = 0,
-            .spotExponent = 0,
-            .constantAttenuation = 0,
-            .linearAttenuation = 0,
-            .quadraticAttenuation = 0,
-        },
-    };
-
-    g_handleTable.insertLight(sunLight.sid, sunLight);
 
     // setup player
     Camera_t camera{};
@@ -134,8 +140,7 @@ void TestbedModule::onInit(ModuleInitParams params)
     stbi_set_flip_vertically_on_load(true);
     const char    *imagePath = "../assets/background.png";
     int            width, height, channels;
-    unsigned char *image =
-      stbi_load(imagePath, &width, &height, &channels, STBI_rgb);
+    unsigned char *image = stbi_load(imagePath, &width, &height, &channels, STBI_rgb);
     getBackgroundRenderer().init(image, width, height);
     stbi_image_free(image);
 
@@ -151,19 +156,16 @@ void TestbedModule::onInit(ModuleInitParams params)
     }
 
     m_init = true;
+    IModule::onInit({});
 }
 
 void TestbedModule::onKey(I32_t key, I32_t action)
 {
     if (action == action::PRESS)
     {
-        if (key == key::_1)
+        if (key == key::ESCAPE)
         { //
             switchToModule(CGE_SID("MenuModule"));
-        }
-        else if (key == key::_2)
-        { //
-            switchToModule(CGE_SID("non existent"));
         }
     }
 }
@@ -176,11 +178,7 @@ void TestbedModule::onFramebufferSize(I32_t width, I32_t height)
 {
     m_framebufferSize.x = width;
     m_framebufferSize.y = height;
-    printf(
-      "width: %u, height: %u, aspectRatio: %f\n",
-      m_framebufferSize.x,
-      m_framebufferSize.y,
-      aspectRatio());
+    printf("width: %u, height: %u, aspectRatio: %f\n", m_framebufferSize.x, m_framebufferSize.y, aspectRatio());
 }
 
 void TestbedModule::onGameOver(U64_t score)
@@ -191,10 +189,15 @@ void TestbedModule::onGameOver(U64_t score)
         json["bestScore"] = score;
     }
 
-    std::ofstream file{ "../assets/saves.json",
-                        std::ios::out | std::ios::trunc };
+    std::ofstream file{ "../assets/saves.json", std::ios::out | std::ios::trunc };
     file << json.dump();
     switchToModule(CGE_SID("MenuModule"));
+}
+
+void TestbedModule::onShoot(Ray const &ray)
+{ //
+    printf("[TestbedModule] BANG\n");
+    m_scrollingTerrain.handleShoot(ray);
 }
 
 void TestbedModule::onTick(float deltaTime)
@@ -203,27 +206,25 @@ void TestbedModule::onTick(float deltaTime)
     auto const camera = m_player.getCamera();
     auto const center = m_player.getCentroid();
 
-    m_scrollingTerrain.updateTilesFromPosition(center, m_pieces, m_obstacles);
-    getBackgroundRenderer().renderBackground(
-      m_player.getCamera(), aspectRatio(), CLIPDISTANCE, RENDERDISTANCE);
+    m_scrollingTerrain.updateTilesFromPosition(center);
+    getBackgroundRenderer().renderBackground(m_player.getCamera(), aspectRatio(), CLIPDISTANCE, RENDERDISTANCE);
 
     m_player.onTick(deltaTime);
-    m_player.intersectPlayerWith(m_scrollingTerrain.getObstacles());
+    m_player.intersectPlayerWith(m_scrollingTerrain);
 
     g_renderer.renderScene(
       g_scene,
       camera.viewTransform(),
       glm::perspective(FOV, aspectRatio(), CLIPDISTANCE, RENDERDISTANCE),
       camera.forward);
-    FixedString str = fixedStringWithNumber<FixedString("Best Score")>(
-      json["bestScore"].template get<U64_t>());
-    g_renderer2D.renderText(
-      str.cStr(), glm::vec3(25.0f, 25.0f, 1.0f), glm::vec3(0.5, 0.8f, 0.2f));
+    FixedString str = fixedStringWithNumber<FixedString("Best Score")>(json["bestScore"].template get<U64_t>());
+    g_renderer2D.renderText(str.cStr(), glm::vec3(25.0f, 25.0f, 1.0f), glm::vec3(0.5, 0.8f, 0.2f));
 }
 
 [[nodiscard]] F32_t TestbedModule::aspectRatio() const
 {
-    return (F32_t)m_framebufferSize.x / (F32_t)m_framebufferSize.y;
+    F32_t ratio = m_framebufferSize.x / glm::max(static_cast<F32_t>(m_framebufferSize.y), 0.1f);
+    return ratio > std::numeric_limits<F32_t>::epsilon() ? ratio : 1.f;
 }
 
 } // namespace cge

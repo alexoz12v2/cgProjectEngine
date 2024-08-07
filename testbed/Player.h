@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/Event.h"
+#include "Core/Random.h"
 #include "Core/StringUtils.h"
 #include "Core/Type.h"
 #include "Render/Renderer.h"
@@ -24,54 +25,71 @@ inline F32_t constexpr laneShift = (F32_t)pieceSize / numLanes;
 class ScrollingTerrain
 {
   private:
-    static U32_t constexpr numPieces = 10;
+    static U32_t constexpr numPieces        = 10;
+    static U32_t constexpr maxDestructables = 4;
+    static U32_t constexpr maxObstacles     = 4;
+    static U32_t constexpr maxPieces        = 4;
 
   public:
-    using ObstacleList =
-      std::array<Sid_t, numPieces>;
-
-    using PieceList = std::array<Sid_t, numPieces>;
+    using ObstacleList = std::array<Sid_t, numPieces>;
+    using PieceList    = std::array<Sid_t, numPieces>;
+    struct InitData
+    {
+        std::span<Sid_t> pieces;
+        std::span<Sid_t> obstacles;
+        std::span<Sid_t> destructables;
+        Sid_t            magnetPowerUp;
+        Sid_t            coin;
+    };
 
   public:
-    /**
-     * @brief assuming each piece is 10 m x 10 m, they are placed such that the
-     * middle one is in the origin of the world
-     *
-     * @param scene scene in which the objects are instanced
-     * @param begin begin iterator for the pieces of the terrain. Can be
-     * obtained with Scene_s::names()
-     * @param end end iterator for the pieces of the terrain. Can be obtained
-     * with Scene_s::namesEnd()
-     */
-    void init(Scene_s &scene, std::span<Sid_t> pieces);
-
-    /**
-     * @brief given the player position, find in which of the tiles the player
-     * is into, and, if it isn't the one in the center, move the tiles in the
-     * back forward such that the player will be in the center. Also, randomly
-     * pick a new mesh sid for a new piece
-     *
-     * @param position current player position
-     * @param sidSet set of meshes to pick from
-     * @return deque with obstacles for each tile (hence size = m_pieces.size())
-     */
-    void updateTilesFromPosition(
-      glm::vec3               position,
-      std::span<Sid_t> const &sidSet,
-      std::span<Sid_t> const &obstacles);
+    void init(InitData const &initData);
+    void updateTilesFromPosition(glm::vec3 position);
+    void handleShoot(Ray const &ray);
 
     ObstacleList const &getObstacles() const;
+    ObstacleList const &getDestructables() const;
+
+  private:
+    Sid_t selectRandomPiece() const;
+    Sid_t selectRandomObstacle() const;
+    Sid_t selectRandomDestructable() const;
+
+    void addPropOfType(U32_t type, glm::mat4 const &pieceTransform);
+
+    template<U32_t N> static constexpr Sid_t selectRandomFromList(std::array<Sid_t, N> list, U32_t effectiveSize)
+    { //
+        U32_t rnd = g_random.next<U32_t>(0, effectiveSize - 1);
+        Sid_t ret{ nullSid };
+        while (ret == nullSid && rnd >= 0)
+        { //
+            ret = list[rnd--];
+        }
+        assert(ret != nullSid && "[ScrollingTerrain] invalid");
+        return ret;
+    }
 
   private:
     // the front is the furthest piece backwards, hence the first to be moved
     // and swapped with the back
-    PieceList    m_pieces;
-    ObstacleList m_obstacles;
+    PieceList    m_pieces{ nullSid };
+    ObstacleList m_obstacles{ nullSid };
+    ObstacleList m_destructables{ nullSid };
 
     // indices managed such that the m_pieces array is a ring buffer, with its
     // elements fixed and varying indices
     U32_t m_first{ 0 };
-    U32_t m_last{ numPieces - 1 };
+
+    // available meshes
+    std::array<Sid_t, maxPieces>        m_pieceSet{ nullSid };
+    std::array<Sid_t, maxObstacles>     m_obstacleSet{ nullSid };
+    std::array<Sid_t, maxDestructables> m_destructableSet{ nullSid };
+    Sid_t                               m_coin{ nullSid };
+    Sid_t                               m_magnetPowerUp{ nullSid };
+
+    U32_t m_pieceSetSize{ 0 };
+    U32_t m_obstacleSetSize{ 0 };
+    U32_t m_destructableSetSize{ 0 };
 };
 
 class Player
@@ -100,7 +118,7 @@ class Player
     // TODO remove
     [[nodiscard]] glm::vec3 lastDisplacement() const;
 
-    bool intersectPlayerWith(ScrollingTerrain::ObstacleList const &obstacles);
+    bool intersectPlayerWith(ScrollingTerrain const &terrain);
     void setSwishSound(irrklang::ISoundSource *sound);
 
   private:
@@ -120,11 +138,11 @@ class Player
 
   private:
     // main components
-    Sid_t                             m_sid{ nullSid };
-    Mesh_s                           *m_mesh{ nullptr };
-    Camera_t                          m_camera{};
-    U64_t                             m_score{ 0 };
-    B8_t                              m_init{ false };
+    Sid_t    m_sid{ nullSid };
+    Mesh_s  *m_mesh{ nullptr };
+    Camera_t m_camera{};
+    U64_t    m_score{ 0 };
+    B8_t     m_init{ false };
 
     // collision related
     bool      m_intersected{ false };
