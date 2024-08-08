@@ -27,6 +27,7 @@ static AABB enlarge(AABB const &box)
 { //
     AABB res{ box };
     res.max.z = glm::max(box.max.z, 20.f);
+    res.max.y += 10.f;
     return res;
 }
 
@@ -102,7 +103,6 @@ void Player::onTick(F32_t deltaTime)
     {
         auto old  = m_camera.position.x;
         auto disp = (m_targetXPos - old) * baseShiftVelocity * 0.004f; //* deltaTime;
-        printf("[Player] deltaTime: %f\n", deltaTime);
 
         m_camera.position.x += disp;
 
@@ -276,8 +276,8 @@ void ScrollingTerrain::updateTilesFromPosition(glm::vec3 position)
     // if yes, then update first and last and traslate everything from first to last
     if (position.y - piecePosition.y > static_cast<F32_t>(pieceSize >> 1))
     {
-        g_scene.getNodeBySid(m_pieces[m_first])
-          .transform(glm::translate(glm::mat4(1.f), glm::vec3(0.f, pieceSize * numPieces, 0.f)));
+        glm::vec3 displacement{ 0.f, pieceSize * numPieces, 0.f };
+        g_scene.getNodeBySid(m_pieces[m_first]).transform(glm::translate(glm::mat4(1.f), displacement));
 
         // remove the obstacle from the moved piece
         if (m_obstacles[m_first] != nullSid)
@@ -295,6 +295,16 @@ void ScrollingTerrain::updateTilesFromPosition(glm::vec3 position)
 
         // maintain indices
         m_first = nextPieceIdx;
+
+        // remove old coins
+        removeCoins(position.y);
+
+        // possibly add coins
+        if (m_coinMap.size() < maxNumSpawnedCoins)
+        {
+            addCoins(m_coinYCoord);
+            m_coinYCoord += coinPositionIncrement;
+        }
     }
 }
 
@@ -350,6 +360,23 @@ ScrollingTerrain::ObstacleList const &ScrollingTerrain::getDestructables() const
     return m_destructables;
 }
 
+std::pmr::unordered_map<U32_t, Sid_t> const &ScrollingTerrain::getCoinMap() const
+{ // getter
+    return m_coinMap;
+}
+
+void ScrollingTerrain::removeCoin(CoinMap::iterator const &it)
+{ //
+    g_scene.removeNode(it->second);
+    m_coinMap.erase(it);
+}
+
+void ScrollingTerrain::removeCoin(CoinMap::const_iterator const &it)
+{ //
+    g_scene.removeNode(it->second);
+    m_coinMap.erase(it);
+}
+
 Sid_t ScrollingTerrain::selectRandomPiece() const
 { //
     return selectRandomFromList(m_pieceSet, m_pieceSetSize);
@@ -384,6 +411,52 @@ void ScrollingTerrain::addPropOfType(U32_t type, glm::mat4 const &pieceTransform
         m_destructables[m_first]    = g_scene.addNode(sid);
         g_scene.getNodeBySid(m_destructables[m_first])
           .transform(glm::translate(pieceTransform, glm::vec3(arr[0], pieceSize * (numPieces - 1), 0.f)));
+    }
+}
+
+void ScrollingTerrain::addCoins(F32_t pieceYCoord)
+{
+    static F32_t constexpr coinHeight{ 50.f };
+    static U32_t constexpr maxNumCoinsPerTile{ 5 };
+    static U32_t constexpr threshold{ 3 };
+    static F32_t constexpr coinShift{ laneShift * 1.2f };
+    static F32_t constexpr heightShift{ 4.f };
+    static F32_t constexpr betweenDistance{ 5.f };
+    U32_t         numSpawnedCoins{ 0 };
+    F32_t         lastPos   = pieceYCoord;
+    Mesh_s const &coinMesh  = g_handleTable.getMesh(m_coin);
+    F32_t const   coinDepth = coinMesh.box.max.y - coinMesh.box.min.y;
+    F32_t const   increment = coinDepth + betweenDistance;
+
+    while (g_random.next<U32_t>(0, maxNumCoinsPerTile - numSpawnedCoins) < threshold)
+    {
+        Sid_t coinSceneSid = g_scene.addNode(m_coin);
+        F32_t xCoord       = g_random.next<F32_t>() * coinShift;
+        F32_t zCoord       = (g_random.next<F32_t>() - 0.5f) * heightShift + coinHeight;
+
+        g_scene.getNodeBySid(coinSceneSid)
+          .transform(glm::translate(glm::mat4(1.f), glm::vec3(xCoord, lastPos, zCoord)));
+        m_coinMap.try_emplace(static_cast<U32_t>(lastPos), coinSceneSid);
+
+        lastPos += increment;
+        ++numSpawnedCoins;
+    }
+}
+
+void ScrollingTerrain::removeCoins(F32_t threshold)
+{
+    for (auto it = m_coinMap.begin(); it != m_coinMap.end();)
+    { // if the coin is in the y range of the piece begin removed, then remove it
+        if (it->first <= threshold)
+        { //
+            Sid_t sceneSid = it->second;
+            g_scene.removeNode(sceneSid);
+            it = m_coinMap.erase(it);
+        }
+        else
+        { //
+            ++it;
+        }
     }
 }
 
@@ -438,6 +511,11 @@ bool Player::intersectPlayerWith(ScrollingTerrain const &terrain)
 void Player::setSwishSound(irrklang::ISoundSource *sound)
 { //
     m_swishSoundSource = sound;
+}
+
+void Player::incrementScore(U32_t increment)
+{ //
+    m_score += increment;
 }
 
 } // namespace cge

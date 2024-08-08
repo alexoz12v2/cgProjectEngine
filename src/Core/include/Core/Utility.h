@@ -9,8 +9,7 @@ struct Ray
 {
   public:
     Ray(glm::vec3 const &orig, glm::vec3 const &dir)
-      : orig(orig), dir(dir), invdir(1.f / dir),
-        sign{ (invdir.x < 0), (invdir.y < 0), (invdir.z < 0) }
+      : orig(orig), dir(dir), invdir(1.f / dir), sign{ (invdir.x < 0), (invdir.y < 0), (invdir.z < 0) }
     {
     }
 
@@ -57,5 +56,7 @@ glm::vec3 centroid(AABB const &b);
 glm::vec3 diagonal(AABB const &b);
 
 B8_t isPointInsideAABB(glm::vec3 const &point, AABB const &box);
+
+AABB transformAABBToNDC(AABB const &aabb, glm::mat4 const &model, glm::mat4 const &view, glm::mat4 const &projection);
 
 } // namespace cge

@@ -13,10 +13,7 @@ B8_t testOverlap(Ray const &ray, AABB const &box)
         {
             // ... and ray coord is not within, no hit
             // does this work with NaN?
-            if (ray.orig[i] < box.min[i] || ray.orig[i] > box.max[i])
-            {
-                return false;
-            }
+            if (ray.orig[i] < box.min[i] || ray.orig[i] > box.max[i]) { return false; }
         }
     }
     return true;
@@ -101,9 +98,44 @@ glm::vec3 diagonal(AABB const &b) { return b.max - b.min; }
 
 B8_t isPointInsideAABB(glm::vec3 const &point, AABB const &box)
 {
-    return (point.x >= box.min.x && point.x <= box.max.x)
-           && (point.y >= box.min.y && point.y <= box.max.y)
+    return (point.x >= box.min.x && point.x <= box.max.x) && (point.y >= box.min.y && point.y <= box.max.y)
            && (point.z >= box.min.z && point.z <= box.max.z);
 }
 
+AABB transformAABBToNDC(AABB const &aabb, glm::mat4 const &model, glm::mat4 const &view, glm::mat4 const &projection)
+{
+    // Define the 8 vertices of the AABB in model space
+    glm::vec4 vertices[]{ { aabb.min, 1.0f },
+                          { aabb.max, 1.0f },
+                          { aabb.min.x, aabb.min.y, aabb.max.z, 1.0f },
+                          { aabb.min.x, aabb.max.y, aabb.min.z, 1.0f },
+                          { aabb.max.x, aabb.min.y, aabb.min.z, 1.0f },
+                          { aabb.min.x, aabb.max.y, aabb.max.z, 1.0f },
+                          { aabb.max.x, aabb.min.y, aabb.max.z, 1.0f },
+                          { aabb.max.x, aabb.max.y, aabb.min.z, 1.0f } };
+
+    // Combine model, view, and projection matrices
+    glm::mat4 mvp = projection * view * model;
+
+    // Transform vertices to clip space
+    for (auto &vertex : vertices)
+    {
+        vertex = mvp * vertex;
+        // Perform perspective divide to transform to NDC
+        vertex /= vertex.w;
+    }
+
+    // Find the new min and max points in NDC space
+    glm::vec3 ndc_min(std::numeric_limits<float>::max());
+    glm::vec3 ndc_max(std::numeric_limits<float>::lowest());
+
+    for (const auto &vertex : vertices)
+    {
+        ndc_min = glm::min(ndc_min, glm::vec3(vertex));
+        ndc_max = glm::max(ndc_max, glm::vec3(vertex));
+    }
+
+    // Return the transformed AABB in NDC space
+    return { ndc_min, ndc_max };
+}
 } // namespace cge

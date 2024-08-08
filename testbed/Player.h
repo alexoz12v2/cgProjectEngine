@@ -18,21 +18,25 @@
 namespace cge
 {
 
-inline U32_t constexpr pieceSize = 100;
-inline U32_t constexpr numLanes  = 3;
-inline F32_t constexpr laneShift = (F32_t)pieceSize / numLanes;
+inline U32_t constexpr pieceSize             = 100;
+inline U32_t constexpr halfPieceSize         = 50;
+inline U32_t constexpr numLanes              = 3;
+inline F32_t constexpr laneShift             = (F32_t)pieceSize / numLanes;
+inline F32_t constexpr coinPositionIncrement = static_cast<F32_t>(pieceSize * 5);
 
 class ScrollingTerrain
 {
   private:
-    static U32_t constexpr numPieces        = 10;
-    static U32_t constexpr maxDestructables = 4;
-    static U32_t constexpr maxObstacles     = 4;
-    static U32_t constexpr maxPieces        = 4;
+    static U32_t constexpr numPieces          = 10;
+    static U32_t constexpr maxDestructables   = 4;
+    static U32_t constexpr maxObstacles       = 4;
+    static U32_t constexpr maxPieces          = 4;
+    static U32_t constexpr maxNumSpawnedCoins = 20;
 
   public:
     using ObstacleList = std::array<Sid_t, numPieces>;
     using PieceList    = std::array<Sid_t, numPieces>;
+    using CoinMap      = std::pmr::unordered_map<U32_t, Sid_t>;
     struct InitData
     {
         std::span<Sid_t> pieces;
@@ -49,6 +53,9 @@ class ScrollingTerrain
 
     ObstacleList const &getObstacles() const;
     ObstacleList const &getDestructables() const;
+    CoinMap const      &getCoinMap() const;
+    void                removeCoin(CoinMap::iterator const &it);
+    void                removeCoin(CoinMap::const_iterator const &it);
 
   private:
     Sid_t selectRandomPiece() const;
@@ -56,9 +63,11 @@ class ScrollingTerrain
     Sid_t selectRandomDestructable() const;
 
     void addPropOfType(U32_t type, glm::mat4 const &pieceTransform);
+    void addCoins(F32_t pieceYCoord);
+    void removeCoins(F32_t pieceYCoord);
 
     template<U32_t N> static constexpr Sid_t selectRandomFromList(std::array<Sid_t, N> list, U32_t effectiveSize)
-    { //
+    {
         U32_t rnd = g_random.next<U32_t>(0, effectiveSize - 1);
         Sid_t ret{ nullSid };
         while (ret == nullSid && rnd >= 0)
@@ -75,6 +84,11 @@ class ScrollingTerrain
     PieceList    m_pieces{ nullSid };
     ObstacleList m_obstacles{ nullSid };
     ObstacleList m_destructables{ nullSid };
+
+    // map from approximated y position -> scene sid of the coin
+    CoinMap m_coinMap{ getMemoryPool() };
+
+    F32_t m_coinYCoord{ coinPositionIncrement };
 
     // indices managed such that the m_pieces array is a ring buffer, with its
     // elements fixed and varying indices
@@ -120,6 +134,7 @@ class Player
 
     bool intersectPlayerWith(ScrollingTerrain const &terrain);
     void setSwishSound(irrklang::ISoundSource *sound);
+    void incrementScore(U32_t increment);
 
   private:
     static F32_t constexpr scoreMultiplier        = 0.1f;

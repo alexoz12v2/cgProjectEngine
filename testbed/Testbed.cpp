@@ -5,6 +5,7 @@
 #include "Core/KeyboardKeys.h"
 #include "Core/StringUtils.h"
 #include "Core/Type.h"
+#include "Core/Utility.h"
 #include "Launch/Entry.h"
 #include "Render/Renderer.h"
 #include "Render/Renderer2d.h"
@@ -25,6 +26,7 @@
 #include <nlohmann/json.hpp>
 #include <stb/stb_image.h>
 
+#include <Utils.h>
 #include <fstream>
 
 CGE_DECLARE_STARTUP_MODULE(cge, TestbedModule, "TestbedModule");
@@ -170,9 +172,24 @@ void TestbedModule::onKey(I32_t key, I32_t action)
     }
 }
 
-void TestbedModule::onMouseButton(I32_t key, I32_t action) {}
+void TestbedModule::onMouseButton(I32_t key, I32_t action)
+{
+    glm::vec2 ndcMousePos{ m_screenMousePos / static_cast<glm::vec2>(m_framebufferSize) };
+    ndcMousePos.y = 1 - ndcMousePos.y;
+    ndcMousePos -= 0.5f;
+    ndcMousePos *= 2;
+    if (action == action::PRESS && key == button::LMB)
+    { //
+        printf("[Testbed] pressed at NDC { %f %f }\n", ndcMousePos.x, ndcMousePos.y);
+        isAnyCoinClicked(ndcMousePos);
+    }
+}
 
-void TestbedModule::onMouseMovement(F32_t xpos, F32_t ypos) {}
+void TestbedModule::onMouseMovement(F32_t xpos, F32_t ypos)
+{
+    m_screenMousePos.x = xpos;
+    m_screenMousePos.y = ypos;
+}
 
 void TestbedModule::onFramebufferSize(I32_t width, I32_t height)
 {
@@ -225,6 +242,40 @@ void TestbedModule::onTick(float deltaTime)
 {
     F32_t ratio = m_framebufferSize.x / glm::max(static_cast<F32_t>(m_framebufferSize.y), 0.1f);
     return ratio > std::numeric_limits<F32_t>::epsilon() ? ratio : 1.f;
+}
+
+static B8_t isBetween(glm::vec2 const &p, glm::vec2 const &min, glm::vec2 const &max, glm::vec2 const &threshold)
+{
+    return p.x + threshold.x >= min.x && p.y + threshold.y >= min.y //
+           && p.x - threshold.x < max.x && p.y - threshold.y < max.y;
+}
+
+B8_t TestbedModule::isAnyCoinClicked(glm::vec2 const &clickPos)
+{
+    glm::mat4 const &viewMatrix = m_player.getCamera().viewTransform();
+    glm::mat4 const  projectionMatrix{ glm::perspective(FOV, aspectRatio(), CLIPDISTANCE, RENDERDISTANCE) };
+
+    for (auto it = m_scrollingTerrain.getCoinMap().begin(); it != m_scrollingTerrain.getCoinMap().end();)
+    {
+        AABB box = g_handleTable.getMesh(g_scene.getNodeBySid(it->second).getSid()).box;
+        AABB ndcBox =
+          transformAABBToNDC(box, g_scene.getNodeBySid(it->second).getTransform(), viewMatrix, projectionMatrix);
+
+        if (isBetween(
+              clickPos,
+              glm::vec2{ ndcBox.min.x, ndcBox.min.y },
+              glm::vec2{ ndcBox.max.x, ndcBox.max.y },
+              { 0.1f, 0.1f }))
+        {
+            printf("[Testbed] coin clicked\n");
+            m_scrollingTerrain.removeCoin(it);
+            m_player.incrementScore(coinBonusScore);
+            return true;
+        }
+        ++it;
+    }
+
+    return false;
 }
 
 } // namespace cge

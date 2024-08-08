@@ -25,6 +25,7 @@ class SceneNode_s
   public:
     Sid_t            getSid() const;
     glm::mat4 const &getTransform() const;
+    glm::vec4 const &getPosition() const;
 
     void setSid(Sid_t sid);
     void transform(glm::mat4 const &t);

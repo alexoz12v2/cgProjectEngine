@@ -16,10 +16,11 @@ namespace cge
 class TestbedModule : public IModule
 {
   private:
-    static Sid_t constexpr vertShader   = "VERTEX"_sid;
-    static Sid_t constexpr fragShader   = "FRAG"_sid;
-    static Sid_t constexpr cubeMeshSid  = "Cube"_sid;
-    static Sid_t constexpr planeMeshSid = "Plane"_sid;
+    static Sid_t constexpr vertShader     = "VERTEX"_sid;
+    static Sid_t constexpr fragShader     = "FRAG"_sid;
+    static Sid_t constexpr cubeMeshSid    = "Cube"_sid;
+    static Sid_t constexpr planeMeshSid   = "Plane"_sid;
+    static U32_t constexpr coinBonusScore = 100;
 
   public:
     TestbedModule(Sid_t id) : IModule(id) {}
@@ -41,6 +42,9 @@ class TestbedModule : public IModule
 
   private:
     [[nodiscard]] F32_t aspectRatio() const;
+
+    // Assuming clickPos is in normalized device coordinates [-1, 1], with origin at center
+    B8_t isAnyCoinClicked(glm::vec2 const &clickPos);
 
   private:
     glm::ivec2 m_framebufferSize{ g_focusedWindow()->getFramebufferSize() };
@@ -68,6 +72,9 @@ class TestbedModule : public IModule
     // sound data
     irrklang::ISoundSource *m_bgmSource{ nullptr };
     irrklang::ISound       *m_bgm{ nullptr };
+
+    // mouse
+    glm::vec2 m_screenMousePos{ 0.f, 0.f };
 };
 
 } // namespace cge

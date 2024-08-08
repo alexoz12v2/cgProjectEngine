@@ -6,6 +6,14 @@
 
 namespace cge
 {
+
+namespace button
+{
+    inline I32_t constexpr LMB = 0;
+    inline I32_t constexpr RMB = 1;
+    inline I32_t constexpr MMB = 2;
+}; // namespace button
+
 namespace key
 {
     /* The unknown key */;
