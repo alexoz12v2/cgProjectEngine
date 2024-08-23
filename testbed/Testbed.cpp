@@ -44,13 +44,6 @@ TestbedModule::~TestbedModule()
         { //
             g_eventQueue.removeListener(pair);
         }
-
-        if (m_bgm)
-        { //
-            m_bgm->stop();
-            m_bgm->drop();
-        }
-        g_soundEngine()->removeSoundSource(m_bgmSource);
     }
 }
 
@@ -66,9 +59,6 @@ void TestbedModule::onInit(ModuleInitParams params)
 #endif
     g_scene.clear();
 
-    m_bgmSource = g_soundEngine()->addSoundSourceFromFile("../assets/bgm0.mp3");
-    m_bgm       = g_soundEngine()->play2D(m_bgmSource, true);
-
     // register to all relevant events pressed
     EventArg_t listenerData{};
     listenerData.idata.p    = (Byte_t *)this;
@@ -81,6 +71,8 @@ void TestbedModule::onInit(ModuleInitParams params)
       g_eventQueue.addListener(evFramebufferSize, framebufferSizeCallback<TestbedModule>, listenerData);
     m_listeners.gameOverListener = g_eventQueue.addListener(evGameOver, gameOverCallback<TestbedModule>, listenerData);
     m_listeners.shootListener    = g_eventQueue.addListener(evShoot, shootCallback<TestbedModule>, listenerData);
+    m_listeners.magnetAcquiredListener =
+      g_eventQueue.addListener(evMagnetAcquired, magnetAcquiredCallback<TestbedModule>, listenerData);
 
     // open mesh file
     printf("Opening Scene file\n");
@@ -94,6 +86,7 @@ void TestbedModule::onInit(ModuleInitParams params)
         g_handleTable.loadFromObj("../assets/destructible.obj");
         g_handleTable.loadFromObj("../assets/magnet.obj");
         g_handleTable.loadFromObj("../assets/coin.obj");
+        g_handleTable.loadFromObj("../assets/speed.obj");
 
         // add light to the scene
         Light_t const sunLight{ 
@@ -121,13 +114,15 @@ void TestbedModule::onInit(ModuleInitParams params)
     std::pmr::vector<Sid_t> pieces{ { CGE_SID("Piece") }, getMemoryPool() };
     std::pmr::vector<Sid_t> obstacles{ { CGE_SID("Obstacle") }, getMemoryPool() };
     std::pmr::vector<Sid_t> destructables{ { CGE_SID("Destructible") }, getMemoryPool() };
-    Sid_t                   magnet = CGE_SID("Magnet");
-    Sid_t                   coin   = CGE_SID("Coin");
+    Sid_t                   magnet{ CGE_SID("Magnet") };
+    Sid_t                   coin{ CGE_SID("Coin") };
+    Sid_t                   speed{ CGE_SID("Speed") };
     m_scrollingTerrain.init({ .pieces        = pieces,
                               .obstacles     = obstacles,
                               .destructables = destructables,
                               .magnetPowerUp = magnet,
-                              .coin          = coin });
+                              .coin          = coin,
+                              .speed         = speed });
 
 
     // setup player
@@ -167,7 +162,7 @@ void TestbedModule::onKey(I32_t key, I32_t action)
     {
         if (key == key::ESCAPE)
         { //
-            switchToModule(CGE_SID("MenuModule"));
+            onGameOver(m_player.getCurrentScore());
         }
     }
 }
@@ -215,6 +210,13 @@ void TestbedModule::onShoot(Ray const &ray)
 { //
     printf("[TestbedModule] BANG\n");
     m_scrollingTerrain.handleShoot(ray);
+}
+
+void TestbedModule::onMagnetAcquired()
+{ //
+    U32_t numCoins = m_scrollingTerrain.removeAllCoins();
+    m_player.incrementScore(coinBonusScore, numCoins);
+    printf("[Testbed] MAGNET POWERUP ACQUIRED\n");
 }
 
 void TestbedModule::onTick(float deltaTime)

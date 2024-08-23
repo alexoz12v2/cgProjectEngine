@@ -32,10 +32,12 @@ class ScrollingTerrain
     static U32_t constexpr maxObstacles       = 4;
     static U32_t constexpr maxPieces          = 4;
     static U32_t constexpr maxNumSpawnedCoins = 20;
+    static U32_t constexpr numPowerUpTypes    = 2;
 
   public:
     using ObstacleList = std::array<Sid_t, numPieces>;
     using PieceList    = std::array<Sid_t, numPieces>;
+    using PowerupList  = std::array<Sid_t, numPieces>;
     using CoinMap      = std::pmr::unordered_map<U32_t, Sid_t>;
     struct InitData
     {
@@ -44,6 +46,7 @@ class ScrollingTerrain
         std::span<Sid_t> destructables;
         Sid_t            magnetPowerUp;
         Sid_t            coin;
+        Sid_t            speed;
     };
 
   public:
@@ -53,18 +56,25 @@ class ScrollingTerrain
 
     ObstacleList const &getObstacles() const;
     ObstacleList const &getDestructables() const;
+    PowerupList const  &getPowerUps() const;
     CoinMap const      &getCoinMap() const;
+    B8_t                shouldCheckForPowerUps() const;
     void                removeCoin(CoinMap::iterator const &it);
     void                removeCoin(CoinMap::const_iterator const &it);
+    void                powerUpAcquired(U32_t index);
+    U32_t               removeAllCoins();
 
   private:
     Sid_t selectRandomPiece() const;
     Sid_t selectRandomObstacle() const;
     Sid_t selectRandomDestructable() const;
 
-    void addPropOfType(U32_t type, glm::mat4 const &pieceTransform);
-    void addCoins(F32_t pieceYCoord);
-    void removeCoins(F32_t pieceYCoord);
+    void      addPropOfType(U32_t type, glm::mat4 const &pieceTransform);
+    void      addCoins(F32_t pieceYCoord);
+    void      removeCoins(F32_t pieceYCoord);
+    void      addPowerUp(glm::mat4 const &pieceTransform);
+    glm::mat4 propDisplacementTransformFromOldPiece(glm::mat4 const &pieceTransform) const;
+    F32_t     randomLaneOffset() const;
 
     template<U32_t N> static constexpr Sid_t selectRandomFromList(std::array<Sid_t, N> list, U32_t effectiveSize)
     {
@@ -84,6 +94,7 @@ class ScrollingTerrain
     PieceList    m_pieces{ nullSid };
     ObstacleList m_obstacles{ nullSid };
     ObstacleList m_destructables{ nullSid };
+    PowerupList  m_powerUps{ nullSid };
 
     // map from approximated y position -> scene sid of the coin
     CoinMap m_coinMap{ getMemoryPool() };
@@ -100,10 +111,13 @@ class ScrollingTerrain
     std::array<Sid_t, maxDestructables> m_destructableSet{ nullSid };
     Sid_t                               m_coin{ nullSid };
     Sid_t                               m_magnetPowerUp{ nullSid };
+    Sid_t                               m_speedPowerUp{ nullSid };
 
     U32_t m_pieceSetSize{ 0 };
     U32_t m_obstacleSetSize{ 0 };
     U32_t m_destructableSetSize{ 0 };
+
+    B8_t m_shouldCheckPowerUp{ true };
 };
 
 class Player
@@ -123,6 +137,7 @@ class Player
     void onMouseButton(I32_t key, I32_t action);
     void onTick(F32_t deltaTime);
     void onFramebufferSize(I32_t width, I32_t height);
+    void onSpeedAcquired();
 
     [[nodiscard]] AABB      boundingBox() const;
     [[nodiscard]] glm::mat4 viewTransform() const;
@@ -132,9 +147,10 @@ class Player
     // TODO remove
     [[nodiscard]] glm::vec3 lastDisplacement() const;
 
-    bool intersectPlayerWith(ScrollingTerrain const &terrain);
-    void setSwishSound(irrklang::ISoundSource *sound);
-    void incrementScore(U32_t increment);
+    bool  intersectPlayerWith(ScrollingTerrain &terrain);
+    void  setSwishSound(irrklang::ISoundSource *sound);
+    void  incrementScore(U32_t increment, U32_t numCoins = 1);
+    U64_t getCurrentScore() const;
 
   private:
     static F32_t constexpr scoreMultiplier        = 0.1f;
@@ -146,6 +162,7 @@ class Player
     static U8_t constexpr LANE_LEFT               = 1 << 2; // 0000'0100
     static U8_t constexpr LANE_CENTER             = 1 << 1; // 0000'0010
     static U8_t constexpr LANE_RIGHT              = 1 << 0; // 0000'0001
+    static F32_t constexpr invincibilityTime      = 5.f;
 
   private:
     void      yawPitchRotate(F32_t yaw, F32_t pitch);
@@ -178,13 +195,22 @@ class Player
             std::pair<Event_t, Sid_t> keyListener;
             std::pair<Event_t, Sid_t> mouseButtonListener;
             std::pair<Event_t, Sid_t> framebufferSizeListener;
+            std::pair<Event_t, Sid_t> speedAcquiredListener;
         };
-        std::array<std::pair<Event_t, Sid_t>, 3> arr;
+        std::array<std::pair<Event_t, Sid_t>, 4> arr;
     } m_listeners{};
+    F32_t m_invincibilityTimer{ 0 };
+    B8_t  m_invincible{ false };
 
     // sound data
     irrklang::ISoundSource *m_swishSoundSource{ nullptr };
     irrklang::ISound       *m_swishSound{ nullptr };
+
+    irrklang::ISoundSource *m_bgmSource{ nullptr };
+    irrklang::ISound       *m_bgm{ nullptr };
+
+    irrklang::ISoundSource *m_invincibleMusicSource{ nullptr };
+    irrklang::ISound       *m_invincibleMusic{ nullptr };
 };
 
 } // namespace cge

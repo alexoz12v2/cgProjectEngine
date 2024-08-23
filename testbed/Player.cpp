@@ -41,12 +41,24 @@ Player::~Player()
         }
 
         if (m_swishSound)
-        { //
+        {
             m_swishSound->stop();
             m_swishSound->drop();
         }
+        if (m_invincibleMusic)
+        {
+            m_invincibleMusic->stop();
+            m_invincibleMusic->drop();
+        }
+        if (m_bgm)
+        {
+            m_bgm->stop();
+            m_bgm->drop();
+        }
 
+        g_soundEngine()->removeSoundSource(m_bgmSource);
         g_soundEngine()->removeSoundSource(m_swishSoundSource);
+        g_soundEngine()->removeSoundSource(m_invincibleMusicSource);
         g_scene.removeNode(m_sid);
     }
 }
@@ -60,6 +72,8 @@ void Player::spawn(const Camera_t &view, Sid_t meshSid)
       g_eventQueue.addListener(evMouseButtonPressed, mouseButtonCallback<Player>, listenerData);
     m_listeners.framebufferSizeListener =
       g_eventQueue.addListener(evFramebufferSize, framebufferSizeCallback<Player>, listenerData);
+    m_listeners.speedAcquiredListener =
+      g_eventQueue.addListener(evSpeedAcquired, speedAcquiredCallback<Player>, listenerData);
 
     m_sid  = g_scene.addNode(meshSid);
     m_mesh = &g_handleTable.get(meshSid).asMesh();
@@ -69,8 +83,13 @@ void Player::spawn(const Camera_t &view, Sid_t meshSid)
     g_scene.getNodeBySid(m_sid).transform(
       glm::inverse(m_camera.viewTransform()) * glm::translate(glm::mat4(1.F), glm::vec3(0, -2, -10)));
 
-    m_swishSoundSource = g_soundEngine()->addSoundSourceFromFile("../assets/swish.mp3");
+    m_swishSoundSource      = g_soundEngine()->addSoundSourceFromFile("../assets/swish.mp3");
+    m_invincibleMusicSource = g_soundEngine()->addSoundSourceFromFile("../assets/invincible.mp3");
 
+    m_bgmSource = g_soundEngine()->addSoundSourceFromFile("../assets/bgm0.mp3");
+    m_bgm       = g_soundEngine()->play2D(m_bgmSource, true);
+
+    assert(m_swishSoundSource && m_invincibleMusicSource && m_bgmSource);
     m_init = true;
 }
 
@@ -78,6 +97,33 @@ void Player::onTick(F32_t deltaTime)
 {
     static F32_t constexpr eps   = std::numeric_limits<F32_t>::epsilon();
     glm::vec3 const displacement = displacementTick(deltaTime);
+
+    if (m_invincible)
+    { //
+        m_invincibilityTimer += deltaTime;
+        if (m_invincibilityTimer > invincibilityTime)
+        {
+            EventArg_t evData{};
+            if (m_invincibleMusic)
+            {
+                m_invincibleMusic->stop();
+                m_invincibleMusic->drop();
+            }
+            else
+            { //
+                g_soundEngine()->stopAllSoundsOfSoundSource(m_invincibleMusicSource);
+            }
+            if (m_bgm)
+            { //
+                m_bgm->setIsPaused(false);
+            }
+            else
+            { //
+                m_bgm = g_soundEngine()->play2D(m_bgmSource, true);
+            }
+            m_invincible = false;
+        }
+    }
     if (!smallOrZero(displacement) && !m_intersected)
     {
         auto const meshCenter = centroid(globalSpaceBB(g_scene.getNodeBySid(m_sid), m_mesh->box));
@@ -132,6 +178,24 @@ void Player::onFramebufferSize(I32_t width, I32_t height)
     using V             = decltype(m_framebufferSize)::value_type;
     m_framebufferSize.x = static_cast<V>(width);
     m_framebufferSize.y = static_cast<V>(height);
+}
+
+void Player::onSpeedAcquired()
+{ //
+    m_invincibilityTimer = 0.f;
+    if (!m_invincible)
+    {
+        m_invincible      = true;
+        m_invincibleMusic = g_soundEngine()->play2D(m_invincibleMusicSource, true);
+        if (m_bgm)
+        { //
+            m_bgm->setIsPaused();
+        }
+        else
+        { //
+            g_soundEngine()->stopAllSoundsOfSoundSource(m_bgmSource);
+        }
+    }
 }
 
 glm::vec3 Player::displacementTick(F32_t deltaTime) const
@@ -251,6 +315,7 @@ void ScrollingTerrain::init(InitData const &initData)
     std::copy_n(initData.destructables.begin(), m_destructableSetSize, std::begin(m_destructableSet));
     m_coin          = initData.coin;
     m_magnetPowerUp = initData.magnetPowerUp;
+    m_speedPowerUp  = initData.speed;
 
     // spawn initial platforms
     for (U32_t index = 0; index != numPieces; ++index)
@@ -264,6 +329,7 @@ void ScrollingTerrain::init(InitData const &initData)
     }
 
     assert(m_pieceSetSize && m_obstacleSetSize && m_destructableSetSize);
+    assert(m_coin != nullSid && m_magnetPowerUp != nullSid && m_speedPowerUp != nullSid);
 }
 
 void ScrollingTerrain::updateTilesFromPosition(glm::vec3 position)
@@ -276,21 +342,37 @@ void ScrollingTerrain::updateTilesFromPosition(glm::vec3 position)
     // if yes, then update first and last and traslate everything from first to last
     if (position.y - piecePosition.y > static_cast<F32_t>(pieceSize >> 1))
     {
+        m_shouldCheckPowerUp = true;
         glm::vec3 displacement{ 0.f, pieceSize * numPieces, 0.f };
         g_scene.getNodeBySid(m_pieces[m_first]).transform(glm::translate(glm::mat4(1.f), displacement));
 
-        // remove the obstacle from the moved piece
+        // remove the obstacle (if any) from the moved piece
         if (m_obstacles[m_first] != nullSid)
         { // remove from scene
             g_scene.removeNode(m_obstacles[m_first]);
             m_obstacles[m_first] = nullSid;
         }
 
-        // add new obstacles in the moved piece
-        U32_t const hasObstacle = g_random.next<U32_t>(0, 1);
-        if (hasObstacle)
-        { //
-            addPropOfType(g_random.next<U32_t>(0, 1), pieceTransform);
+        // remove the powerup (if any) from the moved piece
+        if (m_powerUps[m_first] != nullSid)
+        {
+            g_scene.removeNode(m_powerUps[m_first]);
+            m_powerUps[m_first] = nullSid;
+        }
+
+        // add new obstacles or powerup in the moved piece
+        // take a number from 0 to 100. 0 - 30 -> empty, 31 - 98 -> obstacle, 99 - 100 -> powerup
+        U32_t const num = g_random.next<U32_t>(0, 100);
+        if (num > 30)
+        {
+            if (num < 99)
+            { //
+                addPropOfType(g_random.next<U32_t>(0, 1), pieceTransform);
+            }
+            else
+            { //
+                addPowerUp(pieceTransform);
+            }
         }
 
         // maintain indices
@@ -360,9 +442,19 @@ ScrollingTerrain::ObstacleList const &ScrollingTerrain::getDestructables() const
     return m_destructables;
 }
 
+ScrollingTerrain::PowerupList const &ScrollingTerrain::getPowerUps() const
+{ // getter
+    return m_powerUps;
+}
+
 std::pmr::unordered_map<U32_t, Sid_t> const &ScrollingTerrain::getCoinMap() const
 { // getter
     return m_coinMap;
+}
+
+B8_t ScrollingTerrain::shouldCheckForPowerUps() const
+{ // getter
+    return m_shouldCheckPowerUp;
 }
 
 void ScrollingTerrain::removeCoin(CoinMap::iterator const &it)
@@ -375,6 +467,42 @@ void ScrollingTerrain::removeCoin(CoinMap::const_iterator const &it)
 { //
     g_scene.removeNode(it->second);
     m_coinMap.erase(it);
+}
+
+void ScrollingTerrain::powerUpAcquired(U32_t index)
+{
+    assert(index < m_powerUps.size() && m_powerUps[index] != nullSid);
+    EventArg_t evData{};
+    Sid_t      sid = m_powerUps[index];
+
+    // make sure that check for powerups is made once when one is acquired
+    m_shouldCheckPowerUp = false;
+
+    // clean up
+    g_scene.removeNode(m_powerUps[index]);
+    m_powerUps[index] = nullSid;
+
+    // emit event based on the type of power up
+    if (sid == m_magnetPowerUp)
+    { //
+        g_eventQueue.emit(evMagnetAcquired, evData);
+    }
+    else if (sid == m_speedPowerUp)
+    { //
+        g_eventQueue.emit(evSpeedAcquired, evData);
+    }
+}
+
+U32_t ScrollingTerrain::removeAllCoins()
+{ //
+    U32_t size = m_coinMap.size();
+    for (auto const &[y, sid] : m_coinMap)
+    { //
+        assert(sid != nullSid);
+        g_scene.removeNode(sid);
+    }
+    m_coinMap.clear();
+    return size;
 }
 
 Sid_t ScrollingTerrain::selectRandomPiece() const
@@ -394,23 +522,20 @@ Sid_t ScrollingTerrain::selectRandomDestructable() const
 
 void ScrollingTerrain::addPropOfType(U32_t type, glm::mat4 const &pieceTransform)
 {
-    std::array<F32_t, 3> arr = { -laneShift, 0, laneShift };
-    std::ranges::shuffle(arr, g_random.getGen());
+    glm::mat4 const t{ propDisplacementTransformFromOldPiece(pieceTransform) };
     if (type == 0)
     { // choose an obstacle and spawn it
         U32_t const obstacleIdx = g_random.next<U32_t>(0, m_obstacleSetSize - 1);
         Sid_t const sid         = m_obstacleSet[obstacleIdx];
         m_obstacles[m_first]    = g_scene.addNode(sid);
-        g_scene.getNodeBySid(m_obstacles[m_first])
-          .transform(glm::translate(pieceTransform, glm::vec3(arr[0], pieceSize * (numPieces - 1), 0.f)));
+        g_scene.getNodeBySid(m_obstacles[m_first]).transform(t);
     }
     else if (type == 1)
     { // choose a destructable and spawn it
         U32_t const destructableIdx = g_random.next<U32_t>(0, m_destructableSetSize - 1);
         Sid_t const sid             = m_destructableSet[destructableIdx];
         m_destructables[m_first]    = g_scene.addNode(sid);
-        g_scene.getNodeBySid(m_destructables[m_first])
-          .transform(glm::translate(pieceTransform, glm::vec3(arr[0], pieceSize * (numPieces - 1), 0.f)));
+        g_scene.getNodeBySid(m_destructables[m_first]).transform(t);
     }
 }
 
@@ -460,8 +585,41 @@ void ScrollingTerrain::removeCoins(F32_t threshold)
     }
 }
 
+void ScrollingTerrain::addPowerUp(glm::mat4 const &pieceTransform)
+{ //
+    glm::mat4 const t{ propDisplacementTransformFromOldPiece(pieceTransform) };
+    U32_t const     powerUpType = g_random.next<U32_t>(0, numPowerUpTypes - 1);
+    switch (powerUpType)
+    {
+    case 0: // explosive magnet
+        m_powerUps[m_first] = g_scene.addNode(m_magnetPowerUp);
+        break;
+    case 1: // invincibility rocket
+        m_powerUps[m_first] = g_scene.addNode(m_speedPowerUp);
+        break;
+    default:
+        assert(false);
+        break;
+    }
 
-bool Player::intersectPlayerWith(ScrollingTerrain const &terrain)
+    g_scene.getNodeBySid(m_powerUps[m_first]).transform(t);
+}
+
+glm::mat4 ScrollingTerrain::propDisplacementTransformFromOldPiece(glm::mat4 const &pieceTransform) const
+{ //
+    F32_t x = randomLaneOffset();
+    return glm::translate(pieceTransform, glm::vec3(x, pieceSize * (numPieces - 1), 0.f));
+}
+
+F32_t ScrollingTerrain::randomLaneOffset() const
+{ //
+    std::array<F32_t, 3> arr = { -laneShift, 0, laneShift };
+    std::ranges::shuffle(arr, g_random.getGen());
+    return arr[0];
+}
+
+
+bool Player::intersectPlayerWith(ScrollingTerrain &terrain)
 {
     AABB const      playerBox{ globalSpaceBB(g_scene.getNodeBySid(m_sid), m_mesh->box) };
     glm::vec3 const newPosition{ centroid(playerBox) };
@@ -469,39 +627,63 @@ bool Player::intersectPlayerWith(ScrollingTerrain const &terrain)
     F32_t const     movementDistance = newPosition.y - m_oldPosition.y;
 
     m_intersected = false;
-    for (auto const &pObs : terrain.getObstacles())
+    if (!m_invincible)
     {
-        HandleTable_s::Ref_s ref{ nullRef };
-        Sid_t                meshSid{ nullSid };
-        if (pObs != nullSid && (ref = g_handleTable.get(meshSid = g_scene.getNodeBySid(pObs).getSid())).hasValue())
+        for (Sid_t const &pObs : terrain.getObstacles())
         {
-            auto const &mesh   = ref.asMesh();
-            auto const  box    = mesh.box;
-            auto const  obsBox = enlarge(globalSpaceBB(g_scene.getNodeBySid(pObs), box));
-            Hit_t const res    = intersect(playerRay, obsBox);
-            if (res.isect && (res.t <= movementDistance && res.p.y > m_oldPosition.y))
+            HandleTable_s::Ref_s ref{ nullRef };
+            Sid_t                meshSid{ nullSid };
+            if (pObs != nullSid && (ref = g_handleTable.get(meshSid = g_scene.getNodeBySid(pObs).getSid())).hasValue())
             {
-                m_intersected = true;
-                return m_intersected;
+                auto const &mesh   = ref.asMesh();
+                auto const  box    = mesh.box;
+                auto const  obsBox = enlarge(globalSpaceBB(g_scene.getNodeBySid(pObs), box));
+                Hit_t const res    = intersect(playerRay, obsBox);
+                if (res.isect && (res.t <= movementDistance && res.p.y > m_oldPosition.y))
+                {
+                    m_intersected = true;
+                    return m_intersected;
+                }
+            }
+        }
+
+        for (Sid_t const &pObs : terrain.getDestructables())
+        {
+            HandleTable_s::Ref_s ref{ nullRef };
+            Sid_t                meshSid{ nullSid };
+            if (pObs != nullSid && (ref = g_handleTable.get(meshSid = g_scene.getNodeBySid(pObs).getSid())).hasValue())
+            {
+                auto const &mesh   = ref.asMesh();
+                auto const  box    = mesh.box;
+                auto const  obsBox = enlarge(globalSpaceBB(g_scene.getNodeBySid(pObs), box));
+                Hit_t const res    = intersect(playerRay, obsBox);
+                if (res.isect && (res.t <= movementDistance && res.p.y > m_oldPosition.y))
+                {
+                    m_intersected = true;
+                    return m_intersected;
+                }
             }
         }
     }
 
-    for (auto const &pObs : terrain.getDestructables())
+    if (terrain.shouldCheckForPowerUps())
     {
-        HandleTable_s::Ref_s ref{ nullRef };
-        Sid_t                meshSid{ nullSid };
-        if (pObs != nullSid && (ref = g_handleTable.get(meshSid = g_scene.getNodeBySid(pObs).getSid())).hasValue())
+        U32_t index = 0;
+        for (Sid_t const &sceneSid : terrain.getPowerUps())
         {
-            auto const &mesh   = ref.asMesh();
-            auto const  box    = mesh.box;
-            auto const  obsBox = enlarge(globalSpaceBB(g_scene.getNodeBySid(pObs), box));
-            Hit_t const res    = intersect(playerRay, obsBox);
-            if (res.isect && (res.t <= movementDistance && res.p.y > m_oldPosition.y))
+            if (sceneSid != nullSid)
             {
-                m_intersected = true;
-                return m_intersected;
+                Mesh_s const &mesh = g_handleTable.getMesh(g_scene.getNodeBySid(sceneSid).getSid());
+                AABB const   &box  = enlarge(globalSpaceBB(g_scene.getNodeBySid(sceneSid), mesh.box));
+                Hit_t const   res  = intersect(playerRay, box);
+                if (res.isect && (res.t <= movementDistance && res.p.y > m_oldPosition.y))
+                { //
+                    terrain.powerUpAcquired(index);
+                    printf("[Player] POWER UP UP UP\n");
+                    return false;
+                }
             }
+            ++index;
         }
     }
 
@@ -513,9 +695,14 @@ void Player::setSwishSound(irrklang::ISoundSource *sound)
     m_swishSoundSource = sound;
 }
 
-void Player::incrementScore(U32_t increment)
+void Player::incrementScore(U32_t increment, U32_t numCoins)
 { //
-    m_score += increment;
+    m_score += static_cast<U64_t>(increment) * numCoins;
+}
+
+U64_t Player::getCurrentScore() const
+{ // getter
+    return m_score;
 }
 
 } // namespace cge

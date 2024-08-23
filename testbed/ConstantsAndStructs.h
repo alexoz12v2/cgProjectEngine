@@ -1,5 +1,4 @@
-#ifndef CGE_CONSTANTSANDSTRUCTS_H
-#define CGE_CONSTANTSANDSTRUCTS_H
+#pragma once
 
 #include "Core/Event.h"
 #include "Core/StringUtils.h"
@@ -28,12 +27,20 @@ inline F32_t constexpr FOV            = 45.F;
 
 inline Event_t constexpr evGameOver{ .m_id = "GAME OVER"_sid };
 inline Event_t constexpr evShoot{ .m_id = "SHOOT"_sid };
+inline Event_t constexpr evMagnetAcquired{ .m_id = "MAGNET POWERUP"_sid };
+inline Event_t constexpr evSpeedAcquired{ .m_id = "SPEED POWERUP"_sid };
 
 template<typename T>
 concept GameOverListener = requires(T t, U64_t i) { t.onGameOver(i); };
 
 template<typename T>
 concept ShootListener = requires(T t, Ray r) { t.onShoot(r); };
+
+template<typename T>
+concept MagnetAcquiredListener = requires(T t) { t.onMagnetAcquired(); };
+
+template<typename T>
+concept SpeedAcquiredListener = requires(T t) { t.onSpeedAcquired(); };
 
 template<GameOverListener T> void gameOverCallback(EventArg_t eventData, EventArg_t listenerData)
 {
@@ -48,6 +55,18 @@ template<ShootListener T> void shootCallback(EventArg_t eventData, EventArg_t li
     glm::vec3 dir{ eventData.idata.i16[0], eventData.idata.i16[1], eventData.idata.i16[2] };
     Ray       ray{ orig, dir };
     self->onShoot(ray);
+}
+
+template<MagnetAcquiredListener T> void magnetAcquiredCallback(EventArg_t evData, EventArg_t listenerData)
+{
+    auto self = (T *)listenerData.idata.p;
+    self->onMagnetAcquired();
+}
+
+template<SpeedAcquiredListener T> void speedAcquiredCallback(EventArg_t evData, EventArg_t listenerData)
+{
+    auto *self = (T *)listenerData.idata.p;
+    self->onSpeedAcquired();
 }
 
 template<std::integral T> consteval U32_t numDigits(T value)
@@ -90,5 +109,3 @@ inline FixedString<str.len + 2 + numDigits(std::numeric_limits<U64_t>::max())> f
 }
 
 } // namespace cge
-
-#endif // CGE_CONSTANTSANDSTRUCTS_H
