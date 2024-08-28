@@ -263,7 +263,7 @@ void Renderer2D::renderButton(ButtonSpec const &specs) const
     const std::string_view str{ specs.text };
 
     m_buttonProgram.p.bind();
-    prepare();
+    prepare(m_buttonProgram.p);
 
     // Create quad vertices for the button
     F32_t const xLeft   = specs.position.x * m_windowSize.x;
@@ -348,7 +348,7 @@ Renderer2D::Character::~Character()
     glDeleteTextures(1, &textureID);
 }
 
-void Renderer2D::prepare() const
+void Renderer2D::prepare(GpuProgram_s const &program) const
 {
     glCullFace(GL_BACK);
     glFrontFace(GL_CCW);
@@ -357,7 +357,7 @@ void Renderer2D::prepare() const
     glEnable(GL_DEPTH_TEST);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glUniformMatrix4fv(
-      glGetUniformLocation(m_textProgram.p.id(), "projection"),
+      glGetUniformLocation(program.id(), "projection"),
       1,
       GL_FALSE,
       glm::value_ptr(m_projection));
@@ -374,7 +374,7 @@ void Renderer2D::renderText(
     }
 
     m_textProgram.p.bind();
-    prepare();
+    prepare(m_textProgram.p);
 
     // activate corresponding render state
     glUniform3f(

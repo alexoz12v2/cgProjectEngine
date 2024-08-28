@@ -28,6 +28,7 @@
 
 #include <Utils.h>
 #include <fstream>
+#include <vector>
 
 CGE_DECLARE_STARTUP_MODULE(cge, TestbedModule, "TestbedModule");
 // TODO scene and world not global. Also refactor them, they suck
@@ -44,14 +45,16 @@ TestbedModule::~TestbedModule()
         { //
             g_eventQueue.removeListener(pair);
         }
+
+        g_soundEngine()->removeSoundSource(m_coinPickedSource);
+        g_soundEngine()->removeSoundSource(m_woodBreakSource);
     }
 }
 
 // boilerplate ----------------------------------------------------------------
 void TestbedModule::onInit(ModuleInitParams params)
 {
-    Sid_t const mId = "TestbedModule"_sid;
-    CGE_SID("TestbedModule");
+    Sid_t const    mId = CGE_SID("TestbedModule");
     Char8_t const *str = CGE_DBG_STRLOOKUP(mId);
     printf("Hello World!! %s\n", str);
 #if defined(CGE_DEBUG)
@@ -61,17 +64,18 @@ void TestbedModule::onInit(ModuleInitParams params)
 
     // register to all relevant events pressed
     EventArg_t listenerData{};
-    listenerData.idata.p    = (Byte_t *)this;
-    m_listeners.keyListener = g_eventQueue.addListener(evKeyPressed, KeyCallback<TestbedModule>, listenerData);
-    m_listeners.mouseMovementListener =
+    listenerData.idata.p      = (Byte_t *)this;
+    m_listeners.s.keyListener = g_eventQueue.addListener(evKeyPressed, KeyCallback<TestbedModule>, listenerData);
+    m_listeners.s.mouseMovementListener =
       g_eventQueue.addListener(evMouseMoved, mouseMovementCallback<TestbedModule>, listenerData);
-    m_listeners.mouseButtonListener =
+    m_listeners.s.mouseButtonListener =
       g_eventQueue.addListener(evMouseButtonPressed, mouseButtonCallback<TestbedModule>, listenerData);
-    m_listeners.framebufferSizeListener =
+    m_listeners.s.framebufferSizeListener =
       g_eventQueue.addListener(evFramebufferSize, framebufferSizeCallback<TestbedModule>, listenerData);
-    m_listeners.gameOverListener = g_eventQueue.addListener(evGameOver, gameOverCallback<TestbedModule>, listenerData);
-    m_listeners.shootListener    = g_eventQueue.addListener(evShoot, shootCallback<TestbedModule>, listenerData);
-    m_listeners.magnetAcquiredListener =
+    m_listeners.s.gameOverListener =
+      g_eventQueue.addListener(evGameOver, gameOverCallback<TestbedModule>, listenerData);
+    m_listeners.s.shootListener = g_eventQueue.addListener(evShoot, shootCallback<TestbedModule>, listenerData);
+    m_listeners.s.magnetAcquiredListener =
       g_eventQueue.addListener(evMagnetAcquired, magnetAcquiredCallback<TestbedModule>, listenerData);
 
     // open mesh file
@@ -141,6 +145,11 @@ void TestbedModule::onInit(ModuleInitParams params)
     getBackgroundRenderer().init(image, width, height);
     stbi_image_free(image);
 
+    // sound
+    m_coinPickedSource = g_soundEngine()->addSoundSourceFromFile("../assets/coin-picked.mp3");
+    m_woodBreakSource  = g_soundEngine()->addSoundSourceFromFile("../assets/wood-break.mp3");
+    assert(m_coinPickedSource && m_woodBreakSource);
+
     // load saves, if existent, otherwise create new ones
     std::ifstream file{ "../assets/saves.json" };
     if (file)
@@ -209,7 +218,11 @@ void TestbedModule::onGameOver(U64_t score)
 void TestbedModule::onShoot(Ray const &ray)
 { //
     printf("[TestbedModule] BANG\n");
-    m_scrollingTerrain.handleShoot(ray);
+    B8_t intersected = m_scrollingTerrain.handleShoot(ray);
+    if (intersected)
+    { //
+        g_soundEngine()->play2D(m_woodBreakSource);
+    }
 }
 
 void TestbedModule::onMagnetAcquired()
@@ -236,7 +249,8 @@ void TestbedModule::onTick(float deltaTime)
       camera.viewTransform(),
       glm::perspective(FOV, aspectRatio(), CLIPDISTANCE, RENDERDISTANCE),
       camera.forward);
-    FixedString str = fixedStringWithNumber<FixedString("Best Score")>(json["bestScore"].template get<U64_t>());
+    FixedString const str =
+      fixedStringWithNumber<FixedString<11>("Best Score")>(json["bestScore"].template get<U64_t>());
     g_renderer2D.renderText(str.cStr(), glm::vec3(25.0f, 25.0f, 1.0f), glm::vec3(0.5, 0.8f, 0.2f));
 }
 
@@ -265,10 +279,11 @@ B8_t TestbedModule::isAnyCoinClicked(glm::vec2 const &clickPos)
 
         if (isBetween(
               clickPos,
-              glm::vec2{ ndcBox.min.x, ndcBox.min.y },
-              glm::vec2{ ndcBox.max.x, ndcBox.max.y },
+              glm::vec2{ ndcBox.mm.min.x, ndcBox.mm.min.y },
+              glm::vec2{ ndcBox.mm.max.x, ndcBox.mm.max.y },
               { 0.1f, 0.1f }))
         {
+            g_soundEngine()->play2D(m_coinPickedSource);
             printf("[Testbed] coin clicked\n");
             m_scrollingTerrain.removeCoin(it);
             m_player.incrementScore(coinBonusScore);

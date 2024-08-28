@@ -21,8 +21,8 @@ inline AABB globalSpaceBB(Sid_t sid, AABB box)
 {
     glm::mat4 transform = g_scene.getNodeBySid(sid).getTransform();
 
-    AABB const gSpaceAABB = { transform * glm::vec4(box.min, 1.f),
-                              transform * glm::vec4(box.max, 1.f) };
+    AABB const gSpaceAABB = { transform * glm::vec4(box.mm.min, 1.f),
+                              transform * glm::vec4(box.mm.max, 1.f) };
 
     return gSpaceAABB;
 }
@@ -31,8 +31,8 @@ inline AABB globalSpaceBB(SceneNode_s const &ptr, AABB box)
 {
     glm::mat4 transform = ptr.getTransform();
 
-    AABB const gSpaceAABB = { transform * glm::vec4(box.min, 1.f),
-                              transform * glm::vec4(box.max, 1.f) };
+    AABB const gSpaceAABB = { transform * glm::vec4(box.mm.min, 1.f),
+                              transform * glm::vec4(box.mm.max, 1.f) };
 
     return gSpaceAABB;
 }

@@ -4,7 +4,6 @@
 #include "Core/Events.h"
 #include "Core/KeyboardKeys.h"
 #include "Launch/Entry.h"
-#include "Render/Renderer.h"
 #include "Render/Renderer2d.h"
 
 CGE_DECLARE_MODULE(cge, MenuModule, "MenuModule");
@@ -35,11 +34,11 @@ void MenuModule::onInit(ModuleInitParams params)
     EventArg_t listenerData{};
     listenerData.idata.p =
       reinterpret_cast<decltype(listenerData.idata.p)>(this);
-    m_listeners.framebufferSizeListener = g_eventQueue.addListener(
+    m_listeners.s.framebufferSizeListener = g_eventQueue.addListener(
       evFramebufferSize, framebufferSizeCallback<MenuModule>, listenerData);
-    m_listeners.mouseMovementListener = g_eventQueue.addListener(
+    m_listeners.s.mouseMovementListener = g_eventQueue.addListener(
       evMouseMoved, mouseMovementCallback<MenuModule>, listenerData);
-    m_listeners.mouseButtonListener = g_eventQueue.addListener(
+    m_listeners.s.mouseButtonListener = g_eventQueue.addListener(
       evMouseButtonPressed, mouseButtonCallback<MenuModule>, listenerData);
 
     m_bopSource = g_soundEngine()->addSoundSourceFromFile("../assets/bop.mp3");

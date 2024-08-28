@@ -28,13 +28,14 @@ struct Hit_t
 
 union AABB
 {
-    AABB(glm::vec3 const &min_, glm::vec3 const &max_) : min(min_), max(max_) {}
+    AABB(glm::vec3 const &min_, glm::vec3 const &max_) : mm(min_, max_) {}
 
-    struct
+    struct S
     {
         glm::vec3 min;
         glm::vec3 max;
     };
+    S mm;
     glm::vec3 bounds[2];
 };
 

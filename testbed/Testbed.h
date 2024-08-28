@@ -4,8 +4,8 @@
 #include "Core/Module.h"
 #include "Core/StringUtils.h"
 #include "Core/Type.h"
+#include "Core/Utility.h"
 #include "Player.h"
-#include "Render/Renderer.h"
 #include "Render/Window.h"
 
 #include <irrKlang/irrKlang.h>
@@ -23,7 +23,7 @@ class TestbedModule : public IModule
     static U32_t constexpr coinBonusScore = 100;
 
   public:
-    TestbedModule(Sid_t id) : IModule(id) {}
+    explicit TestbedModule(Sid_t id) : IModule(id) {}
     TestbedModule(TestbedModule const &other)                = delete;
     TestbedModule &operator=(TestbedModule const &other)     = delete;
     TestbedModule(TestbedModule &&other)                     = delete;
@@ -57,7 +57,7 @@ class TestbedModule : public IModule
     // event data
     union
     {
-        struct
+        struct S
         {
             std::pair<Event_t, Sid_t> keyListener;
             std::pair<Event_t, Sid_t> mouseMovementListener;
@@ -68,12 +68,18 @@ class TestbedModule : public IModule
             std::pair<Event_t, Sid_t> shootListener;
             std::pair<Event_t, Sid_t> magnetAcquiredListener;
         };
+        S s;
         std::array<std::pair<Event_t, Sid_t>, 7> arr;
+        static_assert(std::is_standard_layout_v<S> && sizeof(S) == sizeof(decltype(arr)), "implementation failed");
     } m_listeners{};
     B8_t m_init{ false };
 
     // mouse
     glm::vec2 m_screenMousePos{ 0.f, 0.f };
+
+    // sound
+    irrklang::ISoundSource *m_coinPickedSource{ nullptr };
+    irrklang::ISoundSource *m_woodBreakSource{ nullptr };
 };
 
 } // namespace cge

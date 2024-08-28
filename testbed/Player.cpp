@@ -6,28 +6,28 @@
 #include "Core/KeyboardKeys.h"
 #include "Core/StringUtils.h"
 #include "Core/Type.h"
-#include "Launch/Entry.h"
 #include "Render/Renderer.h"
 #include "Render/Renderer2d.h"
 #include "Resource/HandleTable.h"
 #include "Resource/Rendering/cgeMesh.h"
+#include "SoundEngine.h"
 #include "Utils.h"
 
 #include <glm/common.hpp>
-#include <glm/ext/matrix_float4x4.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/geometric.hpp>
 
+#include <algorithm>
 #include <iterator>
 
 namespace cge
 {
 
 static AABB enlarge(AABB const &box)
-{ //
+{
     AABB res{ box };
-    res.max.z = glm::max(box.max.z, 20.f);
-    res.max.y += 10.f;
+    res.mm.max.z = glm::max(box.mm.max.z, 20.f);
+    res.mm.max.y += 10.f;
     return res;
 }
 
@@ -66,13 +66,11 @@ Player::~Player()
 void Player::spawn(const Camera_t &view, Sid_t meshSid)
 {
     EventArg_t listenerData{};
-    listenerData.idata.p    = reinterpret_cast<Byte_t *>(this);
-    m_listeners.keyListener = g_eventQueue.addListener(evKeyPressed, KeyCallback<Player>, listenerData);
-    m_listeners.mouseButtonListener =
-      g_eventQueue.addListener(evMouseButtonPressed, mouseButtonCallback<Player>, listenerData);
-    m_listeners.framebufferSizeListener =
+    listenerData.idata.p      = reinterpret_cast<Byte_t *>(this);
+    m_listeners.s.keyListener = g_eventQueue.addListener(evKeyPressed, KeyCallback<Player>, listenerData);
+    m_listeners.s.framebufferSizeListener =
       g_eventQueue.addListener(evFramebufferSize, framebufferSizeCallback<Player>, listenerData);
-    m_listeners.speedAcquiredListener =
+    m_listeners.s.speedAcquiredListener =
       g_eventQueue.addListener(evSpeedAcquired, speedAcquiredCallback<Player>, listenerData);
 
     m_sid  = g_scene.addNode(meshSid);
@@ -88,9 +86,9 @@ void Player::spawn(const Camera_t &view, Sid_t meshSid)
 
     m_bgmSource = g_soundEngine()->addSoundSourceFromFile("../assets/bgm0.mp3");
     m_bgm       = g_soundEngine()->play2D(m_bgmSource, true);
+    m_init      = true;
 
     assert(m_swishSoundSource && m_invincibleMusicSource && m_bgmSource);
-    m_init = true;
 }
 
 void Player::onTick(F32_t deltaTime)
@@ -101,9 +99,9 @@ void Player::onTick(F32_t deltaTime)
     if (m_invincible)
     { //
         m_invincibilityTimer += deltaTime;
+        printf("[Player] INVINCIBLE, Timer = %f\n", m_invincibilityTimer);
         if (m_invincibilityTimer > invincibilityTime)
         {
-            EventArg_t evData{};
             if (m_invincibleMusic)
             {
                 m_invincibleMusic->stop();
@@ -128,15 +126,14 @@ void Player::onTick(F32_t deltaTime)
     {
         auto const meshCenter = centroid(globalSpaceBB(g_scene.getNodeBySid(m_sid), m_mesh->box));
         m_oldPosition         = meshCenter;
-        m_score += glm::max(static_cast<decltype(m_score)>(displacement.y * scoreMultiplier), 1ULL);
+        m_score += glm::max(static_cast<decltype(1ULL)>(displacement.y * scoreMultiplier), 1ULL);
 
         m_lastDisplacement = displacement;
 
+        g_scene.getNodeBySid(m_sid).translate(displacement);
         m_camera.position += displacement;
 
-        g_scene.getNodeBySid(m_sid).transform(glm::translate(glm::mat4(1.f), displacement));
-
-        m_velocityMultiplier += deltaTime * multiplierTimeConstant;
+        m_velocityIncrement = glm::max(glm::abs(glm::log(static_cast<F32_t>(m_score))), 1.f);
     }
     else if (m_intersected)
     { //
@@ -148,7 +145,7 @@ void Player::onTick(F32_t deltaTime)
     if (glm::abs(m_camera.position.x - m_targetXPos) > eps)
     {
         auto old  = m_camera.position.x;
-        auto disp = (m_targetXPos - old) * baseShiftVelocity * 0.004f; //* deltaTime;
+        auto disp = (m_targetXPos - old) * baseShiftVelocity * 0.25f * deltaTime;
 
         m_camera.position.x += disp;
 
@@ -200,12 +197,16 @@ void Player::onSpeedAcquired()
 
 glm::vec3 Player::displacementTick(F32_t deltaTime) const
 {
-    F32_t const velocity = glm::min(baseVelocity * m_velocityMultiplier, maxBaseVelocity) * deltaTime;
+    F32_t const      velocity = glm::min(baseVelocity + m_velocityIncrement, maxBaseVelocity);
+    std::pmr::string str{ getMemoryPool() };
+    str.append("velocity: ");
+    str.append(std::to_string(velocity));
+    g_renderer2D.renderText(str.c_str(), { 0.1f, 0.8f, 1.f }, { 0.3f, 0.3f, 0.3f });
 
     // Calculate the movement direction based on camera's forward vector
     glm::vec3 direction = m_camera.forward;
     if (direction != glm::vec3(0.F)) { direction = glm::normalize(direction); }
-    glm::vec3 const displacement = velocity * direction;
+    glm::vec3 const displacement = velocity * direction * deltaTime;
 
     return displacement;
 }
@@ -249,12 +250,6 @@ void Player::onKey(I32_t key, I32_t action)
             break;
         }
     }
-}
-
-void Player::onMouseButton([[maybe_unused]] I32_t key, I32_t action)
-{
-    if (action == action::PRESS) {}
-    else if (action == action::RELEASE) {}
 }
 
 AABB Player::boundingBox() const { return m_mesh->box; }
@@ -303,7 +298,7 @@ glm::vec3 Player::getCentroid() const
 
 void ScrollingTerrain::init(InitData const &initData)
 {
-    glm::mat4 const identity      = glm::mat4(1.f);
+    auto const identity           = glm::mat4(1.f);
     static U32_t constexpr offset = 1;
 
     // load all available meshes
@@ -339,7 +334,7 @@ void ScrollingTerrain::updateTilesFromPosition(glm::vec3 position)
     glm::mat4 const pieceTransform = g_scene.getNodeBySid(m_pieces[nextPieceIdx]).getTransform();
     glm::vec4 const piecePosition  = pieceTransform[3];
 
-    // if yes, then update first and last and traslate everything from first to last
+    // if yes, then update first and last and translate everything from first to last
     if (position.y - piecePosition.y > static_cast<F32_t>(pieceSize >> 1))
     {
         m_shouldCheckPowerUp = true;
@@ -390,46 +385,70 @@ void ScrollingTerrain::updateTilesFromPosition(glm::vec3 position)
     }
 }
 
-void ScrollingTerrain::handleShoot(Ray const &ray)
+B8_t ScrollingTerrain::handleShoot(Ray const &ray)
 {
-    ObstacleList                   list{ nullSid };
-    std::array<F32_t, list.size()> yPositions{ 0.f };
-    std::array<U32_t, list.size()> indices{ static_cast<U32_t>(-1) };
-    U32_t                          index         = 0;
-    U32_t                          originalIndex = 0;
+    float closestT               = std::numeric_limits<float>::max();
+    bool  foundInDestructables   = false;
+    Sid_t closestDestructableSid = nullSid;
 
-    for (Sid_t &dsid : m_destructables)
+    // Check destructables first
+    for (auto const &dsid : m_destructables)
     {
-        if (dsid != nullSid)
+        if (dsid == nullSid) //
+            continue;
+
+        Sid_t const          meshSid = g_scene.getNodeBySid(dsid).getSid();
+        HandleTable_s::Ref_s ref     = g_handleTable.get(meshSid);
+        if (!ref.hasValue()) //
+            continue;
+
+        auto const &mesh   = ref.asMesh();
+        AABB const  obsBox = enlarge(globalSpaceBB(g_scene.getNodeBySid(dsid), mesh.box));
+
+        Hit_t hit = intersect(ray, obsBox);
+        if (hit.isect && hit.t < closestT)
         {
-            Sid_t                meshSid{ g_scene.getNodeBySid(dsid).getSid() };
-            HandleTable_s::Ref_s ref{ g_handleTable.get(meshSid) };
-            if (ref.hasValue())
-            {
-                auto const &mesh   = ref.asMesh();
-                auto const  box    = mesh.box;
-                auto const  obsBox = enlarge(globalSpaceBB(g_scene.getNodeBySid(dsid), box));
-                Hit_t const res    = intersect(ray, obsBox);
-                if (res.isect)
-                {
-                    list[index]         = dsid;
-                    indices[index]      = originalIndex;
-                    yPositions[index++] = res.p.y;
-                }
-            }
+            closestT               = hit.t;
+            foundInDestructables   = true;
+            closestDestructableSid = dsid;
         }
-
-        ++originalIndex;
     }
 
-    if (index != 0)
+    // Check obstacles
+    for (auto const &osid : m_obstacles)
     {
-        auto  it     = std::min_element(yPositions.cbegin(), yPositions.cbegin() + index);
-        U32_t minIdx = std::distance(yPositions.cbegin(), it);
-        assert(minIdx >= 0 && minIdx < list.size());
-        g_scene.removeNode(list[minIdx]);
-        m_destructables[indices[minIdx]] = nullSid;
+        if (osid == nullSid) //
+            continue;
+
+        Sid_t                meshSid = g_scene.getNodeBySid(osid).getSid();
+        HandleTable_s::Ref_s ref     = g_handleTable.get(meshSid);
+        if (!ref.hasValue()) //
+            continue;
+
+        auto const &mesh   = ref.asMesh();
+        AABB        obsBox = enlarge(globalSpaceBB(g_scene.getNodeBySid(osid), mesh.box));
+
+        Hit_t hit = intersect(ray, obsBox);
+        if (hit.isect && hit.t < closestT)
+        {
+            closestT             = hit.t;
+            foundInDestructables = false; // Closest hit is now from obstacles
+        }
     }
+
+    // If the closest intersection was from destructables, set it to nullSid
+    if (foundInDestructables)
+    {
+        auto it = std::find(m_destructables.begin(), m_destructables.end(), closestDestructableSid);
+        if (it != m_destructables.end())
+        {
+            g_scene.removeNode(*it);
+            *it = nullSid; // Set to nullSid
+        }
+        return true;
+    }
+
+    return false;
 }
 
 ScrollingTerrain::ObstacleList const &ScrollingTerrain::getObstacles() const
@@ -550,7 +569,7 @@ void ScrollingTerrain::addCoins(F32_t pieceYCoord)
     U32_t         numSpawnedCoins{ 0 };
     F32_t         lastPos   = pieceYCoord;
     Mesh_s const &coinMesh  = g_handleTable.getMesh(m_coin);
-    F32_t const   coinDepth = coinMesh.box.max.y - coinMesh.box.min.y;
+    F32_t const   coinDepth = coinMesh.box.mm.max.y - coinMesh.box.mm.min.y;
     F32_t const   increment = coinDepth + betweenDistance;
 
     while (g_random.next<U32_t>(0, maxNumCoinsPerTile - numSpawnedCoins) < threshold)
@@ -588,8 +607,7 @@ void ScrollingTerrain::removeCoins(F32_t threshold)
 void ScrollingTerrain::addPowerUp(glm::mat4 const &pieceTransform)
 { //
     glm::mat4 const t{ propDisplacementTransformFromOldPiece(pieceTransform) };
-    U32_t const     powerUpType = g_random.next<U32_t>(0, numPowerUpTypes - 1);
-    switch (powerUpType)
+    switch (U32_t const powerUpType = g_random.next<U32_t>(0, numPowerUpTypes - 1))
     {
     case 0: // explosive magnet
         m_powerUps[m_first] = g_scene.addNode(m_magnetPowerUp);
@@ -636,7 +654,7 @@ bool Player::intersectPlayerWith(ScrollingTerrain &terrain)
             if (pObs != nullSid && (ref = g_handleTable.get(meshSid = g_scene.getNodeBySid(pObs).getSid())).hasValue())
             {
                 auto const &mesh   = ref.asMesh();
-                auto const  box    = mesh.box;
+                auto const &box    = mesh.box;
                 auto const  obsBox = enlarge(globalSpaceBB(g_scene.getNodeBySid(pObs), box));
                 Hit_t const res    = intersect(playerRay, obsBox);
                 if (res.isect && (res.t <= movementDistance && res.p.y > m_oldPosition.y))
@@ -654,7 +672,7 @@ bool Player::intersectPlayerWith(ScrollingTerrain &terrain)
             if (pObs != nullSid && (ref = g_handleTable.get(meshSid = g_scene.getNodeBySid(pObs).getSid())).hasValue())
             {
                 auto const &mesh   = ref.asMesh();
-                auto const  box    = mesh.box;
+                auto const &box    = mesh.box;
                 auto const  obsBox = enlarge(globalSpaceBB(g_scene.getNodeBySid(pObs), box));
                 Hit_t const res    = intersect(playerRay, obsBox);
                 if (res.isect && (res.t <= movementDistance && res.p.y > m_oldPosition.y))
@@ -705,4 +723,9 @@ U64_t Player::getCurrentScore() const
     return m_score;
 }
 
+Player::U &Player::U::operator=(const Player::U &other)
+{
+    std::copy(std::begin(other.arr), std::end(other.arr), std::begin(arr));
+    return *this;
+}
 } // namespace cge

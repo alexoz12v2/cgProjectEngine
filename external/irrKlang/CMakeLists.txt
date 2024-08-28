@@ -123,6 +123,28 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
     IMPORTED_IMPLIB "${CMAKE_CURRENT_SOURCE_DIR}/lib/Winx64-visualStudio/irrKlang.lib"
   )
   target_link_libraries(irrKlang-irrKlang PRIVATE irrKlang-dll)
+  # COPY THINGS IN DIRECTORY
+elseif(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+  add_library(irrKlang-dll SHARED IMPORTED)
+  list(GET FULL_LIB_PATHS 0 DLIB_0)
+  set_target_properties(irrKlang-dll PROPERTIES
+    IMPORTED_LOCATION ${DLIB_0}
+    IMPORTED_IMPLIB ${DLIB_0}
+  )
+  add_library(ikpFlac-dll SHARED IMPORTED)
+  list(GET FULL_LIB_PATHS 1 DLIB_1)
+  set_target_properties(ikpFlac-dll PROPERTIES
+    IMPORTED_LOCATION ${DLIB_1}
+    IMPORTED_IMPLIB ${DLIB_1}
+  )
+  add_library(ikpMP3-dll SHARED IMPORTED)
+  list(GET FULL_LIB_PATHS 2 DLIB_2)
+  set_target_properties(ikpMP3-dll PROPERTIES
+    IMPORTED_LOCATION ${DLIB_2}
+    IMPORTED_IMPLIB ${DLIB_2}
+  )
+
+  target_link_libraries(irrKlang-irrKlang PRIVATE irrKlang-dll ikpFlac-dll ikpMP3-dll)
 endif()
 
 add_custom_command(TARGET irrKlang-irrKlang POST_BUILD

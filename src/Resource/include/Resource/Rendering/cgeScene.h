@@ -29,6 +29,8 @@ class SceneNode_s
 
     void setSid(Sid_t sid);
     void transform(glm::mat4 const &t);
+    void setTransform(glm::mat4 const &t);
+    void translate(const glm::vec3 &disp);
 
   private:
     Sid_t     m_sid; // sid of the mesh

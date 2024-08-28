@@ -1,5 +1,9 @@
 #include "Event.h"
 
+#include <alloca.h>
+#include <cstring>
+#include <tuple>
+
 namespace cge
 {
 
@@ -36,7 +40,7 @@ static Sid_t bytesSid(EventArg_t obj)
     static U64_t constexpr size = sizeof(EventArg_t);
     Char8_t* memory = static_cast<decltype(memory)>(alloca(size + 1));
     std::memcpy(memory, &obj, size);
-    memory[size] = '/0';
+    memory[size] = '\0';
     return CGE_SID(memory);
 }
 

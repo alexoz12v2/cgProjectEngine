@@ -1,6 +1,7 @@
 #include "Rendering/cgeScene.h"
 
 #include <cassert>
+#include <glm/ext/matrix_transform.hpp>
 
 namespace cge
 {
@@ -30,7 +31,21 @@ void SceneNode_s::setSid(Sid_t sid)
     m_sid = sid;
 }
 
-void SceneNode_s::transform(glm::mat4 const &t) { m_transform = t * m_transform; }
+void SceneNode_s::transform(glm::mat4 const &t)
+{ //
+    m_transform = t * m_transform;
+}
+
+void SceneNode_s::setTransform(const glm::mat4 &t)
+{ //
+    m_transform = t;
+}
+void SceneNode_s::translate(const glm::vec3 &disp)
+{ //
+    m_transform[3].x += disp.x;
+    m_transform[3].y += disp.y;
+    m_transform[3].z += disp.z;
+}
 
 SceneNode_s &Scene_s::getNodeBySid(Sid_t sid)
 { //

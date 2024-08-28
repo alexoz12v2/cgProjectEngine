@@ -36,7 +36,7 @@ class Renderer2D
     void onFramebufferSize(I32_t width, I32_t height);
 
   private:
-    void prepare() const;
+    void prepare(GpuProgram_s const &) const;
 
   private:
     struct Character

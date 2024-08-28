@@ -13,7 +13,7 @@ B8_t testOverlap(Ray const &ray, AABB const &box)
         {
             // ... and ray coord is not within, no hit
             // does this work with NaN?
-            if (ray.orig[i] < box.min[i] || ray.orig[i] > box.max[i]) { return false; }
+            if (ray.orig[i] < box.mm.min[i] || ray.orig[i] > box.mm.max[i]) { return false; }
         }
     }
     return true;
@@ -57,14 +57,14 @@ Hit_t intersect(Ray const &r, AABB const &box)
 
 AABB aUnion(AABB const &a, AABB const &b)
 {
-    AABB const c{ glm::min(a.min, b.min), glm::max(a.max, b.max) };
+    AABB const c{ glm::min(a.mm.min, b.mm.min), glm::max(a.mm.max, b.mm.max) };
     return c;
 }
 
 I32_t largestAxis(AABB const &box, F32_t *plane)
 {
-    glm::vec3 diag = box.max - box.min;
-    glm::vec3 mid  = (box.max + box.min) * 0.5f;
+    glm::vec3 diag = box.mm.max - box.mm.min;
+    glm::vec3 mid  = (box.mm.max + box.mm.min) * 0.5f;
     int32_t   res  = 0;
     *plane         = mid.x;
     if (diag.x < diag.y)
@@ -88,34 +88,34 @@ I32_t largestAxis(AABB const &box, F32_t *plane)
 
 F32_t aArea(AABB const &a)
 {
-    glm::vec3 const d = a.max - a.min;
+    glm::vec3 const d = a.mm.max - a.mm.min;
     return 2.f * (d.x * d.y + d.y * d.z + d.z * d.x);
 }
 
-glm::vec3 centroid(AABB const &b) { return (b.max + b.min) * 0.5f; }
+glm::vec3 centroid(AABB const &b) { return (b.mm.max + b.mm.min) * 0.5f; }
 
-glm::vec3 diagonal(AABB const &b) { return b.max - b.min; }
+glm::vec3 diagonal(AABB const &b) { return b.mm.max - b.mm.min; }
 
 B8_t isPointInsideAABB(glm::vec3 const &point, AABB const &box)
 {
-    return (point.x >= box.min.x && point.x <= box.max.x) && (point.y >= box.min.y && point.y <= box.max.y)
-           && (point.z >= box.min.z && point.z <= box.max.z);
+    return (point.x >= box.mm.min.x && point.x <= box.mm.max.x) && (point.y >= box.mm.min.y && point.y <= box.mm.max.y)
+           && (point.z >= box.mm.min.z && point.z <= box.mm.max.z);
 }
 
 AABB transformAABBToNDC(AABB const &aabb, glm::mat4 const &model, glm::mat4 const &view, glm::mat4 const &projection)
 {
     // Define the 8 vertices of the AABB in model space
-    glm::vec4 vertices[]{ { aabb.min, 1.0f },
-                          { aabb.max, 1.0f },
-                          { aabb.min.x, aabb.min.y, aabb.max.z, 1.0f },
-                          { aabb.min.x, aabb.max.y, aabb.min.z, 1.0f },
-                          { aabb.max.x, aabb.min.y, aabb.min.z, 1.0f },
-                          { aabb.min.x, aabb.max.y, aabb.max.z, 1.0f },
-                          { aabb.max.x, aabb.min.y, aabb.max.z, 1.0f },
-                          { aabb.max.x, aabb.max.y, aabb.min.z, 1.0f } };
+    glm::vec4 vertices[]{ { aabb.mm.min, 1.0f },
+                          { aabb.mm.max, 1.0f },
+                          { aabb.mm.min.x, aabb.mm.min.y, aabb.mm.max.z, 1.0f },
+                          { aabb.mm.min.x, aabb.mm.max.y, aabb.mm.min.z, 1.0f },
+                          { aabb.mm.max.x, aabb.mm.min.y, aabb.mm.min.z, 1.0f },
+                          { aabb.mm.min.x, aabb.mm.max.y, aabb.mm.max.z, 1.0f },
+                          { aabb.mm.max.x, aabb.mm.min.y, aabb.mm.max.z, 1.0f },
+                          { aabb.mm.max.x, aabb.mm.max.y, aabb.mm.min.z, 1.0f } };
 
     // Combine model, view, and projection matrices
-    glm::mat4 mvp = projection * view * model;
+    glm::mat4 const mvp = projection * view * model;
 
     // Transform vertices to clip space
     for (auto &vertex : vertices)

@@ -83,7 +83,7 @@ template<std::integral T> consteval U32_t numDigits(T value)
 template<U32_t N> struct FixedString
 {
     static U32_t constexpr len = N;
-    constexpr Char8_t const *cStr() const { return buf; }
+    [[nodiscard]] constexpr Char8_t const *cStr() const { return buf; }
     Char8_t                  buf[N];
 };
 

@@ -141,6 +141,6 @@
 #error "Only platform supported are windows and linux"
 #endif
 
-#if defined(_DEBUG)
+#if defined(_DEBUG) || _CGEDEBUG == 1
 #define CGE_DEBUG
 #endif

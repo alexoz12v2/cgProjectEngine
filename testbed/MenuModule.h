@@ -66,13 +66,15 @@ class MenuModule : public IModule
     // event data
     union
     {
-        struct
+        struct S
         {
             std::pair<Event_t, Sid_t> framebufferSizeListener;
             std::pair<Event_t, Sid_t> mouseMovementListener;
             std::pair<Event_t, Sid_t> mouseButtonListener;
         };
+        S s;
         std::array<std::pair<Event_t, Sid_t>, 3> arr;
+        static_assert(std::is_standard_layout_v<S> && sizeof(S) == sizeof(decltype(arr)), "implementation failed");
     } m_listeners{};
 
     // sound data

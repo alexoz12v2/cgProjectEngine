@@ -1,18 +1,24 @@
 #include "Rendering/cgeMesh.h"
-#include "Rendering/Buffer.h"
 
-#include <HandleTable.h>
-#include <RenderUtils/GLutils.h>
+#include "Core/Type.h"
+#include "Core/Utility.h"
+#include "Rendering/Buffer.h"
+#include "HandleTable.h"
+#include "RenderUtils/GLutils.h"
+
 #include <glad/gl.h>
+#include <glm/ext/vector_float3.hpp>
 #include <glm/gtc/type_ptr.hpp>
+
+#include <limits>
 
 namespace cge
 {
 AABB computeAABB(const Mesh_s &mesh)
 {
     AABB aabb{ glm::vec3(0.0f), glm::vec3(0.0f) };
-    aabb.min = glm::vec3(std::numeric_limits<float>::max());
-    aabb.max = glm::vec3(std::numeric_limits<float>::min());
+    aabb.mm.min = glm::vec3(std::numeric_limits<float>::max());
+    aabb.mm.max = glm::vec3(std::numeric_limits<float>::min());
 
     // Loop through each indexed vertex
     for (size_t i = 0; i < mesh.indices.size(); ++i)
@@ -22,8 +28,8 @@ AABB computeAABB(const Mesh_s &mesh)
             const auto &vertex = mesh.vertices[j];
 
             // Update AABB based on vertex position
-            aabb.min = glm::min(aabb.min, vertex.pos);
-            aabb.max = glm::max(aabb.max, vertex.pos);
+            aabb.mm.min = glm::min(aabb.mm.min, vertex.pos);
+            aabb.mm.max = glm::max(aabb.mm.max, vertex.pos);
         }
     }
 

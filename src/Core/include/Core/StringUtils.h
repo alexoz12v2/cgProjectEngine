@@ -21,7 +21,6 @@ struct Sid_t
 #else
 struct Sid_t
 {
-    Sid_t &operator=(Sid_t const &other) = default;
     U64_t  id;
 };
 #endif

@@ -5,15 +5,19 @@
 #include "Core/StringUtils.h"
 #include "Core/Type.h"
 #include "Render/Renderer.h"
-#include "Resource/HandleTable.h"
-
-#include "SoundEngine.h"
+#include "Resource/Rendering/cgeMesh.h"
+#include "irrKlang/ik_ISound.h"
+#include "irrKlang/ik_ISoundSource.h"
 
 #include <glm/ext/vector_float2.hpp>
-#include <glm/ext/vector_int2.hpp>
 
-#include <deque>
-#include <unordered_set>
+#include <array>
+#include <cassert>
+#include <glm/ext/vector_uint2.hpp>
+#include <span>
+#include <type_traits>
+#include <unordered_map>
+#include <utility>
 
 namespace cge
 {
@@ -52,7 +56,7 @@ class ScrollingTerrain
   public:
     void init(InitData const &initData);
     void updateTilesFromPosition(glm::vec3 position);
-    void handleShoot(Ray const &ray);
+    B8_t handleShoot(Ray const &ray);
 
     ObstacleList const &getObstacles() const;
     ObstacleList const &getDestructables() const;
@@ -76,9 +80,10 @@ class ScrollingTerrain
     glm::mat4 propDisplacementTransformFromOldPiece(glm::mat4 const &pieceTransform) const;
     F32_t     randomLaneOffset() const;
 
-    template<U32_t N> static constexpr Sid_t selectRandomFromList(std::array<Sid_t, N> list, U32_t effectiveSize)
+    template<std::integral auto N>
+    static constexpr Sid_t selectRandomFromList(std::array<Sid_t, N> list, U32_t effectiveSize)
     {
-        U32_t rnd = g_random.next<U32_t>(0, effectiveSize - 1);
+        auto  rnd = g_random.next<U32_t>(0, effectiveSize - 1);
         Sid_t ret{ nullSid };
         while (ret == nullSid && rnd >= 0)
         { //
@@ -157,12 +162,10 @@ class Player
     static F32_t constexpr baseShiftVelocity      = 50.f;
     static F32_t constexpr baseVelocity           = 200.f;
     static F32_t constexpr maxBaseVelocity        = 400.f;
-    static F32_t constexpr mouseSensitivity       = 0.1f;
-    static F32_t constexpr multiplierTimeConstant = 0.1f;
-    static U8_t constexpr LANE_LEFT               = 1 << 2; // 0000'0100
-    static U8_t constexpr LANE_CENTER             = 1 << 1; // 0000'0010
-    static U8_t constexpr LANE_RIGHT              = 1 << 0; // 0000'0001
-    static F32_t constexpr invincibilityTime      = 5.f;
+    static U8_t constexpr LANE_LEFT               = 1u << 2; // 0000'0100
+    static U8_t constexpr LANE_CENTER             = 1u << 1; // 0000'0010
+    static U8_t constexpr LANE_RIGHT              = 1u << 0; // 0000'0001
+    static F32_t constexpr invincibilityTime      = 7.f;
 
   private:
     void      yawPitchRotate(F32_t yaw, F32_t pitch);
@@ -183,22 +186,26 @@ class Player
     // movement related
     U8_t      m_lane{ LANE_CENTER };
     F32_t     m_targetXPos{ 0.f };
-    F32_t     m_velocityMultiplier{ 1.f };
+    F32_t     m_velocityIncrement{ 1.f };
     glm::vec3 m_lastDisplacement{};
 
     // event data
     glm::uvec2 m_framebufferSize{ 0, 0 };
-    union
+    union U
     {
-        struct
+        constexpr U() {}
+        U &operator=(const U &);
+        struct S
         {
             std::pair<Event_t, Sid_t> keyListener;
-            std::pair<Event_t, Sid_t> mouseButtonListener;
             std::pair<Event_t, Sid_t> framebufferSizeListener;
             std::pair<Event_t, Sid_t> speedAcquiredListener;
         };
-        std::array<std::pair<Event_t, Sid_t>, 4> arr;
-    } m_listeners{};
+        S                                        s;
+        std::array<std::pair<Event_t, Sid_t>, 3> arr;
+        static_assert(std::is_standard_layout_v<S> && sizeof(S) == sizeof(decltype(arr)), "implementation failed");
+    };
+    U     m_listeners{};
     F32_t m_invincibilityTimer{ 0 };
     B8_t  m_invincible{ false };
 

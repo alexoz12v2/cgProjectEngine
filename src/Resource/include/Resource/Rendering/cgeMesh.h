@@ -41,17 +41,15 @@ static_assert(std::is_standard_layout_v<MeshUniform_t>);
 
 union Textures_t
 { //
-    constexpr Textures_t()
-      : albedo(nullSid), normal(nullSid), shininess(nullSid)
-    {
-    }
+    constexpr Textures_t(): s(nullSid, nullSid, nullSid) {}
     constexpr ~Textures_t() {}
-    struct
+    struct S
     {
         Sid_t albedo;
         Sid_t normal;
         Sid_t shininess;
     };
+    S s;
     std::array<Sid_t, 3> arr;
 };
 
