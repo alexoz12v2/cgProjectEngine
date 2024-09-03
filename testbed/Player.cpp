@@ -89,7 +89,7 @@ void Player::onTick(F32_t deltaTime)
     if (!smallOrZero(displacement) && !m_intersected)
     {
         m_score += glm::max(
-          static_cast<decltype(m_score)>(displacement.y * scoreMultiplier),
+          static_cast<decltype(1ULL)>(displacement.y * scoreMultiplier),
           1ULL);
         m_worldObjPtr->ebox = recomputeGlobalSpaceBB(m_sid, m_box);
 
@@ -116,17 +116,16 @@ void Player::onTick(F32_t deltaTime)
     if (glm::abs(m_camera.position.x - m_targetXPos) > eps)
     {
         auto old  = m_camera.position.x;
-        auto disp = (m_targetXPos - old) * baseShiftVelocity * deltaTime;
+        auto func = m_targetXPos > old ? glm::min<float> : glm::max<float>;
+        auto disp = func((m_targetXPos - old) * baseShiftVelocity * deltaTime, m_targetXPos - old);
         printf("[Player] deltaTime: %f\n", deltaTime);
-
-        m_camera.position.x += disp;
 
         if (glm::abs(m_camera.position.x - m_targetXPos) <= 0.5f)
         {
-            m_camera.position.x = m_targetXPos;
-            disp                = m_camera.position.x - old;
+            disp = m_targetXPos - old;
         }
 
+        m_camera.position.x += disp;
         m_node->transform(
           glm::translate(glm::mat4(1.f), glm::vec3(disp, 0.f, 0.f)));
     }
@@ -339,43 +338,43 @@ std::pmr::deque<std::array<SceneNode_s *, numLanes>>
             Sid_t const sid      = sidSet[setIndex];
             pNode->setSid(sid);
 
-            m_obstacles.pop_front();
-            m_obstacles.push_back(arr);
-            auto &back = m_obstacles.back();
-            // TODO: spawn props in the new tiles
-            if (!obstacles.empty())
-            {
-                U32_t              numObstacles = g_random.next<U32_t>() % 3;
-                std::vector<F32_t> availableLanes{ -laneShift, 0, laneShift };
-                for (U32_t i = 0; i != numObstacles; ++i)
-                {
-                    U32_t const index =
-                      g_random.next<U32_t>() % availableLanes.size();
-                    F32_t const positionX = availableLanes[index];
-                    F32_t const positionYFromPieceCenter =
-                      (g_random.next<F32_t>() - 0.5f) * pieceSize / 2.3f;
-                    availableLanes.erase(availableLanes.begin() + index);
+            //m_obstacles.pop_front();
+            //m_obstacles.push_back(arr);
+            //auto &back = m_obstacles.back();
+            //// TODO: spawn props in the new tiles
+            //if (!obstacles.empty())
+            //{
+            //    U32_t              numObstacles = g_random.next<U32_t>() % 3;
+            //    std::vector<F32_t> availableLanes{ -laneShift, 0, laneShift };
+            //    for (U32_t i = 0; i != numObstacles; ++i)
+            //    {
+            //        U32_t const index =
+            //          g_random.next<U32_t>() % availableLanes.size();
+            //        F32_t const positionX = availableLanes[index];
+            //        F32_t const positionYFromPieceCenter =
+            //          (g_random.next<F32_t>() - 0.5f) * pieceSize / 2.3f;
+            //        availableLanes.erase(availableLanes.begin() + index);
 
-                    Sid_t const obstacle =
-                      obstacles[g_random.next<U32_t>() % obstacles.size()];
-                    auto const transform = glm::translate(
-                      pNode->getAbsoluteTransform(),
-                      glm::vec3(positionX, positionYFromPieceCenter, 0.f));
+            //        Sid_t const obstacle =
+            //          obstacles[g_random.next<U32_t>() % obstacles.size()];
+            //        auto const transform = glm::translate(
+            //          pNode->getAbsoluteTransform(),
+            //          glm::vec3(positionX, positionYFromPieceCenter, 0.f));
 
-                    back[i] = g_scene.addChild(obstacle, transform);
+            //        back[i] = g_scene.addChild(obstacle, transform);
 
-                    CollisionObj_t collision = {
-                        .ebox = recomputeGlobalSpaceBB(
-                          obstacle,
-                          computeAABB(g_handleTable.get(obstacle).asMesh())),
-                        .sid = obstacle
-                    };
+            //        CollisionObj_t collision = {
+            //            .ebox = recomputeGlobalSpaceBB(
+            //              obstacle,
+            //              computeAABB(g_handleTable.get(obstacle).asMesh())),
+            //            .sid = obstacle
+            //        };
 
-                    g_world.addObject(collision);
-                }
-            }
+            //        g_world.addObject(collision);
+            //    }
+            //}
         }
-
+    }
 
 #if defined(CGE_DEBUG)
         for (auto pNode : m_pieces)
@@ -391,9 +390,7 @@ std::pmr::deque<std::array<SceneNode_s *, numLanes>>
     return m_obstacles;
 }
 
-bool Player::intersectPlayerWith(
-  std::pmr::deque<std::array<SceneNode_s *, numLanes>> const &obstacles,
-  Hit_t                                                      &outHit)
+bool Player::intersectPlayerWith(std::pmr::deque<std::array<SceneNode_s *, numLanes>> const & obstacles, Hit_t & outHit)
 {
     bool res = false;
     if (!obstacles.empty())
@@ -423,5 +420,4 @@ bool Player::intersectPlayerWith(
     m_intersected = res;
     return res;
 }
-
-} // namespace cge
+}

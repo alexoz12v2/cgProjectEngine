@@ -137,7 +137,7 @@ I32_t main(I32_t argc, Char8_t **argv)
 
         // swap buffers and poll events (and queue them)
         window.swapBuffers();
-        window.pollEvents(min(timeUnitsIn60FPS - elapsedTime, 0U));
+        window.pollEvents(glm::min(timeUnitsIn60FPS - elapsedTime, 0U));
 
         // dispatch events
         g_eventQueue.dispatch();

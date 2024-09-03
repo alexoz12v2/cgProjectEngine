@@ -24,7 +24,7 @@ class Player
 {
   public:
     static F32_t constexpr scoreMultiplier        = 0.1f;
-    static F32_t constexpr baseShiftVelocity      = 50.f;
+    static F32_t constexpr baseShiftVelocity      = 5.f;
     static F32_t constexpr baseVelocity           = 200.f;
     static F32_t constexpr maxBaseVelocity        = 400.f;
     static F32_t constexpr mouseSensitivity       = 0.1f;
