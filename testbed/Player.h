@@ -139,7 +139,6 @@ class Player
     void spawn(Camera_t const &, Sid_t);
 
     void onKey(I32_t key, I32_t action);
-    void onMouseButton(I32_t key, I32_t action);
     void onTick(F32_t deltaTime);
     void onFramebufferSize(I32_t width, I32_t height);
     void onSpeedAcquired();
@@ -155,21 +154,21 @@ class Player
     bool  intersectPlayerWith(ScrollingTerrain &terrain);
     void  setSwishSound(irrklang::ISoundSource *sound);
     void  incrementScore(U32_t increment, U32_t numCoins = 1);
-    U64_t getCurrentScore() const;
+    [[nodiscard]] U64_t getCurrentScore() const;
 
   private:
     static F32_t constexpr scoreMultiplier        = 0.1f;
-    static F32_t constexpr baseShiftVelocity      = 50.f;
-    static F32_t constexpr baseVelocity           = 200.f;
+    static F32_t constexpr baseShiftVelocity      = 50.f * 0.25f;
+    static F32_t constexpr baseVelocity           = 100.f;
     static F32_t constexpr maxBaseVelocity        = 400.f;
     static U8_t constexpr LANE_LEFT               = 1u << 2; // 0000'0100
     static U8_t constexpr LANE_CENTER             = 1u << 1; // 0000'0010
     static U8_t constexpr LANE_RIGHT              = 1u << 0; // 0000'0001
     static F32_t constexpr invincibilityTime      = 7.f;
+    static inline glm::vec3 const meshCameraOffset{0.f, -2.f, -10.f};
 
   private:
-    void      yawPitchRotate(F32_t yaw, F32_t pitch);
-    glm::vec3 displacementTick(F32_t deltaTime) const;
+    glm::vec3 displacementTick(F32_t deltaTime);
 
   private:
     // main components

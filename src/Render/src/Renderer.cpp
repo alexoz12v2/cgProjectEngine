@@ -8,6 +8,7 @@
 #include <glad/gl.h>
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 namespace cge
 {
@@ -52,74 +53,57 @@ void Renderer_s::init()
     glEnable(GL_CULL_FACE);
 }
 
-static void uploadLightData(Light_t::Properties const &light, I32_t shaderProgramID)
+static void uploadLightData(Scene_s const &scene, I32_t glid)
 {
-    GLint lightsLocation = glGetUniformLocation(shaderProgramID, "lights");
-    glUniform1i(glGetUniformLocation(shaderProgramID, "light.isEnabled"), light.isEnabled);
-    glUniform1i(glGetUniformLocation(shaderProgramID, "light.isLocal"), light.isLocal);
-    glUniform1i(glGetUniformLocation(shaderProgramID, "lights.isSpot"), light.isSpot);
-    glUniform3fv(glGetUniformLocation(shaderProgramID, "lights.ambient"), 1, &light.ambient[0]);
-    glUniform3fv(glGetUniformLocation(shaderProgramID, "light.color"), 1, &light.color[0]);
-    glUniform3fv(glGetUniformLocation(shaderProgramID, "light.position"), 1, &light.position[0]);
-    glUniform3fv(glGetUniformLocation(shaderProgramID, "light.halfVector"), 1, &light.halfVector[0]);
-    glUniform3fv(glGetUniformLocation(shaderProgramID, "light.coneDirection"), 1, &light.coneDirection[0]);
-    glUniform1f(glGetUniformLocation(shaderProgramID, "light.spotCosCutoff"), light.spotCosCutoff);
-    glUniform1f(glGetUniformLocation(shaderProgramID, "light.spotExponent"), light.spotExponent);
-    glUniform1f(glGetUniformLocation(shaderProgramID, "light.constantAttenuation"), light.constantAttenuation);
-    glUniform1f(glGetUniformLocation(shaderProgramID, "light.linearAttenuation"), light.linearAttenuation);
-    glUniform1f(glGetUniformLocation(shaderProgramID, "light.quadraticAttenuation"), light.quadraticAttenuation);
-}
-
-static void uploadLightData(Light_t::Properties const *lights, I32_t numLights, I32_t shaderProgramID)
-{
-    // Get the location of the lights array
-    GLint lightsLocation = glGetUniformLocation(shaderProgramID, "lights");
-
-    for (int i = 0; i < numLights; ++i)
+    U32_t i = 0;
+    for (auto it = scene.lightBegin(); it != scene.lightEnd(); ++it)
     {
-        std::string index = std::to_string(i);
+        std::pmr::string index{ std::to_string(i), getMemoryPool() };
+        auto const      &light = it->second;
 
-        glUniform1i(
-          glGetUniformLocation(shaderProgramID, ("lights[" + index + "].isEnabled").c_str()), lights[i].isEnabled);
-        glUniform1i(
-          glGetUniformLocation(shaderProgramID, ("lights[" + index + "].isLocal").c_str()), lights[i].isLocal);
-        glUniform1i(glGetUniformLocation(shaderProgramID, ("lights[" + index + "].isSpot").c_str()), lights[i].isSpot);
-        glUniform3fv(
-          glGetUniformLocation(shaderProgramID, ("lights[" + index + "].ambient").c_str()), 1, &lights[i].ambient[0]);
-        glUniform3fv(
-          glGetUniformLocation(shaderProgramID, ("lights[" + index + "].color").c_str()), 1, &lights[i].color[0]);
-        glUniform3fv(
-          glGetUniformLocation(shaderProgramID, ("lights[" + index + "].position").c_str()), 1, &lights[i].position[0]);
-        glUniform3fv(
-          glGetUniformLocation(shaderProgramID, ("lights[" + index + "].halfVector").c_str()),
-          1,
-          &lights[i].halfVector[0]);
-        glUniform3fv(
-          glGetUniformLocation(shaderProgramID, ("lights[" + index + "].coneDirection").c_str()),
-          1,
-          &lights[i].coneDirection[0]);
+        glUniform3f(
+          glGetUniformLocation(glid, ("lights[" + index + "].ambient").c_str()),
+          light.ambient.x,
+          light.ambient.y,
+          light.ambient.z);
+        glUniform3f(
+          glGetUniformLocation(glid, ("lights[" + index + "].color").c_str()),
+          light.color.x,
+          light.color.y,
+          light.color.z);
+        glUniform3f(
+          glGetUniformLocation(glid, ("lights[" + index + "].position").c_str()),
+          light.position.x,
+          light.position.y,
+          light.position.z);
+        glUniform3f(
+          glGetUniformLocation(glid, ("lights[" + index + "].halfVector").c_str()),
+          light.halfVector.x,
+          light.halfVector.y,
+          light.halfVector.z);
+        glUniform3f(
+          glGetUniformLocation(glid, ("lights[" + index + "].coneDirection").c_str()),
+          light.coneDirection.x,
+          light.coneDirection.y,
+          light.coneDirection.z);
+        glUniform1f(glGetUniformLocation(glid, ("lights[" + index + "].spotCosCutoff").c_str()), light.spotCosCutoff);
+        glUniform1f(glGetUniformLocation(glid, ("lights[" + index + "].spotExponent").c_str()), light.spotExponent);
         glUniform1f(
-          glGetUniformLocation(shaderProgramID, ("lights[" + index + "].spotCosCutoff").c_str()),
-          lights[i].spotCosCutoff);
+          glGetUniformLocation(glid, ("lights[" + index + "].constantAttenuation").c_str()), light.constantAttenuation);
         glUniform1f(
-          glGetUniformLocation(shaderProgramID, ("lights[" + index + "].spotExponent").c_str()),
-          lights[i].spotExponent);
+          glGetUniformLocation(glid, ("lights[" + index + "].linearAttenuation").c_str()), light.linearAttenuation);
         glUniform1f(
-          glGetUniformLocation(shaderProgramID, ("lights[" + index + "].constantAttenuation").c_str()),
-          lights[i].constantAttenuation);
-        glUniform1f(
-          glGetUniformLocation(shaderProgramID, ("lights[" + index + "].linearAttenuation").c_str()),
-          lights[i].linearAttenuation);
-        glUniform1f(
-          glGetUniformLocation(shaderProgramID, ("lights[" + index + "].quadraticAttenuation").c_str()),
-          lights[i].quadraticAttenuation);
+          glGetUniformLocation(glid, ("lights[" + index + "].quadraticAttenuation").c_str()),
+          light.quadraticAttenuation);
+        glUniform1i(glGetUniformLocation(glid, ("lights[" + index + "].isEnabled").c_str()), light.isEnabled);
+        glUniform1i(glGetUniformLocation(glid, ("lights[" + index + "].isLocal").c_str()), light.isLocal);
+        glUniform1i(glGetUniformLocation(glid, ("lights[" + index + "].isSpot").c_str()), light.isSpot);
+        ++i;
     }
 }
 
 void Renderer_s::renderScene(Scene_s const &scene, glm::mat4 const &view, glm::mat4 const &proj, glm::vec3 eye) const
 {
-    Light_t::Properties light{ g_handleTable.lightsBegin()->second.props };
-
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     for (auto const &[sid, sceneNode] : scene.m_nodeMap)
@@ -132,7 +116,9 @@ void Renderer_s::renderScene(Scene_s const &scene, glm::mat4 const &view, glm::m
         Mesh_s const &mesh = meshRef.asMesh();
 
         glm::mat4 const     modelView = view * sceneNode.getTransform();
-        MeshUniform_t const uniforms{ .modelView = modelView, .modelViewProj = proj * modelView };
+        MeshUniform_t const uniforms{ .modelView     = modelView,
+                                      .modelViewProj = proj * modelView,
+                                      .model         = sceneNode.getTransform() };
 
         mesh.shaderProgram.bind();
         mesh.vertexArray.bind();
@@ -140,7 +126,7 @@ void Renderer_s::renderScene(Scene_s const &scene, glm::mat4 const &view, glm::m
         mesh.streamUniforms(uniforms);
 
         glUniform3f(glGetUniformLocation(mesh.shaderProgram.id(), "eyeDirection"), eye.x, eye.y, eye.z);
-        uploadLightData(light, mesh.shaderProgram.id());
+        uploadLightData(scene, mesh.shaderProgram.id());
 
         glDrawElements(GL_TRIANGLES, (U32_t)mesh.indices.size() * 3, GL_UNSIGNED_INT, nullptr);
     }

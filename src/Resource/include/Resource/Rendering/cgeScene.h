@@ -3,6 +3,7 @@
 #include "Core/Module.h"
 #include "Core/StringUtils.h"
 #include "Core/Type.h"
+#include "cgeLight.h"
 
 #include <glm/glm.hpp>
 
@@ -42,20 +43,30 @@ class Scene_s
     friend class Renderer_s;
 
   public:
-    using PairNode = std::pair<Sid_t const, SceneNode_s>;
+    using PairNode     = std::pair<Sid_t const, SceneNode_s>;
+    using LightIt      = std::pmr::unordered_map<Sid_t, Light_t>::iterator;
+    using LightConstIt = std::pmr::unordered_map<Sid_t, Light_t>::const_iterator;
 
   public:
     SceneNode_s       &getNodeBySid(Sid_t sid);
     SceneNode_s const &getNodeBySid(Sid_t sid) const;
     PairNode const    &getNodePairByNodeRef(SceneNode_s const &ref) const;
     PairNode          &getNodePairByNodeRef(SceneNode_s const &ref);
+    LightConstIt       lightBegin() const;
+    LightIt            lightBegin();
+    LightConstIt       lightEnd() const;
+    LightIt            lightEnd();
 
     Sid_t addNode(Sid_t const meshSid);
     B8_t  removeNode(Sid_t node);
-    void  clear();
+    void  clearSceneNodes();
+    Sid_t addLight(Sid_t lightSid, Light_t const &light);
+    B8_t  removeLight(Sid_t lightSid);
+    void  clearSceneLights();
 
   private:
     std::pmr::unordered_map<Sid_t, SceneNode_s> m_nodeMap{ getMemoryPool() };
+    std::pmr::unordered_map<Sid_t, Light_t>     m_lightMap{ getMemoryPool() };
 };
 
 extern Scene_s g_scene;

@@ -78,8 +78,7 @@ void Player::spawn(const Camera_t &view, Sid_t meshSid)
 
     m_camera = view;
 
-    g_scene.getNodeBySid(m_sid).transform(
-      glm::inverse(m_camera.viewTransform()) * glm::translate(glm::mat4(1.F), glm::vec3(0, -2, -10)));
+    g_scene.getNodeBySid(m_sid).setTransform(glm::translate(glm::inverse(m_camera.viewTransform()), meshCameraOffset));
 
     m_swishSoundSource      = g_soundEngine()->addSoundSourceFromFile("../assets/swish.mp3");
     m_invincibleMusicSource = g_soundEngine()->addSoundSourceFromFile("../assets/invincible.mp3");
@@ -93,7 +92,6 @@ void Player::spawn(const Camera_t &view, Sid_t meshSid)
 
 void Player::onTick(F32_t deltaTime)
 {
-    static F32_t constexpr eps   = std::numeric_limits<F32_t>::epsilon();
     glm::vec3 const displacement = displacementTick(deltaTime);
 
     if (m_invincible)
@@ -130,8 +128,9 @@ void Player::onTick(F32_t deltaTime)
 
         m_lastDisplacement = displacement;
 
-        g_scene.getNodeBySid(m_sid).translate(displacement);
+        //g_scene.getNodeBySid(m_sid).translate(displacement);
         m_camera.position += displacement;
+        g_scene.getNodeBySid(m_sid).setTransform(glm::translate(glm::inverse(m_camera.viewTransform()), meshCameraOffset));
 
         m_velocityIncrement = glm::max(glm::abs(glm::log(static_cast<F32_t>(m_score))), 1.f);
     }
@@ -140,28 +139,6 @@ void Player::onTick(F32_t deltaTime)
         EventArg_t evData{};
         evData.idata.u64 = m_score;
         g_eventQueue.emit(evGameOver, evData);
-    }
-
-    if (glm::abs(m_camera.position.x - m_targetXPos) > eps)
-    {
-        auto old  = m_camera.position.x;
-        auto disp = (m_targetXPos - old) * baseShiftVelocity * 0.25f * deltaTime;
-
-        m_camera.position.x += disp;
-
-        if (glm::abs(m_camera.position.x - m_targetXPos) <= 0.5f)
-        {
-            m_camera.position.x = m_targetXPos;
-            disp                = m_camera.position.x - old;
-            if (m_swishSound)
-            {
-                m_swishSound->stop();
-                m_swishSound->drop();
-                m_swishSound = nullptr;
-            }
-        }
-
-        g_scene.getNodeBySid(m_sid).transform(glm::translate(glm::mat4(1.f), glm::vec3(disp, 0.f, 0.f)));
     }
 
     auto const      fixedStr = strFromIntegral(m_score);
@@ -195,9 +172,10 @@ void Player::onSpeedAcquired()
     }
 }
 
-glm::vec3 Player::displacementTick(F32_t deltaTime) const
+glm::vec3 Player::displacementTick(F32_t deltaTime)
 {
-    F32_t const      velocity = glm::min(baseVelocity + m_velocityIncrement, maxBaseVelocity);
+    static F32_t constexpr eps   = std::numeric_limits<F32_t>::epsilon();
+    F32_t const      velocity = glm::min((m_invincible ? 2.f : 1.f) * (baseVelocity + m_velocityIncrement), maxBaseVelocity);
     std::pmr::string str{ getMemoryPool() };
     str.append("velocity: ");
     str.append(std::to_string(velocity));
@@ -206,7 +184,26 @@ glm::vec3 Player::displacementTick(F32_t deltaTime) const
     // Calculate the movement direction based on camera's forward vector
     glm::vec3 direction = m_camera.forward;
     if (direction != glm::vec3(0.F)) { direction = glm::normalize(direction); }
-    glm::vec3 const displacement = velocity * direction * deltaTime;
+
+    F32_t disp = 0;
+    if (glm::abs(m_camera.position.x - m_targetXPos) > eps)
+    {
+        auto old  = m_camera.position.x;
+        disp = (m_targetXPos - old) * baseShiftVelocity * deltaTime;
+
+        if (glm::abs(m_camera.position.x - m_targetXPos) <= 0.5f)
+        {
+            disp = m_targetXPos - old;
+            if (m_swishSound)
+            {
+                m_swishSound->stop();
+                m_swishSound->drop();
+                m_swishSound = nullptr;
+            }
+        }
+    }
+
+    glm::vec3 const displacement = velocity * direction * deltaTime + glm::vec3{disp, 0, 0};
 
     return displacement;
 }
@@ -253,28 +250,6 @@ void Player::onKey(I32_t key, I32_t action)
 }
 
 AABB Player::boundingBox() const { return m_mesh->box; }
-
-void Player::yawPitchRotate(F32_t yaw, F32_t pitch)
-{
-    static F32_t constexpr maxPitch = 89.F;
-
-    yaw   = glm::radians(yaw);
-    pitch = glm::radians(glm::clamp(pitch, -maxPitch, maxPitch));
-
-    glm::vec3 direction;
-    direction.x = glm::cos(yaw) * glm::cos(pitch);
-    direction.y = glm::sin(yaw) * glm::cos(pitch);
-    direction.z = -glm::sin(pitch);
-
-    m_camera.forward = glm::normalize(direction);
-
-    // Assuming the initial up direction is the z-axis
-    auto worldUp = glm::vec3(0.0F, 0.0F, 1.0F);
-
-    // Calculate the right and up vectors using cross products
-    m_camera.right = glm::normalize(glm::cross(worldUp, m_camera.forward));
-    m_camera.up    = glm::normalize(glm::cross(m_camera.forward, m_camera.right));
-}
 
 glm::mat4 Player::viewTransform() const
 { //
@@ -420,15 +395,15 @@ B8_t ScrollingTerrain::handleShoot(Ray const &ray)
         if (osid == nullSid) //
             continue;
 
-        Sid_t                meshSid = g_scene.getNodeBySid(osid).getSid();
+        Sid_t const          meshSid = g_scene.getNodeBySid(osid).getSid();
         HandleTable_s::Ref_s ref     = g_handleTable.get(meshSid);
         if (!ref.hasValue()) //
             continue;
 
         auto const &mesh   = ref.asMesh();
-        AABB        obsBox = enlarge(globalSpaceBB(g_scene.getNodeBySid(osid), mesh.box));
+        AABB const  obsBox = enlarge(globalSpaceBB(g_scene.getNodeBySid(osid), mesh.box));
 
-        Hit_t hit = intersect(ray, obsBox);
+        Hit_t const hit = intersect(ray, obsBox);
         if (hit.isect && hit.t < closestT)
         {
             closestT             = hit.t;

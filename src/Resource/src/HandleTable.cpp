@@ -44,13 +44,14 @@ layout (location = 4) out vec3 vPosition;
 layout (std140) uniform MeshUniforms {
     mat4 modelView;
     mat4 modelViewProj;
+    mat4 model;
 };
 
 void main() 
 {
     texCoord = aTexCoord;
     vColor = aColor;
-    vNormal = aNorm;
+    vNormal = mat3(transpose(inverse(model))) * aNorm;
     vShininess = aShininess;
     vPosition = aPos;
     gl_Position = modelViewProj * vec4(aPos, 1.f);
@@ -61,23 +62,25 @@ static char const *const fragSource = R"a(
 #version 460 core
 
 struct LightProperties {
-    bool isEnabled;
-    bool isLocal;
-    bool isSpot;
-    vec3 ambient;
-    vec3 color;
-    vec3 position;
-    vec3 halfVector;
-    vec3 coneDirection;
+    vec3 ambient;       // light's contribution to ambient light
+    vec3 color;         // color of light
+    vec3 position;      // isLocal - light location, else light direction
+    vec3 halfVector;    // direction of highlights for directional light
+    vec3 coneDirection; // spotlight attributes
     float spotCosCutoff;
     float spotExponent;
-    float constantAttenuation;
+    float constantAttenuation; // local light attenuation coefficients
     float linearAttenuation;
     float quadraticAttenuation;
+    bool isEnabled; // true to apply this light in this invocation
+    bool isLocal;   // true - point light or a spotlight, false - positional light
+    bool isSpot;    // true if the light is a spotlight
 };
 
+const uint numLights = 10;
+
 // only light of the scene
-uniform LightProperties light;
+uniform LightProperties lights[numLights];
 
 // albedo
 uniform sampler2D albedoSampler;
@@ -118,7 +121,7 @@ void main() {
     if (hasNormalSampler) {
         mNormal = texture(normalSampler, texCoord.xy).xyz;
     } else {
-        mNormal = vNormal;
+        mNormal = normalize(vNormal);
     }
 
     if (hasShininessSampler) {
@@ -131,48 +134,53 @@ void main() {
     vec3 scatteredLight = vec3(0.f);
     vec3 reflectedLight = vec3(0.f);
 
-    if (light.isEnabled) {
-        vec3 halfVector;
-        vec3 lightDirection = light.position;
-        float attenuation = 1.f;
-        
-        // for local lights, compute per-fragment direction, halfVector and attenuation
-        if (light.isLocal) {
-            lightDirection = lightDirection - vPosition;
-            float lightDistance = length(lightDirection);
-            lightDirection = lightDirection / lightDistance;
+    for (uint i = 0; i < numLights; ++i) {
+        if (lights[i].isEnabled) {
+            vec3 halfVector;
+            vec3 lightDirection = lights[i].position;
+            float attenuation = 1.f;
 
-            attenuation = 1.f / (
-                light.constantAttenuation +
-                light.linearAttenuation * lightDistance + 
-                light.quadraticAttenuation * lightDistance * lightDistance);
+            // for local lights, compute per-fragment direction, halfVector and attenuation
+            if (lights[i].isLocal) {
+                lightDirection = lightDirection - vPosition;
+                float lightDistance = length(lightDirection);
+                lightDirection = lightDirection / lightDistance;
 
-            if (light.isSpot) {
-                float spotCos = dot(lightDirection, -light.coneDirection);
-                if (spotCos < light.spotCosCutoff) {
-                    attenuation = 0.f;
-                } else {
-                    attenuation *= pow(spotCos, light.spotExponent);
+                float attenuationDenominator = lights[i].constantAttenuation +
+                    lights[i].linearAttenuation * lightDistance +
+                    lights[i].quadraticAttenuation * lightDistance * lightDistance;
+
+                if (attenuationDenominator > 1.f) {
+                    attenuation = 1.f / attenuationDenominator;
                 }
+
+                if (lights[i].isSpot) {
+                    float spotCos = dot(lightDirection, -lights[i].coneDirection);
+                    if (spotCos < lights[i].spotCosCutoff) {
+                        attenuation = 0.f;
+                    } else {
+                        attenuation *= pow(spotCos, lights[i].spotExponent);
+                    }
+                }
+
+                halfVector = normalize(lightDirection + eyeDirection);
+            } else {
+                halfVector = lights[i].halfVector;
             }
 
-            halfVector = normalize(lightDirection + eyeDirection);
-        } else {
-            halfVector = light.halfVector;
+            // compute diffuse and specular contributions of the current light
+            float diffuse = max(0.f, dot(mNormal, lightDirection));
+            float specular = max(0.f, dot(mNormal, halfVector));
+
+            if (diffuse == 0.f) {
+                specular = 0.f;
+            } else {
+                specular = pow(specular, vShininess);
+            }
+
+            scatteredLight += (lights[i].ambient + lights[i].color * diffuse) * attenuation;
+            reflectedLight += lights[i].color * specular * attenuation;
         }
-
-        // compute diffuse and specular contributions of the current light
-        float diffuse = max(0.f, dot(mNormal, lightDirection));
-        float specular = max(0.f, dot(mNormal, halfVector));
-
-        if (diffuse == 0.f) {
-            specular = 0.f;
-        } else {
-            specular = pow(specular, vShininess);
-        }
-
-        scatteredLight += (light.ambient + light.color * diffuse) * attenuation;
-        reflectedLight += light.color * specular * attenuation;
     }
 
     vec3 rgb = min(mColor.rgb * scatteredLight + reflectedLight, vec3(1.f));
@@ -210,29 +218,13 @@ TextureData_s &HandleTable_s::insertTexture(Sid_t sid, TextureData_s const &text
     return it->second;
 }
 
-Light_t &HandleTable_s::insertLight(Sid_t sid, Light_t const &light)
-{
-    auto [it, wasInserted] = m_lightTable.try_emplace(sid, light);
-    if (!wasInserted)
-    { //
-        assert(false && "[HandleTable] No duplicates allowed");
-    }
-    return it->second;
-}
-
 B8_t HandleTable_s::remove(Sid_t sid)
 {
     auto it0 = m_meshTable.find(sid);
-    auto it1 = m_lightTable.find(sid);
     auto it2 = m_textureTable.find(sid);
     if (it0 != m_meshTable.cend())
     {
         m_meshTable.erase(it0);
-        return true;
-    }
-    else if (it1 != m_lightTable.cend())
-    {
-        m_lightTable.erase(it1);
         return true;
     }
     else if (it2 != m_textureTable.cend())
@@ -247,20 +239,12 @@ HandleTable_s::Ref_s HandleTable_s::get(Sid_t sid)
 {
     Ref_s ref;
     auto  it0 = m_meshTable.find(sid);
-    auto  it1 = m_lightTable.find(sid);
     auto  it2 = m_textureTable.find(sid);
     if (it0 != m_meshTable.cend())
     {
         ref.m_sid  = sid;
         ref.m_ptr  = &it0->second;
         ref.m_type = EResourceType_t::eMesh;
-        return ref;
-    }
-    else if (it1 != m_lightTable.cend())
-    {
-        ref.m_sid  = sid;
-        ref.m_ptr  = &it1->second;
-        ref.m_type = EResourceType_t::eLight;
         return ref;
     }
     else if (it2 != m_textureTable.cend())
@@ -276,16 +260,6 @@ HandleTable_s::Ref_s HandleTable_s::get(Sid_t sid)
 Mesh_s &HandleTable_s::getMesh(Sid_t sid)
 { //
     return m_meshTable.at(sid);
-}
-
-std::pmr::map<Sid_t, Light_t>::const_iterator HandleTable_s::lightsBegin() const
-{ //
-    return m_lightTable.cbegin();
-}
-
-std::pmr::map<Sid_t, Light_t>::const_iterator HandleTable_s::lightsEnd() const
-{ //
-    return m_lightTable.cend();
 }
 
 static void pushInQueue(std::pmr::vector<aiNode *> &queue, aiNode *node)
@@ -312,6 +286,24 @@ void HandleTable_s::loadFromObj(Char8_t const *path)
     queue.clear();
     queue.reserve(64);
     pushInQueue(queue, scene->mRootNode);
+    // search for material colors, to use as fallback as color vertex when there is no texture and
+    // no vertex color
+    struct MaterialProperties
+    {
+        glm::vec3 diffuse = glm::vec3{ 0.4f, 0.4f, 0.4f };
+    };
+    static U32_t constexpr maxNumMaterialProperties = 16;
+    MaterialProperties materialProperties[maxNumMaterialProperties]{};
+
+    for (U32_t i = 0; i != scene->mNumMaterials; ++i)
+    {
+        aiColor3D diffuse;
+        assert(scene->mMaterials[i]->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse) != AI_FAILURE
+                 && "WHAT");
+        materialProperties[i].diffuse.x = diffuse.r;
+        materialProperties[i].diffuse.y = diffuse.g;
+        materialProperties[i].diffuse.z = diffuse.b;
+    }
 
     for (auto const *node : queue)
     {
@@ -347,14 +339,17 @@ void HandleTable_s::loadFromObj(Char8_t const *path)
                 vertex.texCoords[1] = texCoords[i].y;
                 vertex.texCoords[2] = texCoords[i].z;
 
-                vertex.color[0] = aMesh->HasVertexColors(0) ? colors[0][i].r : 0.4f;
-                vertex.color[1] = aMesh->HasVertexColors(0) ? colors[0][i].g : 0.4f;
-                vertex.color[2] = aMesh->HasVertexColors(0) ? colors[0][i].b : 0.4f;
+                vertex.color[0] = aMesh->HasVertexColors(0) ? colors[0][i].r : materialProperties[aMesh->mMaterialIndex].diffuse.r;
+                vertex.color[1] = aMesh->HasVertexColors(0) ? colors[0][i].g : materialProperties[aMesh->mMaterialIndex].diffuse.g;
+                vertex.color[2] = aMesh->HasVertexColors(0) ? colors[0][i].b : materialProperties[aMesh->mMaterialIndex].diffuse.b;
                 vertex.color[3] = aMesh->HasVertexColors(0) ? colors[0][i].a : 1.f;
 
                 if (aMesh->mMaterialIndex < (U32_t)-1)
                 {
-                    scene->mMaterials[aMesh->mMaterialIndex]->Get(AI_MATKEY_SHININESS, vertex.shininess);
+                    ai_real shininess;
+                    assert(scene->mMaterials[aMesh->mMaterialIndex]->Get(AI_MATKEY_SHININESS, shininess) != AI_FAILURE
+                           && "WHAT");
+                    vertex.shininess = shininess;
                 }
                 else
                 { //
@@ -466,13 +461,9 @@ void HandleTable_s::loadTextures(Char8_t const *basePath, void const *material, 
 
 Mesh_s &HandleTable_s::Ref_s::asMesh() { return *(Mesh_s *)m_ptr; }
 
-Light_t &HandleTable_s::Ref_s::asLight() { return *(Light_t *)m_ptr; }
-
 TextureData_s &HandleTable_s::Ref_s::asTexture() { return *(TextureData_s *)m_ptr; }
 
 Mesh_s const &HandleTable_s::Ref_s::asMesh() const { return *(Mesh_s const *)m_ptr; }
-
-Light_t const &HandleTable_s::Ref_s::asLight() const { return *(Light_t const *)m_ptr; }
 
 TextureData_s const &HandleTable_s::Ref_s::asTexture() const { return *(TextureData_s const *)m_ptr; }
 

@@ -40,27 +40,71 @@ namespace detail
 } // namespace detail
 } // namespace cge
 
-void setMXCSR_DAZ_FTZ()
+static void setMXCSR_DAZ_FTZ()
 {
     _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
     _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
 }
 
 using namespace cge;
+
+class MainTimer
+{
+    static U32_t constexpr timeWindowPower = 2u;
+    static U32_t constexpr timeWindowSize  = 1u << timeWindowPower;
+    static U32_t constexpr timeWindowMask  = (timeWindowSize - 1);
+  public:
+    MainTimer() {
+        std::fill_n(timeWindow.data(), timeWindowSize, timeUnitsIn60FPS);
+        reset();
+    }
+
+    void reset() {
+        startTime = hiResTimer();
+    }
+
+    U32_t elapsedTime() {
+        U32_t measuredElapsedTime = elapsedTimeUnits(hiResTimer(), startTime);
+#if defined(CGE_DEBUG)
+        // if the elapsed time is too big, we must have had a breakpoint. Set
+        // elapsed time to ideal
+        if (measuredElapsedTime > timeUnit32)
+        {
+            measuredElapsedTime = timeUnitsIn60FPS;
+        }
+#endif
+        timeWindow[timeWindowIndex] = measuredElapsedTime;
+        ++timeWindowIndex;
+        timeWindowIndex &= timeWindowMask;
+
+        measuredElapsedTime = 0;
+        for (U32_t i = 0; i != timeWindowSize; ++i)
+        {
+            measuredElapsedTime += timeWindow[i];
+        }
+
+        // equal to measuredElapsedTime / timeWindowSize
+        measuredElapsedTime >>= timeWindowPower;
+        return measuredElapsedTime;
+    }
+
+  private:
+    Array<U32_t, timeWindowSize> timeWindow{};
+    U64_t startTime = 0;
+    U32_t timeWindowIndex = 0;
+};
+
 I32_t main(I32_t argc, Char8_t **argv)
 {
     setMXCSR_DAZ_FTZ();
     g_eventQueue.init();
-    Array<U32_t, timeWindowSize> timeWindow{};
-    std::fill_n(timeWindow.data(), timeWindowSize, timeUnitsIn60FPS);
-
-    U32_t timeWindowIndex = 0;
-    U32_t elapsedTime     = timeUnitsIn60FPS;
-    F32_t elapsedTimeF    = oneOver60FPS;
+    MainTimer mainTimer;
+    U32_t elapsedTime = timeUnitsIn60FPS;
+    F32_t elapsedTimeF = oneOver60FPS;
 
     WindowSpec_t windowSpec{
         .title = "window", .width = 600, .height = 480
-    }; // TODO: read startup config from yaml
+    };
     Window_s window;
     window.init(windowSpec);
 
@@ -84,7 +128,7 @@ I32_t main(I32_t argc, Char8_t **argv)
       !window.shouldClose()
       && !getModuleMap().at(g_startupModule).pModule->taggedForDestruction())
     {
-        U64_t startTime = hiResTimer();
+        mainTimer.reset();
 
         if (Sid_t const sid =
               getModuleMap().at(g_startupModule).pModule->moduleSwitched();
@@ -113,39 +157,17 @@ I32_t main(I32_t argc, Char8_t **argv)
         g_renderer.clear();
         getModuleMap().at(g_startupModule).pModule->onTick(elapsedTimeF);
 
-        U64_t endTime = hiResTimer();
-
-        U32_t measuredElapsedTime = elapsedTimeUnits(endTime, startTime);
-#if defined(CGE_DEBUG)
-        // if the elapsed time is too big, we must have had a breakpoint.  Set
-        // elapsed time to ideal
-        if (measuredElapsedTime > timeUnit32)
-        {
-            measuredElapsedTime = timeUnitsIn60FPS;
-        }
-#endif
-        // perform time average
-        timeWindowIndex             = (timeWindowIndex + 1) & timeWindowMask;
-        timeWindow[timeWindowIndex] = measuredElapsedTime;
-
-        measuredElapsedTime = 0;
-        for (U32_t i = 0; i != timeWindowSize; ++i)
-        {
-            measuredElapsedTime += timeWindow[i];
-        }
-
-        // equal to measuredElapsedTime / timeWindowSize
-        measuredElapsedTime >>= timeWindowPower;
-
-        elapsedTime  = measuredElapsedTime;
-        elapsedTimeF = (F32_t)elapsedTime / timeUnit32;
-
         // swap buffers and poll events (and queue them)
         window.swapBuffers();
-        window.pollEvents(elapsedTime / timeUnitsIn60FPS << 4);
+        window.pollEvents(0);
 
         // dispatch events
         g_eventQueue.dispatch();
+
+        // Update timers
+        elapsedTime  = mainTimer.elapsedTime();
+        elapsedTimeF = (F32_t)elapsedTime / timeUnit32;
+        printf("[main] deltaTime: %f\n", elapsedTimeF);
     }
 
     for (auto &pair : getModuleMap())

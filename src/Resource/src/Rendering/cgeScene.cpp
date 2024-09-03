@@ -97,9 +97,51 @@ B8_t Scene_s::removeNode(Sid_t nodeSid)
     return m_nodeMap.erase(nodeSid) > 0;
 }
 
-void Scene_s::clear()
+void Scene_s::clearSceneNodes()
 { //
     m_nodeMap.clear();
+}
+Scene_s::LightConstIt Scene_s::lightBegin() const
+{ //
+    return m_lightMap.cbegin();
+}
+
+Scene_s::LightIt Scene_s::lightBegin()
+{ //
+    return m_lightMap.begin();
+}
+
+Scene_s::LightConstIt Scene_s::lightEnd() const
+{ //
+    return m_lightMap.cend();
+}
+
+Scene_s::LightIt Scene_s::lightEnd()
+{ //
+    return m_lightMap.end();
+}
+
+Sid_t Scene_s::addLight(Sid_t lightSid, Light_t const &light)
+{
+    Sid_t sceneSid = lightSid;
+    auto  p        = m_lightMap.try_emplace(sceneSid, light);
+    while (!p.second)
+    {
+        ++sceneSid.id;
+        p = m_lightMap.try_emplace(sceneSid, light);
+    }
+
+    return p.first->first;
+}
+
+B8_t Scene_s::removeLight(Sid_t lightSid)
+{ //
+    return m_lightMap.erase(lightSid) > 0;
+}
+
+void Scene_s::clearSceneLights()
+{ //
+    m_lightMap.clear();
 }
 
 } // namespace cge

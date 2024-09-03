@@ -35,6 +35,7 @@ struct MeshUniform_t
 {
     glm::mat4 modelView;
     glm::mat4 modelViewProj;
+    glm::mat4 model;
 };
 // needed to use memcpy
 static_assert(std::is_standard_layout_v<MeshUniform_t>);
@@ -55,11 +56,12 @@ union Textures_t
 
 struct Mesh_s
 {
-    static U32_t constexpr uniformCount = 2;
+    static U32_t constexpr uniformCount = 3;
 
     static constexpr Char8_t const *uniformNames[uniformCount] = {
         "modelView",
-        "modelViewProj"
+        "modelViewProj",
+        "model"
     };
 
     std::pmr::vector<Vertex_t>        vertices{ getMemoryPool() };

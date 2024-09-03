@@ -224,9 +224,12 @@ void Window_s::pollEvents(I32_t waitMillis) const
 {
     glfwPollEvents();
 
-    // delay to reduce CPU usage if our target of 60 FPS was more than reached,
-    // and we need to wait some excess time
-    std::this_thread::sleep_for(std::chrono::milliseconds(waitMillis));
+    if (waitMillis > 0)
+    {
+        // delay to reduce CPU usage if our target of 60 FPS was more than reached,
+        // and we need to wait some excess time
+        std::this_thread::sleep_for(std::chrono::milliseconds(waitMillis));
+    }
 }
 
 void Window_s::emitFramebufferSize() const

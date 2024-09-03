@@ -35,7 +35,7 @@ CGE_DECLARE_STARTUP_MODULE(cge, TestbedModule, "TestbedModule");
 
 namespace cge
 {
-nlohmann::json json;
+static nlohmann::json json;
 
 TestbedModule::~TestbedModule()
 {
@@ -60,7 +60,8 @@ void TestbedModule::onInit(ModuleInitParams params)
 #if defined(CGE_DEBUG)
     printf("DebugMode!\n");
 #endif
-    g_scene.clear();
+    g_scene.clearSceneNodes();
+    g_scene.clearSceneLights();
 
     // register to all relevant events pressed
     EventArg_t listenerData{};
@@ -91,29 +92,25 @@ void TestbedModule::onInit(ModuleInitParams params)
         g_handleTable.loadFromObj("../assets/magnet.obj");
         g_handleTable.loadFromObj("../assets/coin.obj");
         g_handleTable.loadFromObj("../assets/speed.obj");
-
-        // add light to the scene
-        Light_t const sunLight{ 
-            .sid   = CGE_SID("SUN LIGHT"),
-            .props = { 
-                .isEnabled = true,
-                .isLocal = false,
-                .isSpot = false,
-                .ambient   = {0.1f,0.1f,0.1f},
-                .color = {1.f, 1.f, 1.f},
-                .position  = glm::normalize(glm::vec3{-0.4f, 0.3f, 1.f}),
-                .halfVector = glm::normalize(glm::vec3{-0.4f, 0.3f, 1.f}),
-                .coneDirection = {0,0,0},
-                .spotCosCutoff = 0,
-                .spotExponent = 0,
-                .constantAttenuation = 0,
-                .linearAttenuation = 0,
-                .quadraticAttenuation = 0,
-            },
-        };
-
-        g_handleTable.insertLight(sunLight.sid, sunLight);
     }
+
+    // add light to the scene
+    Light_t const sunLight{
+        .ambient              = { 0.1f, 0.1f, 0.1f },
+        .color                = { 1.f, 1.f, 1.f },
+        .position             = glm::normalize(glm::vec3{ -0.4f, -0.3f, 1.f }),
+        .halfVector           = glm::normalize(glm::vec3{ -0.4f, -0.3f, 1.f }),
+        .coneDirection        = { 0, 0, 0 },
+        .spotCosCutoff        = 0,
+        .spotExponent         = 0,
+        .constantAttenuation  = 0,
+        .linearAttenuation    = 0,
+        .quadraticAttenuation = 0,
+        .isEnabled            = true,
+        .isLocal              = false,
+        .isSpot               = false,
+    };
+    g_scene.addLight(CGE_SID("SUN LIGHT"), sunLight);
 
     std::pmr::vector<Sid_t> pieces{ { CGE_SID("Piece") }, getMemoryPool() };
     std::pmr::vector<Sid_t> obstacles{ { CGE_SID("Obstacle") }, getMemoryPool() };
