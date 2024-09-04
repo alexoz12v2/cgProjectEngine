@@ -77,7 +77,22 @@ void Player::spawn(const Camera_t &view, Sid_t meshSid)
 
     m_node->transform(
       glm::inverse(m_camera.viewTransform())
-      * glm::translate(glm::mat4(1.F), glm::vec3(0, -2, -10)));
+      * glm::translate(glm::mat4(1.F), meshCameraOffset));
+}
+
+#if 0
+glm::vec3 Player::displacementTick(F32_t deltaTime)
+{
+    F32_t const velocity =
+      glm::min(baseVelocity * m_velocityMultiplier, maxBaseVelocity)
+      * deltaTime;
+
+    // Calculate the movement direction based on camera's forward vector
+    glm::vec3 direction = m_camera.forward;
+    if (direction != glm::vec3(0.F)) { direction = glm::normalize(direction); }
+    glm::vec3 const displacement = velocity * direction;
+
+    return displacement;
 }
 
 void Player::onTick(F32_t deltaTime)
@@ -137,6 +152,55 @@ void Player::onTick(F32_t deltaTime)
     glm::vec3 const color{ 0.2f, 0.2f, 0.2f };
     g_renderer2D.renderText(fixedStr.cStr(), xyScale, color);
 }
+#else
+
+glm::vec3 Player::displacementTick(F32_t deltaTime)
+{
+    F32_t const      velocity  = glm::min(baseVelocity + m_velocityIncrement, maxBaseVelocity);
+
+    // Calculate the movement direction based on camera's forward vector
+    glm::vec3 direction = m_camera.forward;
+    if (direction != glm::vec3(0.F)) { direction = glm::normalize(direction); }
+    glm::vec3 const displacement = velocity * direction * deltaTime;
+
+    return displacement;
+}
+
+void Player::onTick(F32_t deltaTime)
+{
+    printf("[Player] deltaTime = %f\n", deltaTime);
+    if (m_intersected)
+    { //
+        EventArg_t evData{};
+        evData.idata.u64 = m_score;
+        printf("[Player] INTERSECTED\n");
+    }
+
+    glm::vec3 const displacement = displacementTick(deltaTime);
+    m_score += glm::max(static_cast<decltype(1ULL)>(displacement.y * scoreMultiplier), 1ULL);
+
+    m_lastDisplacement = displacement;
+
+    m_camera.position += displacement;
+
+    if (glm::abs(m_camera.position.x - m_targetXPos) > std::numeric_limits<F32_t>::epsilon())
+    {
+        auto old  = m_camera.position.x;
+        F32_t disp = glm::mix(old, m_targetXPos, 1.f - glm::pow(baseShiftVelocity, deltaTime));
+
+        if (glm::abs(disp - m_targetXPos) <= 0.5f)
+        {
+            disp = m_targetXPos;
+        }
+        m_camera.position.x = disp;
+    }
+
+    //g_scene.getNodeBySid(m_sid).translate(displacement);
+    g_scene.getNodeBySid(m_sid)->setTransform(glm::translate(glm::inverse(m_camera.viewTransform()), meshCameraOffset));
+    m_velocityIncrement = glm::max(glm::abs(glm::log(static_cast<F32_t>(m_score))), 1.f);
+}
+
+#endif
 
 void Player::onFramebufferSize(I32_t width, I32_t height)
 {
@@ -145,39 +209,22 @@ void Player::onFramebufferSize(I32_t width, I32_t height)
     m_framebufferSize.y = static_cast<V>(height);
 }
 
-glm::vec3 Player::displacementTick(F32_t deltaTime) const
-{
-    F32_t const velocity =
-      glm::min(baseVelocity * m_velocityMultiplier, maxBaseVelocity)
-      * deltaTime;
-
-    // Calculate the movement direction based on camera's forward vector
-    glm::vec3 direction = m_camera.forward;
-    if (direction != glm::vec3(0.F)) { direction = glm::normalize(direction); }
-    glm::vec3 const displacement = velocity * direction;
-
-    return displacement;
-}
-
 void Player::onKey(I32_t key, I32_t action)
 {
-    static F32_t constexpr eps = std::numeric_limits<F32_t>::epsilon();
-    if (
-      action == action::CGE_PRESS
-      && (glm::abs(m_camera.position.x - m_targetXPos) <= eps))
+    if (action == action::CGE_PRESS)
     {
         switch (key)
         {
         case key::CGE_KEY_A:
             if ((m_lane & LANE_LEFT) == 0)
-            { //
+            {
                 m_lane <<= 1;
                 m_targetXPos -= laneShift;
             }
             break;
         case key::CGE_KEY_D:
             if ((m_lane & LANE_RIGHT) == 0)
-            { //
+            {
                 m_lane >>= 1;
                 m_targetXPos += laneShift;
             }
@@ -185,7 +232,6 @@ void Player::onKey(I32_t key, I32_t action)
         default:
             break;
         }
-        printf("[Player] target position: %f\n", m_targetXPos);
     }
 }
 
@@ -374,8 +420,6 @@ std::pmr::deque<std::array<SceneNode_s *, numLanes>>
             //    }
             //}
         }
-    }
-
 #if defined(CGE_DEBUG)
         for (auto pNode : m_pieces)
         {
@@ -384,8 +428,8 @@ std::pmr::deque<std::array<SceneNode_s *, numLanes>>
             printf("piece at %f\n", yOff);
         }
         printf("\n\n");
-    }
 #endif
+    }
 
     return m_obstacles;
 }

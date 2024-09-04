@@ -108,6 +108,14 @@ I32_t main(I32_t argc, Char8_t **argv)
         g_renderer.clear();
         getModuleMap().at(g_startupModule).pModule->onTick(elapsedTimeF);
 
+        // swap buffers and poll events (and queue them)
+        window.swapBuffers();
+        window.pollEvents(100);
+
+        // dispatch events
+        g_eventQueue.dispatch();
+
+        // Time measurements
         U64_t endTime = hiResTimer();
 
         U32_t measuredElapsedTime = elapsedTimeUnits(endTime, startTime);
@@ -134,13 +142,6 @@ I32_t main(I32_t argc, Char8_t **argv)
 
         elapsedTime  = measuredElapsedTime;
         elapsedTimeF = (F32_t)elapsedTime / timeUnit32;
-
-        // swap buffers and poll events (and queue them)
-        window.swapBuffers();
-        window.pollEvents(glm::min(timeUnitsIn60FPS - elapsedTime, 0U));
-
-        // dispatch events
-        g_eventQueue.dispatch();
     }
 
     for (auto &pair : getModuleMap())

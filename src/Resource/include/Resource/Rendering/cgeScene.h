@@ -48,6 +48,11 @@ struct SceneNode_s
         m_relativeTransform = t * m_relativeTransform;
     }
 
+    void setTransform(glm::mat4 const &t)
+    {//
+        m_relativeTransform = t;
+    }
+
   private:
     SceneNode_s(Sid_t sid_) : m_sid(sid_), m_isRoot(true), m_parent(true) {}
 

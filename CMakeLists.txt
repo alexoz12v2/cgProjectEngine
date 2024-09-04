@@ -79,6 +79,9 @@ target_compile_features(cge_options INTERFACE cxx_std_${CMAKE_CXX_STANDARD})
 add_library(cge::cge_options ALIAS cge_options)
 add_library(cge::cge_warnings ALIAS cge_warnings)
 
+# debug macro
+add_compile_definitions("_CGEDEBUG=$<IF:$<CONFIG:Debug>,1,0>")
+
 # Define src
 add_subdirectory(src)
 

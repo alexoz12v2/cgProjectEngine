@@ -24,14 +24,15 @@ class Player
 {
   public:
     static F32_t constexpr scoreMultiplier        = 0.1f;
-    static F32_t constexpr baseShiftVelocity      = 5.f;
-    static F32_t constexpr baseVelocity           = 200.f;
+    static F32_t constexpr baseShiftVelocity      = 0.15f;
+    static F32_t constexpr baseVelocity           = 100.f;
     static F32_t constexpr maxBaseVelocity        = 400.f;
     static F32_t constexpr mouseSensitivity       = 0.1f;
     static F32_t constexpr multiplierTimeConstant = 0.1f;
     static U8_t constexpr LANE_LEFT               = 1 << 2; // 0000'0100
     static U8_t constexpr LANE_CENTER             = 1 << 1; // 0000'0010
     static U8_t constexpr LANE_RIGHT              = 1 << 0; // 0000'0001
+    static inline glm::vec3 const meshCameraOffset{0, -2, -10};
 
   public:
     void spawn(Camera_t const &, Sid_t);
@@ -55,7 +56,7 @@ class Player
 
   private:
     void      yawPitchRotate(F32_t yaw, F32_t pitch);
-    glm::vec3 displacementTick(F32_t deltaTime) const;
+    glm::vec3 displacementTick(F32_t deltaTime);
 
     // main components
     Sid_t                m_sid{ nullSid };
@@ -74,6 +75,7 @@ class Player
     F32_t     m_targetXPos{ 0.f };
     F32_t     m_velocityMultiplier{ 1.f };
     glm::vec3 m_lastDisplacement{};
+    F32_t     m_velocityIncrement{ 0.f };
 
     // event data
     glm::uvec2 m_framebufferSize{ 0, 0 };
