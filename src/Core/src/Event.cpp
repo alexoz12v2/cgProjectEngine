@@ -44,7 +44,7 @@ static Sid_t bytesSid(EventArg_t obj)
     return CGE_SID(memory);
 }
 
-std::pair<Event_t, Sid_t> EventQueue_t::addListener(
+EventDataSidPair EventQueue_t::addListener(
   Event_t     event,
   EventFunc_t listener,
   EventArg_t  listenerData)
@@ -53,16 +53,16 @@ std::pair<Event_t, Sid_t> EventQueue_t::addListener(
       std::piecewise_construct,
       std::forward_as_tuple(event),
       std::forward_as_tuple(listener, listenerData));
-    return std::make_pair(event, bytesSid(listenerData));
+    return { event, bytesSid(listenerData) };
 }
 
-void EventQueue_t::removeListener(std::pair<Event_t, Sid_t> pair)
+void EventQueue_t::removeListener(EventDataSidPair const &pair)
 {
-    auto const range = m_multimap.equal_range(pair.first);
+    auto const range = m_multimap.equal_range(pair.ev);
     for (auto it = range.first; it != range.second; ++it)
     {
         Sid_t const sid = bytesSid(it->second.listenerData);
-        if (pair.second == sid)
+        if (pair.dataSid == sid)
         { //
             m_multimap.erase(it);
             break;

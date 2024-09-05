@@ -21,7 +21,10 @@ BackgroundRenderer &getBackgroundRenderer()
     return g_backgroundRenderer;
 }
 
-glm::mat4 Camera_t::viewTransform() const { return glm::lookAt(position, position + forward, up); }
+glm::mat4 Camera_t::viewTransform() const
+{
+    return glm::lookAt(position, position + forward, up);
+}
 
 void Camera_t::setForward(glm::vec3 newForward)
 {
@@ -102,6 +105,25 @@ static void uploadLightData(Scene_s const &scene, I32_t glid)
     }
 }
 
+// turn on if debug is needed
+#if 0
+static void printfMatrix(glm::mat4 const &t) {
+    printf("[Renderer] ");
+    // Iterate through the matrix's rows and columns
+    for (int row = 0; row < 4; ++row) {
+        if (row != 0)
+            printf("\n           ");
+
+        for (int col = 0; col < 4; ++col) {
+            // Print each element with formatting
+            printf("%8.3f ", t[col][row]);
+        }
+        // Newline after each row
+        printf("\n");
+    }
+}
+#endif
+
 void Renderer_s::renderScene(Scene_s const &scene, glm::mat4 const &view, glm::mat4 const &proj, glm::vec3 eye) const
 {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -119,6 +141,18 @@ void Renderer_s::renderScene(Scene_s const &scene, glm::mat4 const &view, glm::m
         MeshUniform_t const uniforms{ .modelView     = modelView,
                                       .modelViewProj = proj * modelView,
                                       .model         = sceneNode.getTransform() };
+// turn on if debug is needed
+#if 0
+        if (sid == "Cube"_sid)
+        {
+            printf("[Renderer] modelView:\n");
+            printfMatrix(uniforms.modelView);
+            printf("[Renderer] modelViewProj:\n");
+            printfMatrix(uniforms.modelViewProj);
+            printf("[Renderer] model:\n");
+            printfMatrix(uniforms.model);
+        }
+#endif
 
         mesh.shaderProgram.bind();
         mesh.vertexArray.bind();
@@ -137,41 +171,43 @@ void Renderer_s::renderScene(Scene_s const &scene, glm::mat4 const &view, glm::m
 void Renderer_s::renderCube() const
 {
     static U32_t constexpr verticesCount     = 8;
-    static glm::vec3 vertices[verticesCount] = { // -------------------------------
-                                                 // Front face
-                                                 { -1.f, -1.f, 1.f },
-                                                 { 1.f, -1.f, 1.f },
-                                                 { 1.f, 1.f, 1.f },
-                                                 { -1.f, 1.f, 1.f },
-                                                 // Back face
-                                                 { -1.f, -1.f, -1.f },
-                                                 { 1.f, -1.f, -1.f },
-                                                 { 1.f, 1.f, -1.f },
-                                                 { -1.f, 1.f, -1.f }
+    static glm::vec3 vertices[verticesCount] = {
+        // ------------------------------------------------------------------------
+        // Front face
+        { -1.f, -1.f, 1.f },
+        { 1.f, -1.f, 1.f },
+        { 1.f, 1.f, 1.f },
+        { -1.f, 1.f, 1.f },
+        // Back face
+        { -1.f, -1.f, -1.f },
+        { 1.f, -1.f, -1.f },
+        { 1.f, 1.f, -1.f },
+        { -1.f, 1.f, -1.f }
     };
     static U32_t verticesNumComponents = glm::vec3::length();
     static U32_t verticesBytes         = verticesNumComponents * verticesCount * sizeof(glm::vec3::value_type);
 
     static U32_t constexpr triangleCount       = 12;
-    static glm::uvec3 triangles[triangleCount] = { // ----------------------------
-                                                   // Front Face
-                                                   { 0, 1, 3 },
-                                                   { 1, 2, 3 },
-                                                   // Back Face
-                                                   { 5, 4, 7 },
-                                                   { 6, 5, 7 },
-                                                   // Left Face
-                                                   { 0, 3, 7 },
-                                                   { 4, 0, 7 },
-                                                   // Right Face
-                                                   { 1, 5, 2 },
-                                                   { 5, 6, 2 },
-                                                   // Top Face
-                                                   { 3, 2, 6 },
-                                                   { 7, 3, 6 },
-                                                   // Bottom Face
-                                                   { 4, 5, 1 },
-                                                   { 0, 4, 1 }
+    static glm::uvec3 triangles[triangleCount] = {
+        // ------------------------------------------------------------------------
+        // Front Face
+        { 0, 1, 3 },
+        { 1, 2, 3 },
+        // Back Face
+        { 5, 4, 7 },
+        { 6, 5, 7 },
+        // Left Face
+        { 0, 3, 7 },
+        { 4, 0, 7 },
+        // Right Face
+        { 1, 5, 2 },
+        { 5, 6, 2 },
+        // Top Face
+        { 3, 2, 6 },
+        { 7, 3, 6 },
+        // Bottom Face
+        { 4, 5, 1 },
+        { 0, 4, 1 }
     };
     static U32_t indicesNumComponents = glm::uvec3::length();
     static U32_t indicesBytes         = indicesNumComponents * triangleCount * sizeof(glm::uvec3::value_type);
@@ -205,7 +241,10 @@ void Renderer_s::renderCube() const
     glDeleteBuffers(1, &EBO);
 }
 
-void Renderer_s::clear() const { glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); }
+void Renderer_s::clear() const
+{
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
 
 void Renderer_s::onFramebufferSize(I32_t width, I32_t height)
 {
@@ -220,7 +259,10 @@ void BackgroundRenderer::init(unsigned char *image, I32_t width, I32_t height)
     if (m_init) //
         return;
 
-    if (!image) { assert(false); }
+    if (!image)
+    {
+        assert(false);
+    }
 
     Texture_s background;
     background.bind(ETexture_t::e2D);
@@ -231,7 +273,10 @@ void BackgroundRenderer::init(unsigned char *image, I32_t width, I32_t height)
       { .minFilter = GL_LINEAR_MIPMAP_LINEAR, .magFilter = GL_LINEAR, .wrap = GL_REPEAT });
     auto optVert = g_shaderLibrary.open("../assets/Background.vert");
     auto optFrag = g_shaderLibrary.open("../assets/Background.frag");
-    if (!optVert.has_value() || !optFrag.has_value()) { assert(false); }
+    if (!optVert.has_value() || !optFrag.has_value())
+    {
+        assert(false);
+    }
     const Shader_s *ppShaders[2] = { *optVert, *optFrag };
     m_backgrProgram.build("background", ppShaders, 2);
 
@@ -280,7 +325,10 @@ void BackgroundRenderer::init(unsigned char *image, I32_t width, I32_t height)
     GpuProgram_s equirectangularToCubemapShader;
     auto         opt1 = g_shaderLibrary.open("../assets/EquiToCube.vert");
     auto         opt2 = g_shaderLibrary.open("../assets/EquiToCube.frag");
-    if (!opt1.has_value() || !opt2.has_value()) { assert(false); }
+    if (!opt1.has_value() || !opt2.has_value())
+    {
+        assert(false);
+    }
     Shader_s const *ppCubeShaders[2] = { *opt1, *opt2 };
     equirectangularToCubemapShader.build("equi to cube", ppCubeShaders, 2);
     equirectangularToCubemapShader.bind();
@@ -292,7 +340,10 @@ void BackgroundRenderer::init(unsigned char *image, I32_t width, I32_t height)
     // don't forget to configure the viewport to the capture dimensions.
     glViewport(0, 0, CUBE_FRAMEBUFFER_SIZE, CUBE_FRAMEBUFFER_SIZE);
     glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) { printf("Framebuffer is not complete!"); }
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    {
+        printf("Framebuffer is not complete!");
+    }
     for (unsigned int i = 0; i < 6; ++i)
     {
         glUniformMatrix4fv(

@@ -15,15 +15,10 @@ namespace cge
 
 class TestbedModule : public IModule
 {
-  private:
-    static Sid_t constexpr vertShader     = "VERTEX"_sid;
-    static Sid_t constexpr fragShader     = "FRAG"_sid;
-    static Sid_t constexpr cubeMeshSid    = "Cube"_sid;
-    static Sid_t constexpr planeMeshSid   = "Plane"_sid;
-    static U32_t constexpr coinBonusScore = 100;
-
   public:
-    explicit TestbedModule(Sid_t id) : IModule(id) {}
+    explicit TestbedModule(Sid_t id) : IModule(id)
+    {
+    }
     TestbedModule(TestbedModule const &other)                = delete;
     TestbedModule &operator=(TestbedModule const &other)     = delete;
     TestbedModule(TestbedModule &&other)                     = delete;
@@ -59,17 +54,17 @@ class TestbedModule : public IModule
     {
         struct S
         {
-            std::pair<Event_t, Sid_t> keyListener;
-            std::pair<Event_t, Sid_t> mouseMovementListener;
-            std::pair<Event_t, Sid_t> mouseButtonListener;
-            std::pair<Event_t, Sid_t> framebufferSizeListener;
+            EventDataSidPair keyListener;
+            EventDataSidPair mouseMovementListener;
+            EventDataSidPair mouseButtonListener;
+            EventDataSidPair framebufferSizeListener;
 
-            std::pair<Event_t, Sid_t> gameOverListener;
-            std::pair<Event_t, Sid_t> shootListener;
-            std::pair<Event_t, Sid_t> magnetAcquiredListener;
+            EventDataSidPair gameOverListener;
+            EventDataSidPair shootListener;
+            EventDataSidPair magnetAcquiredListener;
         };
-        S s;
-        std::array<std::pair<Event_t, Sid_t>, 7> arr;
+        S                               s;
+        std::array<EventDataSidPair, 7> arr;
         static_assert(std::is_standard_layout_v<S> && sizeof(S) == sizeof(decltype(arr)), "implementation failed");
     } m_listeners{};
     B8_t m_init{ false };

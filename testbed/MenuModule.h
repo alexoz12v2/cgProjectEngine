@@ -68,12 +68,12 @@ class MenuModule : public IModule
     {
         struct S
         {
-            std::pair<Event_t, Sid_t> framebufferSizeListener;
-            std::pair<Event_t, Sid_t> mouseMovementListener;
-            std::pair<Event_t, Sid_t> mouseButtonListener;
+            EventDataSidPair framebufferSizeListener;
+            EventDataSidPair mouseMovementListener;
+            EventDataSidPair mouseButtonListener;
         };
         S s;
-        std::array<std::pair<Event_t, Sid_t>, 3> arr;
+        std::array<EventDataSidPair, 3> arr;
         static_assert(std::is_standard_layout_v<S> && sizeof(S) == sizeof(decltype(arr)), "implementation failed");
     } m_listeners{};
 

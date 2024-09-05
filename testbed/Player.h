@@ -9,8 +9,6 @@
 #include "irrKlang/ik_ISound.h"
 #include "irrKlang/ik_ISoundSource.h"
 
-#include <glm/ext/vector_float2.hpp>
-
 #include <array>
 #include <cassert>
 #include <glm/ext/vector_uint2.hpp>
@@ -23,20 +21,15 @@ namespace cge
 {
 
 inline U32_t constexpr pieceSize             = 100;
-inline U32_t constexpr halfPieceSize         = 50;
-inline U32_t constexpr numLanes              = 3;
-inline F32_t constexpr laneShift             = (F32_t)pieceSize / numLanes;
 inline F32_t constexpr coinPositionIncrement = static_cast<F32_t>(pieceSize * 5);
 
 class ScrollingTerrain
 {
   private:
-    static U32_t constexpr numPieces          = 10;
-    static U32_t constexpr maxDestructables   = 4;
-    static U32_t constexpr maxObstacles       = 4;
-    static U32_t constexpr maxPieces          = 4;
-    static U32_t constexpr maxNumSpawnedCoins = 20;
-    static U32_t constexpr numPowerUpTypes    = 2;
+    static U32_t constexpr numPieces        = 10;
+    static U32_t constexpr maxDestructables = 4;
+    static U32_t constexpr maxObstacles     = 4;
+    static U32_t constexpr maxPieces        = 4;
 
   public:
     using ObstacleList = std::array<Sid_t, numPieces>;
@@ -74,8 +67,8 @@ class ScrollingTerrain
     Sid_t selectRandomDestructable() const;
 
     void      addPropOfType(U32_t type, glm::mat4 const &pieceTransform);
-    void      addCoins(F32_t pieceYCoord);
-    void      removeCoins(F32_t pieceYCoord);
+    void      addCoins(F32_t);
+    void      removeCoins(F32_t);
     void      addPowerUp(glm::mat4 const &pieceTransform);
     glm::mat4 propDisplacementTransformFromOldPiece(glm::mat4 const &pieceTransform) const;
     F32_t     randomLaneOffset() const;
@@ -140,32 +133,26 @@ class Player
 
     void onKey(I32_t key, I32_t action);
     void onTick(F32_t deltaTime);
-    void onFramebufferSize(I32_t width, I32_t height);
     void onSpeedAcquired();
 
     [[nodiscard]] AABB      boundingBox() const;
     [[nodiscard]] glm::mat4 viewTransform() const;
     [[nodiscard]] Camera_t  getCamera() const;
     [[nodiscard]] glm::vec3 getCentroid() const;
+    [[nodiscard]] F32_t     getVelocity() const;
 
     // TODO remove
     [[nodiscard]] glm::vec3 lastDisplacement() const;
 
-    bool  intersectPlayerWith(ScrollingTerrain &terrain);
-    void  setSwishSound(irrklang::ISoundSource *sound);
-    void  incrementScore(U32_t increment, U32_t numCoins = 1);
+    bool                intersectPlayerWith(ScrollingTerrain &terrain);
+    void                incrementScore(U32_t increment, U32_t numCoins = 1);
     [[nodiscard]] U64_t getCurrentScore() const;
 
   private:
-    static F32_t constexpr scoreMultiplier        = 0.1f;
-    static F32_t constexpr baseShiftVelocity      = 50.f * 0.25f;
-    static F32_t constexpr baseVelocity           = 100.f;
-    static F32_t constexpr maxBaseVelocity        = 400.f;
-    static U8_t constexpr LANE_LEFT               = 1u << 2; // 0000'0100
-    static U8_t constexpr LANE_CENTER             = 1u << 1; // 0000'0010
-    static U8_t constexpr LANE_RIGHT              = 1u << 0; // 0000'0001
-    static F32_t constexpr invincibilityTime      = 7.f;
-    static inline glm::vec3 const meshCameraOffset{0.f, -2.f, -10.f};
+    static U8_t constexpr LANE_LEFT   = 1u << 2; // 0000'0100
+    static U8_t constexpr LANE_CENTER = 1u << 1; // 0000'0010
+    static U8_t constexpr LANE_RIGHT  = 1u << 0; // 0000'0001
+    static inline glm::vec3 const meshCameraOffset{ 0.f, -2.f, -10.f };
 
   private:
     glm::vec3 displacementTick(F32_t deltaTime);
@@ -189,19 +176,19 @@ class Player
     glm::vec3 m_lastDisplacement{};
 
     // event data
-    glm::uvec2 m_framebufferSize{ 0, 0 };
     union U
     {
-        constexpr U() {}
+        constexpr U()
+        {
+        }
         U &operator=(const U &);
         struct S
         {
-            std::pair<Event_t, Sid_t> keyListener;
-            std::pair<Event_t, Sid_t> framebufferSizeListener;
-            std::pair<Event_t, Sid_t> speedAcquiredListener;
+            EventDataSidPair keyListener;
+            EventDataSidPair speedAcquiredListener;
         };
-        S                                        s;
-        std::array<std::pair<Event_t, Sid_t>, 3> arr;
+        S                               s;
+        std::array<EventDataSidPair, 2> arr;
         static_assert(std::is_standard_layout_v<S> && sizeof(S) == sizeof(decltype(arr)), "implementation failed");
     };
     U     m_listeners{};
@@ -217,6 +204,9 @@ class Player
 
     irrklang::ISoundSource *m_invincibleMusicSource{ nullptr };
     irrklang::ISound       *m_invincibleMusic{ nullptr };
+    void                    stopInvincibleMusic();
+    void                    resumeNormalMusic();
+    void                    stopSwishSound();
 };
 
 } // namespace cge

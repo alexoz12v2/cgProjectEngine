@@ -3,7 +3,7 @@
 namespace cge
 {
 
-std::pmr::unordered_map<Sid_t, bool> moduleInitOnce;
+static std::pmr::unordered_map<Sid_t, bool> moduleInitOnce;
 
 void IModule::tagForDestruction()
 { //

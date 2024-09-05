@@ -35,6 +35,10 @@ CGE_DECLARE_STARTUP_MODULE(cge, TestbedModule, "TestbedModule");
 
 namespace cge
 {
+
+static Sid_t constexpr cubeMeshSid    = "Cube"_sid;
+static U32_t constexpr coinBonusScore = 100;
+
 static nlohmann::json json;
 
 TestbedModule::~TestbedModule()
@@ -201,6 +205,7 @@ void TestbedModule::onFramebufferSize(I32_t width, I32_t height)
 
 void TestbedModule::onGameOver(U64_t score)
 {
+    printf("\033[33m[Testbed] onGameOver Called\033[0m\n");
     U64_t curr = json["bestScore"].template get<U64_t>();
     if (score > curr)
     { //
@@ -236,19 +241,32 @@ void TestbedModule::onTick(float deltaTime)
     auto const center = m_player.getCentroid();
 
     m_scrollingTerrain.updateTilesFromPosition(center);
-    getBackgroundRenderer().renderBackground(m_player.getCamera(), aspectRatio(), CLIPDISTANCE, RENDERDISTANCE);
-
     m_player.onTick(deltaTime);
-    m_player.intersectPlayerWith(m_scrollingTerrain);
+    //m_player.intersectPlayerWith(m_scrollingTerrain);
 
+    getBackgroundRenderer().renderBackground(m_player.getCamera(), aspectRatio(), CLIPDISTANCE, RENDERDISTANCE);
     g_renderer.renderScene(
       g_scene,
       camera.viewTransform(),
       glm::perspective(FOV, aspectRatio(), CLIPDISTANCE, RENDERDISTANCE),
       camera.forward);
-    FixedString const str =
-      fixedStringWithNumber<FixedString<11>("Best Score")>(json["bestScore"].template get<U64_t>());
-    g_renderer2D.renderText(str.cStr(), glm::vec3(25.0f, 25.0f, 1.0f), glm::vec3(0.5, 0.8f, 0.2f));
+
+    std::pmr::string str{ getMemoryPool() };
+
+    str.append("Best Score: ");
+    str.append(std::to_string(json["bestScore"].get<U64_t>()));
+    g_renderer2D.renderText(str.c_str(), glm::vec3(25.0f, 25.0f, 1.0f), glm::vec3(0.5, 0.8f, 0.2f));
+
+    str.clear();
+    str.append("velocity: ");
+    str.append(std::to_string(m_player.getVelocity()));
+    g_renderer2D.renderText(str.c_str(), { 0.1f, 0.8f, 1.f }, { 0.3f, 0.3f, 0.3f });
+
+    str.clear();
+    str.append(std::to_string(m_player.getCurrentScore()));
+    glm::vec3 const xyScale{ m_framebufferSize.x / 1.95f, m_framebufferSize.y / 1.2f, 1.f };
+    glm::vec3 const color{ 0.2f, 0.2f, 0.2f };
+    g_renderer2D.renderText(str.c_str(), xyScale, color);
 }
 
 [[nodiscard]] F32_t TestbedModule::aspectRatio() const

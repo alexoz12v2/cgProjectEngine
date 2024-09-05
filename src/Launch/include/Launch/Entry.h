@@ -5,6 +5,8 @@
 #include "Core/StringUtils.h"
 #include "Core/Type.h"
 
+#include <gsl/pointers>
+
 #include <concepts>
 #include <functional>
 #include <map>
@@ -14,11 +16,12 @@ namespace cge
 
 struct ModuleConstructorPair
 {
-    IModule              *pModule;
+    ModuleConstructorPair(std::function<void()> const &f): ctor(f), pModule(nullptr) {}
     std::function<void()> ctor;
+    gsl::owner<IModule *> pModule;
 };
 
-using ModuleMap = std::pmr::map<Sid_t, ModuleConstructorPair>;
+using ModuleMap = std::pmr::unordered_map<Sid_t, ModuleConstructorPair>;
 extern Sid_t g_startupModule;
 
 ModuleMap &getModuleMap();
@@ -51,11 +54,16 @@ namespace detail
             ::cge::detail::addModule((moduleStr), f);                                          \
             ::cge::g_startupModule = CGE_SID((moduleStr));                                     \
         }                                                                                      \
-        ~U##ModuleT() {}                                                                       \
+        ~U##ModuleT()                                                                          \
+        {                                                                                      \
+        }                                                                                      \
         ::cge::detail::Initializer<::ModuleNS::ModuleT> m;                                     \
     };                                                                                         \
     U##ModuleT g_initModule##ModuleT;                                                          \
-    void       initModuleType##ModuleT(U##ModuleT *ptr) { std::construct_at(&ptr->m, (moduleStr)); }
+    void       initModuleType##ModuleT(U##ModuleT *ptr)                                        \
+    {                                                                                          \
+        std::construct_at(&ptr->m, (moduleStr));                                               \
+    }
 
 #define CGE_DECLARE_MODULE(ModuleNS, ModuleT, moduleStr)                                       \
     static ::cge::Char8_t const *name_##ModuleT = (moduleStr);                                 \
@@ -68,8 +76,13 @@ namespace detail
             auto const f = std::function<void()>([this]() { initModuleType##ModuleT(this); }); \
             ::cge::detail::addModule((moduleStr), f);                                          \
         }                                                                                      \
-        ~U##ModuleT() {}                                                                       \
+        ~U##ModuleT()                                                                          \
+        {                                                                                      \
+        }                                                                                      \
         ::cge::detail::Initializer<::ModuleNS::ModuleT> m;                                     \
     };                                                                                         \
     U##ModuleT g_initModule##ModuleT;                                                          \
-    void       initModuleType##ModuleT(U##ModuleT *ptr) { std::construct_at(&ptr->m, (moduleStr)); }
+    void       initModuleType##ModuleT(U##ModuleT *ptr)                                        \
+    {                                                                                          \
+        std::construct_at(&ptr->m, (moduleStr));                                               \
+    }

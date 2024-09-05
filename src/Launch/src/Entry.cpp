@@ -16,10 +16,6 @@
 namespace cge
 {
 
-inline U32_t constexpr timeWindowPower = 2u;
-inline U32_t constexpr timeWindowSize  = 1u << timeWindowPower;
-inline U32_t constexpr timeWindowMask  = (timeWindowSize - 1);
-
 ModuleMap &getModuleMap()
 {
     static ModuleMap modules{ getMemoryPool() };
@@ -31,10 +27,7 @@ namespace detail
 {
     void addModule(Char8_t const *moduleStr, std::function<void()> const &f)
     {
-        getModuleMap().emplace(
-          std::piecewise_construct,
-          std::forward_as_tuple(CGE_SID(moduleStr)),
-          std::forward_as_tuple(nullptr, f));
+        getModuleMap().try_emplace(CGE_SID(moduleStr), f);
     }
 
 } // namespace detail
@@ -50,21 +43,25 @@ using namespace cge;
 
 class MainTimer
 {
-    static U32_t constexpr timeWindowPower = 2u;
-    static U32_t constexpr timeWindowSize  = 1u << timeWindowPower;
-    static U32_t constexpr timeWindowMask  = (timeWindowSize - 1);
+    static U32_t constexpr timeWindowPower    = 2u;
+    static U32_t constexpr timeWindowCapacity = 1u << timeWindowPower;
+    static U32_t constexpr timeWindowMask     = (timeWindowCapacity - 1);
+
   public:
-    MainTimer() {
-        std::fill_n(timeWindow.data(), timeWindowSize, timeUnitsIn60FPS);
+    MainTimer()
+    {
+        std::fill_n(m_timeWindow.data(), timeWindowCapacity, timeUnitsIn60FPS);
         reset();
     }
 
-    void reset() {
-        startTime = hiResTimer();
+    void reset()
+    {
+        m_startTime = hiResTimer();
     }
 
-    U32_t elapsedTime() {
-        U32_t measuredElapsedTime = elapsedTimeUnits(hiResTimer(), startTime);
+    U32_t elapsedTime()
+    {
+        U32_t measuredElapsedTime = elapsedTimeUnits(hiResTimer(), m_startTime);
 #if defined(CGE_DEBUG)
         // if the elapsed time is too big, we must have had a breakpoint. Set
         // elapsed time to ideal
@@ -73,25 +70,26 @@ class MainTimer
             measuredElapsedTime = timeUnitsIn60FPS;
         }
 #endif
-        timeWindow[timeWindowIndex] = measuredElapsedTime;
-        ++timeWindowIndex;
-        timeWindowIndex &= timeWindowMask;
+        m_timeWindow[m_timeWindowIndex] = measuredElapsedTime;
+        ++m_timeWindowIndex;
+        m_timeWindowIndex &= timeWindowMask;
+        m_timeWindowSize = glm::min(m_timeWindowSize + 1, timeWindowCapacity);
 
         measuredElapsedTime = 0;
-        for (U32_t i = 0; i != timeWindowSize; ++i)
+        for (U32_t i = 0; i != m_timeWindowSize; ++i)
         {
-            measuredElapsedTime += timeWindow[i];
+            measuredElapsedTime += m_timeWindow[i];
         }
 
-        // equal to measuredElapsedTime / timeWindowSize
-        measuredElapsedTime >>= timeWindowPower;
+        measuredElapsedTime /= m_timeWindowSize;
         return measuredElapsedTime;
     }
 
   private:
-    Array<U32_t, timeWindowSize> timeWindow{};
-    U64_t startTime = 0;
-    U32_t timeWindowIndex = 0;
+    Array<U32_t, timeWindowCapacity> m_timeWindow{};
+    U64_t                            m_startTime       = 0;
+    U32_t                            m_timeWindowIndex = 0;
+    U32_t                            m_timeWindowSize  = 0;
 };
 
 I32_t main(I32_t argc, Char8_t **argv)
@@ -99,20 +97,17 @@ I32_t main(I32_t argc, Char8_t **argv)
     setMXCSR_DAZ_FTZ();
     g_eventQueue.init();
     MainTimer mainTimer;
-    U32_t elapsedTime = timeUnitsIn60FPS;
-    F32_t elapsedTimeF = oneOver60FPS;
+    U32_t     elapsedTime  = timeUnitsIn60FPS;
+    F32_t     elapsedTimeF = oneOver60FPS;
 
-    WindowSpec_t windowSpec{
-        .title = "window", .width = 600, .height = 480
-    };
-    Window_s window;
+    WindowSpec_t windowSpec{ .title = "window", .width = 600, .height = 480 };
+    Window_s     window;
     window.init(windowSpec);
 
     g_focusedWindow.setFocusedWindow(&window);
 
     // construct startup module
     getModuleMap().at(g_startupModule).ctor();
-    printf("past pre initialization\n");
 
     ModuleInitParams const params{};
     getModuleMap().at(g_startupModule).pModule->onInit(params);
@@ -122,17 +117,11 @@ I32_t main(I32_t argc, Char8_t **argv)
     window.emitFramebufferSize();
     g_eventQueue.dispatch();
 
-    printf("past initialization\n");
-
-    while (
-      !window.shouldClose()
-      && !getModuleMap().at(g_startupModule).pModule->taggedForDestruction())
+    while (!window.shouldClose() && !getModuleMap().at(g_startupModule).pModule->taggedForDestruction())
     {
         mainTimer.reset();
 
-        if (Sid_t const sid =
-              getModuleMap().at(g_startupModule).pModule->moduleSwitched();
-            sid != nullSid)
+        if (Sid_t const sid = getModuleMap().at(g_startupModule).pModule->moduleSwitched(); sid != nullSid)
         {
             if (getModuleMap().contains(sid))
             { // destroy current module and set it to nullptr
@@ -148,7 +137,7 @@ I32_t main(I32_t argc, Char8_t **argv)
                 g_eventQueue.dispatch();
             }
             else
-            { //
+            {
                 getModuleMap().at(g_startupModule).pModule->resetSwitchModule();
             }
         }
@@ -167,11 +156,10 @@ I32_t main(I32_t argc, Char8_t **argv)
         // Update timers
         elapsedTime  = mainTimer.elapsedTime();
         elapsedTimeF = (F32_t)elapsedTime / timeUnit32;
-        printf("[main] deltaTime: %f\n", elapsedTimeF);
     }
 
-    for (auto &pair : getModuleMap())
+    for (auto &[sid, moduleCtorPair] : getModuleMap())
     { // if the pointer is nullptr delete is nop
-        delete pair.second.pModule;
+        delete moduleCtorPair.pModule;
     }
 }

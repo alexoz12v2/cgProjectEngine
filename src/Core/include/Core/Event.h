@@ -41,7 +41,6 @@ union EventFloatArg_t
     F32_t  f32[4];
     F64_t  f64[2];
 };
-static_assert(sizeof(V128_t));
 
 struct EventArg_t
 {
@@ -67,7 +66,8 @@ inline B8_t operator==(Event_t const &a, Event_t const &b)
 } // namespace cge
 
 
-template<> struct std::hash<cge::Event_t>
+template<>
+struct std::hash<cge::Event_t>
 {
     std::size_t operator()(cge::Event_t s) const noexcept
     {
@@ -79,6 +79,13 @@ template<> struct std::hash<cge::Event_t>
 
 namespace cge
 {
+
+struct EventDataSidPair
+{
+    Event_t ev;
+    Sid_t   dataSid;
+};
+
 class EventQueue_t
 {
   public:
@@ -86,10 +93,9 @@ class EventQueue_t
 
     EErr_t dispatch();
 
-    EErr_t emit(Event_t event, EventArg_t eventData);
-    std::pair<Event_t, Sid_t>
-      addListener(Event_t event, EventFunc_t listener, EventArg_t listenerData);
-    void removeListener(std::pair<Event_t, Sid_t> pair);
+    EErr_t           emit(Event_t event, EventArg_t eventData);
+    EventDataSidPair addListener(Event_t event, EventFunc_t listener, EventArg_t listenerData);
+    void             removeListener(EventDataSidPair const &pair);
 
   private:
     struct DispatcherListenerPair
@@ -99,17 +105,14 @@ class EventQueue_t
     };
 
   private:
-    std::pmr::unordered_multimap<Event_t, DispatcherListenerPair> m_multimap{
-        getMemoryPool()
-    };
+    std::pmr::unordered_multimap<Event_t, DispatcherListenerPair> m_multimap{ getMemoryPool() };
 
     /**
      * Data structure containing emitted events to be handled on dispatch
      */
-    std::queue<
-      std::pair<Event_t, EventArg_t>,
-      std::pmr::deque<std::pair<Event_t, EventArg_t>>>
-      m_queue{ getMemoryPool() };
+    std::queue<std::pair<Event_t, EventArg_t>, std::pmr::deque<std::pair<Event_t, EventArg_t>>> m_queue{
+        getMemoryPool()
+    };
 };
 
 // TODO: when finish group all globals into singleton
@@ -126,8 +129,7 @@ void KeyCallback(EventArg_t eventData, EventArg_t listenerData)
 }
 
 template<typename T>
-concept MouseButtonListener =
-  requires(T obj, I32_t x, I32_t y) { obj.onMouseButton(x, y); };
+concept MouseButtonListener = requires(T obj, I32_t x, I32_t y) { obj.onMouseButton(x, y); };
 
 template<MouseButtonListener T>
 void mouseButtonCallback(EventArg_t eventData, EventArg_t listenerData)
@@ -137,8 +139,7 @@ void mouseButtonCallback(EventArg_t eventData, EventArg_t listenerData)
 };
 
 template<typename T>
-concept MouseMovementListener =
-  requires(T obj, F32_t x, F32_t y) { obj.onMouseMovement(x, y); };
+concept MouseMovementListener = requires(T obj, F32_t x, F32_t y) { obj.onMouseMovement(x, y); };
 
 template<MouseMovementListener T>
 void mouseMovementCallback(EventArg_t eventData, EventArg_t listenerData)
@@ -148,8 +149,7 @@ void mouseMovementCallback(EventArg_t eventData, EventArg_t listenerData)
 }
 
 template<typename T>
-concept FrameBufferSizeListener =
-  requires(T obj, I32_t x, I32_t y) { obj.onFramebufferSize(x, y); };
+concept FrameBufferSizeListener = requires(T obj, I32_t x, I32_t y) { obj.onFramebufferSize(x, y); };
 
 template<FrameBufferSizeListener T>
 void framebufferSizeCallback(EventArg_t eventData, EventArg_t listenerData)
