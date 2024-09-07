@@ -56,7 +56,7 @@ TestbedModule::~TestbedModule()
 }
 
 // boilerplate ----------------------------------------------------------------
-void TestbedModule::onInit(ModuleInitParams params)
+void TestbedModule::onInit()
 {
     Sid_t const    mId = CGE_SID("TestbedModule");
     Char8_t const *str = CGE_DBG_STRLOOKUP(mId);
@@ -88,7 +88,7 @@ void TestbedModule::onInit(ModuleInitParams params)
 
     if (!initializedOnce())
     {
-        g_handleTable.loadFromObj("../assets/lightTestScene.obj");
+        g_handleTable.loadFromObj("../assets/ornithepter.obj");
         g_handleTable.loadFromObj("../assets/plane.obj");
         g_handleTable.loadFromObj("../assets/piece.obj");
         g_handleTable.loadFromObj("../assets/prop.obj");
@@ -136,7 +136,7 @@ void TestbedModule::onInit(ModuleInitParams params)
     camera.right    = glm::vec3(1.f, 0.f, 0.f);
     camera.up       = glm::vec3(0.f, 0.f, 1.f);
     camera.forward  = glm::vec3(0.f, 1.f, 0.f);
-    m_player.spawn(camera, CGE_SID("Cube"));
+    m_player.spawn(camera);
 
     // background, terrain, terrain collisions
     stbi_set_flip_vertically_on_load(true);
@@ -163,7 +163,7 @@ void TestbedModule::onInit(ModuleInitParams params)
     }
 
     m_init = true;
-    IModule::onInit({});
+    IModule::onInit();
 }
 
 void TestbedModule::onKey(I32_t key, I32_t action)
@@ -234,7 +234,7 @@ void TestbedModule::onMagnetAcquired()
     printf("[Testbed] MAGNET POWERUP ACQUIRED\n");
 }
 
-void TestbedModule::onTick(float deltaTime)
+void TestbedModule::onTick(U64_t deltaTime)
 {
     auto const p      = m_player.lastDisplacement();
     auto const camera = m_player.getCamera();

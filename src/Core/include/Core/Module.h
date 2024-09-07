@@ -27,8 +27,8 @@ class IModule
     virtual ~IModule() = default;
 
   public:
-    virtual void onInit(ModuleInitParams params);
-    virtual void onTick(float deltaTime) = 0;
+    virtual void onInit();
+    virtual void onTick(U64_t deltaTime) = 0;
 
     bool  taggedForDestruction() const;
     Sid_t moduleSwitched() const;

@@ -48,8 +48,8 @@ class MenuModule : public IModule
     ~MenuModule() override;
 
   public:
-    void onInit(ModuleInitParams params) override;
-    void onTick(F32_t deltaTime) override;
+    void onInit() override;
+    void onTick(U64_t deltaTime) override;
     void onFramebufferSize(I32_t width, I32_t height);
     void onMouseMovement(F32_t x, F32_t y);
     void onMouseButton(I32_t key, I32_t action);

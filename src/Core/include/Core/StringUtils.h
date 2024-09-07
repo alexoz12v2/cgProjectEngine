@@ -11,7 +11,7 @@ namespace cge
 struct Sid_t
 {
     U64_t           id;
-    Char8_t const *pStr = nullptr;
+    Char8_t const *pStr;
 };
 #else
 struct Sid_t

@@ -12,11 +12,13 @@ target_sources(testbed
     MenuModule.cpp
     SoundEngine.h
     SoundEngine.cpp
+    Ornithopter.h
+    Ornithopter.cpp
 )
 
 target_include_directories(testbed
   PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 target_link_libraries(testbed PRIVATE cge::cge stb::stb glm::glm irrKlang::irrKlang nlohmann_json::nlohmann_json)

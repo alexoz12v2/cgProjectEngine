@@ -29,7 +29,7 @@ MenuModule::~MenuModule()
     }
 }
 
-void MenuModule::onInit(ModuleInitParams params)
+void MenuModule::onInit()
 {
     EventArg_t listenerData{};
     listenerData.idata.p =
@@ -46,7 +46,7 @@ void MenuModule::onInit(ModuleInitParams params)
     m_init = true;
 }
 
-void MenuModule::onTick(F32_t deltaTime)
+void MenuModule::onTick(U64_t deltaTime)
 {
     for (const auto &button : buttons)
     { //

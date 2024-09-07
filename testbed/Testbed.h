@@ -26,8 +26,8 @@ class TestbedModule : public IModule
     ~TestbedModule() override;
 
   public:
-    void onInit(ModuleInitParams params) override;
-    void onTick(float deltaTime) override;
+    void onInit() override;
+    void onTick(U64_t deltaTime) override;
     void onKey(I32_t key, I32_t action);
     void onMouseButton(I32_t key, I32_t action);
     void onMouseMovement(F32_t xPos, F32_t yPos);

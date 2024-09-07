@@ -98,7 +98,6 @@ I32_t main(I32_t argc, Char8_t **argv)
     g_eventQueue.init();
     MainTimer mainTimer;
     U32_t     elapsedTime  = timeUnitsIn60FPS;
-    F32_t     elapsedTimeF = oneOver60FPS;
 
     WindowSpec_t windowSpec{ .title = "window", .width = 600, .height = 480 };
     Window_s     window;
@@ -110,7 +109,7 @@ I32_t main(I32_t argc, Char8_t **argv)
     getModuleMap().at(g_startupModule).ctor();
 
     ModuleInitParams const params{};
-    getModuleMap().at(g_startupModule).pModule->onInit(params);
+    getModuleMap().at(g_startupModule).pModule->onInit();
 
     g_renderer.init();
     g_renderer2D.init();
@@ -130,7 +129,7 @@ I32_t main(I32_t argc, Char8_t **argv)
 
                 g_startupModule = sid;
                 getModuleMap().at(g_startupModule).ctor();
-                getModuleMap().at(g_startupModule).pModule->onInit(params);
+                getModuleMap().at(g_startupModule).pModule->onInit();
                 // Doesn't make sense, but needed, otherwise viewport breaks
                 // when changing modules
                 window.emitFramebufferSize();
@@ -144,7 +143,7 @@ I32_t main(I32_t argc, Char8_t **argv)
 
         // Do stuff...
         g_renderer.clear();
-        getModuleMap().at(g_startupModule).pModule->onTick(elapsedTimeF);
+        getModuleMap().at(g_startupModule).pModule->onTick(elapsedTime);
 
         // swap buffers and poll events (and queue them)
         window.swapBuffers();
@@ -155,7 +154,6 @@ I32_t main(I32_t argc, Char8_t **argv)
 
         // Update timers
         elapsedTime  = mainTimer.elapsedTime();
-        elapsedTimeF = (F32_t)elapsedTime / timeUnit32;
     }
 
     for (auto &[sid, moduleCtorPair] : getModuleMap())

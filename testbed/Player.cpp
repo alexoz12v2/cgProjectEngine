@@ -5,6 +5,7 @@
 #include "Core/Events.h"
 #include "Core/KeyboardKeys.h"
 #include "Core/StringUtils.h"
+#include "Core/TimeUtils.h"
 #include "Core/Type.h"
 #include "Render/Renderer.h"
 #include "Render/Renderer2d.h"
@@ -34,6 +35,7 @@ static F32_t constexpr baseVelocity      = 100.f;
 static F32_t constexpr maxBaseVelocity   = 400.f;
 static F32_t constexpr invincibilityTime = 7.f;
 static F32_t constexpr speedBoost        = 2.f;
+static glm::vec3 const meshCameraOffset{ 0.f, -10.f, -20.f };
 
 // scrolling terrain constants
 static U32_t constexpr numPowerUpTypes    = std::array{ "speed", "magnet" }.size();
@@ -48,11 +50,6 @@ Player::~Player()
             g_eventQueue.removeListener(pair);
         }
 
-        if (m_swishSound)
-        {
-            m_swishSound->stop();
-            m_swishSound->drop();
-        }
         if (m_invincibleMusic)
         {
             m_invincibleMusic->stop();
@@ -65,13 +62,12 @@ Player::~Player()
         }
 
         g_soundEngine()->removeSoundSource(m_bgmSource);
-        g_soundEngine()->removeSoundSource(m_swishSoundSource);
         g_soundEngine()->removeSoundSource(m_invincibleMusicSource);
-        g_scene.removeNode(m_sid);
+        std::destroy_at(&m_delayedCtor.ornithopter);
     }
 }
 
-void Player::spawn(const Camera_t &view, Sid_t meshSid)
+void Player::spawn(const Camera_t &view)
 {
     EventArg_t listenerData{};
     listenerData.idata.p      = reinterpret_cast<Byte_t *>(this);
@@ -79,28 +75,33 @@ void Player::spawn(const Camera_t &view, Sid_t meshSid)
     m_listeners.s.speedAcquiredListener =
       g_eventQueue.addListener(evSpeedAcquired, speedAcquiredCallback<Player>, listenerData);
 
-    m_sid  = g_scene.addNode(meshSid);
-    m_mesh = &g_handleTable.get(meshSid).asMesh();
+    OrnithopterSpec const spec{
+        .body        = CGE_SID("Body"),
+        .wingUpR     = CGE_SID("wing_up.R"),
+        .wingUpL     = CGE_SID("wing_up.L"),
+        .wingBottomR = CGE_SID("wing_bottom.R"),
+        .wingBottomL = CGE_SID("wing_bottom.L"),
+    };
+    std::construct_at(&m_delayedCtor.ornithopter, spec);
 
     m_camera = view;
+    m_delayedCtor.ornithopter.init(glm::translate(glm::inverse(m_camera.viewTransform()), meshCameraOffset));
 
-    g_scene.getNodeBySid(m_sid).setTransform(glm::translate(glm::inverse(m_camera.viewTransform()), meshCameraOffset));
-
-    m_swishSoundSource      = g_soundEngine()->addSoundSourceFromFile("../assets/swish.mp3");
     m_invincibleMusicSource = g_soundEngine()->addSoundSourceFromFile("../assets/invincible.mp3");
 
     m_bgmSource = g_soundEngine()->addSoundSourceFromFile("../assets/bgm0.mp3");
     m_bgm       = g_soundEngine()->play2D(m_bgmSource, true);
     m_init      = true;
 
-    assert(m_swishSoundSource && m_invincibleMusicSource && m_bgmSource);
+    assert(m_invincibleMusicSource && m_bgmSource);
 }
 
-void Player::onTick(F32_t deltaTime)
+void Player::onTick(U64_t deltaTimeI)
 {
+    F32_t deltaTimeF = static_cast<F32_t>(deltaTimeI) / timeUnit64;
     if (m_invincible)
     { //
-        m_invincibilityTimer += deltaTime;
+        m_invincibilityTimer += deltaTimeF;
         printf("[Player] INVINCIBLE, Timer = %f\n", m_invincibilityTimer);
         if (m_invincibilityTimer > invincibilityTime)
         {
@@ -119,7 +120,7 @@ void Player::onTick(F32_t deltaTime)
     else
     {
         // compute forward movement
-        glm::vec3 const displacement = displacementTick(deltaTime);
+        glm::vec3 const displacement = displacementTick(deltaTimeF);
         m_score += glm::max(static_cast<decltype(1ULL)>(displacement.y * scoreMultiplier), 1ULL);
         m_oldPosition = m_camera.position;
 
@@ -127,34 +128,25 @@ void Player::onTick(F32_t deltaTime)
         F32_t disp = m_oldPosition.x;
         if (glm::abs(m_camera.position.x - m_targetXPos) > std::numeric_limits<F32_t>::epsilon())
         {
-            disp = glm::mix(m_camera.position.x, m_targetXPos, 1.f - glm::pow(baseShiftDelay, deltaTime));
+            disp = glm::mix(m_camera.position.x, m_targetXPos, 1.f - glm::pow(baseShiftDelay, deltaTimeF));
 
             if (glm::abs(disp - m_targetXPos) <= 0.5f)
             {
                 disp = m_targetXPos;
-                stopSwishSound();
+                m_delayedCtor.ornithopter.stopSwish();
             }
         }
 
         // first apply old position to mesh
-        g_scene.getNodeBySid(m_sid).setTransform(
-          glm::translate(glm::inverse(m_camera.viewTransform()), meshCameraOffset));
+        m_delayedCtor.ornithopter.onTick(
+          deltaTimeI, glm::translate(glm::inverse(m_camera.viewTransform()), meshCameraOffset));
         // then update position
         m_camera.position.x = disp;
         m_camera.position += displacement;
         m_velocityIncrement = glm::max(glm::abs(glm::log(static_cast<F32_t>(m_score))), 1.f);
-#if 0
-        printf("[Player] New Displacement after deltaTime %f <=> %f\n", deltaTime, displacement.y);
+#if 1
+        printf("[Player] New Displacement after deltaTime %f <=> %f\n", deltaTimeF, displacement.y);
 #endif
-    }
-}
-void Player::stopSwishSound()
-{
-    if (m_swishSound)
-    {
-        m_swishSound->stop();
-        m_swishSound->drop();
-        m_swishSound = nullptr;
     }
 }
 void Player::resumeNormalMusic()
@@ -226,7 +218,7 @@ void Player::onKey(I32_t key, I32_t action)
             {
                 m_lane <<= 1;
                 m_targetXPos -= laneShift;
-                m_swishSound = g_soundEngine()->play2D(m_swishSoundSource);
+                m_delayedCtor.ornithopter.playSwish();
             }
             break;
         case key::D:
@@ -234,7 +226,7 @@ void Player::onKey(I32_t key, I32_t action)
             {
                 m_lane >>= 1;
                 m_targetXPos += laneShift;
-                m_swishSound = g_soundEngine()->play2D(m_swishSoundSource);
+                m_delayedCtor.ornithopter.playSwish();
             }
             break;
         default:
@@ -244,6 +236,7 @@ void Player::onKey(I32_t key, I32_t action)
 
     if ((action == action::PRESS || action == action::REPEAT) && key == key::SPACE)
     {
+        m_delayedCtor.ornithopter.playGun();
         EventArg_t evArg{};
         evArg.fdata.f32[0] = m_oldPosition[0];
         evArg.fdata.f32[1] = m_oldPosition[1];
@@ -257,7 +250,7 @@ void Player::onKey(I32_t key, I32_t action)
 
 AABB Player::boundingBox() const
 {
-    return globalSpaceBB(m_sid, m_mesh->box);
+    return m_delayedCtor.ornithopter.bodyBoundingBox();
 }
 
 glm::mat4 Player::viewTransform() const
@@ -276,13 +269,13 @@ glm::vec3 Player::lastDisplacement() const
 }
 
 glm::vec3 Player::getCentroid() const
-{ //
-    return centroid(globalSpaceBB(g_scene.getNodeBySid(m_sid), m_mesh->box));
+{
+    return centroid(boundingBox());
 }
 
 void ScrollingTerrain::init(InitData const &initData)
 {
-    auto const identity           = glm::mat4(1.f);
+    auto const initialMt          = glm::translate(glm::scale(glm::mat4(1.f), glm::vec3(1.f, 1.f, 2.f)), glm::vec3(0.f, 0.f, -5.f));
     static U32_t constexpr offset = 1;
 
     // load all available meshes
@@ -300,7 +293,7 @@ void ScrollingTerrain::init(InitData const &initData)
     for (U32_t index = 0; index != numPieces; ++index)
     {
         F32_t const     yOff    = (static_cast<F32_t>(index) - offset) * pieceSize;
-        glm::mat4 const t       = glm::translate(identity, glm::vec3(0.f, yOff, 0.f));
+        glm::mat4 const t       = glm::translate(initialMt, glm::vec3(0.f, yOff, 0.f));
         Sid_t           meshSid = selectRandomPiece();
 
         m_pieces[index] = g_scene.addNode(meshSid);
@@ -566,13 +559,13 @@ B8_t ScrollingTerrain::shouldCheckForPowerUps() const
 }
 
 void ScrollingTerrain::removeCoin(CoinMap::iterator const &it)
-{ //
+{
     g_scene.removeNode(it->second);
     m_coinMap.erase(it);
 }
 
 void ScrollingTerrain::removeCoin(CoinMap::const_iterator const &it)
-{ //
+{
     g_scene.removeNode(it->second);
     m_coinMap.erase(it);
 }
@@ -592,11 +585,11 @@ void ScrollingTerrain::powerUpAcquired(U32_t index)
 
     // emit event based on the type of power up
     if (sid == m_magnetPowerUp)
-    { //
+    {
         g_eventQueue.emit(evMagnetAcquired, evData);
     }
     else if (sid == m_speedPowerUp)
-    { //
+    {
         g_eventQueue.emit(evSpeedAcquired, evData);
     }
 }
@@ -726,7 +719,7 @@ F32_t ScrollingTerrain::randomLaneOffset() const
 
 bool Player::intersectPlayerWith(ScrollingTerrain &terrain)
 {
-    AABB const      playerBox{ globalSpaceBB(g_scene.getNodeBySid(m_sid), m_mesh->box) };
+    AABB const      playerBox{ boundingBox() };
     glm::vec3 const newPosition{ centroid(playerBox) };
     Ray const       playerRay{ m_oldPosition, newPosition - m_oldPosition };
     F32_t const     movementDistance = newPosition.y - m_oldPosition.y;

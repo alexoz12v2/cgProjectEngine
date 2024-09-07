@@ -4,6 +4,7 @@
 #include "Core/Random.h"
 #include "Core/StringUtils.h"
 #include "Core/Type.h"
+#include "Ornithopter.h"
 #include "Render/Renderer.h"
 #include "Resource/Rendering/cgeMesh.h"
 #include "irrKlang/ik_ISound.h"
@@ -133,10 +134,10 @@ class Player
     ~Player();
 
   public:
-    void spawn(Camera_t const &, Sid_t);
+    void spawn(Camera_t const &view);
 
     void onKey(I32_t key, I32_t action);
-    void onTick(F32_t deltaTime);
+    void onTick(U64_t deltaTime);
     void onSpeedAcquired();
 
     [[nodiscard]] AABB      boundingBox() const;
@@ -156,15 +157,18 @@ class Player
     static U8_t constexpr LANE_LEFT   = 1u << 2; // 0000'0100
     static U8_t constexpr LANE_CENTER = 1u << 1; // 0000'0010
     static U8_t constexpr LANE_RIGHT  = 1u << 0; // 0000'0001
-    static inline glm::vec3 const meshCameraOffset{ 0.f, -2.f, -10.f };
 
   private:
     glm::vec3 displacementTick(F32_t deltaTime);
 
   private:
     // main components
-    Sid_t    m_sid{ nullSid };
-    Mesh_s  *m_mesh{ nullptr };
+    union U0
+    {
+        U0() {}
+        ~U0() {}
+        Ornithopter ornithopter;
+    } m_delayedCtor;
     Camera_t m_camera{};
     U64_t    m_score{ 0 };
     B8_t     m_init{ false };
@@ -200,9 +204,6 @@ class Player
     B8_t  m_invincible{ false };
 
     // sound data
-    irrklang::ISoundSource *m_swishSoundSource{ nullptr };
-    irrklang::ISound       *m_swishSound{ nullptr };
-
     irrklang::ISoundSource *m_bgmSource{ nullptr };
     irrklang::ISound       *m_bgm{ nullptr };
 
@@ -210,7 +211,6 @@ class Player
     irrklang::ISound       *m_invincibleMusic{ nullptr };
     void                    stopInvincibleMusic();
     void                    resumeNormalMusic();
-    void                    stopSwishSound();
 };
 
 } // namespace cge

@@ -14,7 +14,7 @@ void IModule::tagForDestruction()
 
 IModule::IModule(Sid_t id) : m_id(id) { moduleInitOnce.try_emplace(m_id, false); }
 
-void IModule::onInit(ModuleInitParams params)
+void IModule::onInit()
 { //
     moduleInitOnce.at(m_id) = true;
 }

@@ -81,7 +81,7 @@ EErr_t Window_s::init(WindowSpec_t const& spec)
     }
     if (GLAD_GL_ARB_separate_shader_objects)
     {
-        printf("ARB_separate_shader_objects is supported");
+        printf("[Window] ARB_separate_shader_objects is supported\n");
     }
 
     if (glfwRawMouseMotionSupported())
