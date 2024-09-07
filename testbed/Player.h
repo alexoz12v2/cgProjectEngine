@@ -49,7 +49,11 @@ class ScrollingTerrain
   public:
     void init(InitData const &initData);
     void updateTilesFromPosition(glm::vec3 position);
+#if 0
     B8_t handleShoot(Ray const &ray);
+#else
+    B8_t handleShoot(AABB const &playerBox);
+#endif
 
     ObstacleList const &getObstacles() const;
     ObstacleList const &getDestructables() const;

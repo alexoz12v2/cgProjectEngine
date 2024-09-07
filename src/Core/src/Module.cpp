@@ -1,5 +1,7 @@
 #include "Module.h"
 
+#include <unordered_map>
+
 namespace cge
 {
 

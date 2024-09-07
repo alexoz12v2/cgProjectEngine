@@ -17,24 +17,42 @@ inline bool smallOrZero(glm::vec3 v)
     return v.x <= eps && v.y <= eps && v.z <= eps;
 }
 
-inline AABB globalSpaceBB(Sid_t sid, AABB box)
+inline AABB globalSpaceBB(SceneNode_s const &ptr, AABB aabb)
 {
-    glm::mat4 transform = g_scene.getNodeBySid(sid).getTransform();
+    glm::mat4 modelMatrix = ptr.getTransform();
 
-    AABB const gSpaceAABB = { transform * glm::vec4(box.mm.min, 1.f),
-                              transform * glm::vec4(box.mm.max, 1.f) };
+    // Extract corners of the AABB
+    glm::vec3 min = aabb.mm.min;
+    glm::vec3 max = aabb.mm.max;
 
-    return gSpaceAABB;
+    glm::vec3 corners[8] = { glm::vec3(min.x, min.y, min.z), glm::vec3(max.x, min.y, min.z),
+                             glm::vec3(min.x, max.y, min.z), glm::vec3(max.x, max.y, min.z),
+                             glm::vec3(min.x, min.y, max.z), glm::vec3(max.x, min.y, max.z),
+                             glm::vec3(min.x, max.y, max.z), glm::vec3(max.x, max.y, max.z) };
+
+    // Transform each corner by the model matrix
+    glm::vec3 transformedCorners[8];
+    for (int i = 0; i < 8; ++i)
+    {
+        glm::vec4 transformedCorner = modelMatrix * glm::vec4(corners[i], 1.0f);
+        transformedCorners[i]       = glm::vec3(transformedCorner);
+    }
+
+    // Compute the min and max of the transformed AABB
+    glm::vec3 newMin = transformedCorners[0];
+    glm::vec3 newMax = transformedCorners[0];
+    for (int i = 1; i < 8; ++i)
+    {
+        newMin = glm::min(newMin, transformedCorners[i]);
+        newMax = glm::max(newMax, transformedCorners[i]);
+    }
+
+    return AABB(newMin, newMax);
 }
 
-inline AABB globalSpaceBB(SceneNode_s const &ptr, AABB box)
+inline AABB globalSpaceBB(Sid_t sid, AABB aabb)
 {
-    glm::mat4 transform = ptr.getTransform();
-
-    AABB const gSpaceAABB = { transform * glm::vec4(box.mm.min, 1.f),
-                              transform * glm::vec4(box.mm.max, 1.f) };
-
-    return gSpaceAABB;
+    return globalSpaceBB(g_scene.getNodeBySid(sid), aabb);
 }
 
 } // namespace cge

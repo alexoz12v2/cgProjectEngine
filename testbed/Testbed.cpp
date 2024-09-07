@@ -136,7 +136,7 @@ void TestbedModule::onInit(ModuleInitParams params)
     camera.right    = glm::vec3(1.f, 0.f, 0.f);
     camera.up       = glm::vec3(0.f, 0.f, 1.f);
     camera.forward  = glm::vec3(0.f, 1.f, 0.f);
-    m_player.spawn(camera, cubeMeshSid);
+    m_player.spawn(camera, CGE_SID("Cube"));
 
     // background, terrain, terrain collisions
     stbi_set_flip_vertically_on_load(true);
@@ -220,7 +220,7 @@ void TestbedModule::onGameOver(U64_t score)
 void TestbedModule::onShoot(Ray const &ray)
 { //
     printf("[TestbedModule] BANG\n");
-    B8_t intersected = m_scrollingTerrain.handleShoot(ray);
+    B8_t intersected = m_scrollingTerrain.handleShoot(m_player.boundingBox());
     if (intersected)
     { //
         g_soundEngine()->play2D(m_woodBreakSource);
@@ -242,7 +242,7 @@ void TestbedModule::onTick(float deltaTime)
 
     m_scrollingTerrain.updateTilesFromPosition(center);
     m_player.onTick(deltaTime);
-    //m_player.intersectPlayerWith(m_scrollingTerrain);
+    m_player.intersectPlayerWith(m_scrollingTerrain);
 
     getBackgroundRenderer().renderBackground(m_player.getCamera(), aspectRatio(), CLIPDISTANCE, RENDERDISTANCE);
     g_renderer.renderScene(

@@ -130,12 +130,7 @@ void Renderer_s::renderScene(Scene_s const &scene, glm::mat4 const &view, glm::m
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     for (auto const &[sid, sceneNode] : scene.m_nodeMap)
     {
-        auto meshRef = g_handleTable.get(sceneNode.getSid());
-        if (!meshRef.hasValue())
-        { //
-            assert(false && "all refs in the scene should be valid meshes");
-        }
-        Mesh_s const &mesh = meshRef.asMesh();
+        auto const &mesh = g_handleTable.getMesh(sceneNode.getSid());
 
         glm::mat4 const     modelView = view * sceneNode.getTransform();
         MeshUniform_t const uniforms{ .modelView     = modelView,

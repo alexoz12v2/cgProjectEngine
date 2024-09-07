@@ -1,7 +1,6 @@
 #include "HandleTable.h"
 
 #include "Core/Alloc.h"
-#include "HandleTable.h"
 
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
@@ -9,9 +8,7 @@
 #include <glad/gl.h>
 #include <stb/stb_image.h>
 
-#include <algorithm>
 #include <cassert>
-#include <queue>
 #include <string>
 
 namespace cge
@@ -19,7 +16,10 @@ namespace cge
 
 struct STBIDeleter
 {
-    void operator()(Byte_t *data) const { stbi_image_free(data); }
+    void operator()(Byte_t *data) const
+    {
+        stbi_image_free(data);
+    }
 };
 
 static char const *const vertexSource = R"a(
@@ -82,16 +82,13 @@ const uint numLights = 10;
 // only light of the scene
 uniform LightProperties lights[numLights];
 
-// albedo
-uniform sampler2D albedoSampler;
+layout (binding = 0) uniform sampler2D albedoSampler;
 uniform bool hasAlbedoTexture;
 
-// normal
-uniform sampler2D normalSampler;
+layout (binding = 1) uniform sampler2D normalSampler;
 uniform bool hasNormalSampler;
 
-// shininess
-uniform sampler2D shininessSampler;
+layout (binding = 2) uniform sampler2D specularSampler;
 uniform bool hasShininessSampler;
 
 // constants
@@ -125,7 +122,7 @@ void main() {
     }
 
     if (hasShininessSampler) {
-        mShininess = texture(shininessSampler, texCoord.xy).x;
+        mShininess = 250.f * (1.f - texture(specularSampler, texCoord.xy).x);
     } else {
         mShininess = vShininess;
     }
@@ -175,7 +172,7 @@ void main() {
             if (diffuse == 0.f) {
                 specular = 0.f;
             } else {
-                specular = pow(specular, vShininess);
+                specular = pow(specular, mShininess);
             }
 
             scatteredLight += (lights[i].ambient + lights[i].color * diffuse) * attenuation;
@@ -232,7 +229,10 @@ B8_t HandleTable_s::remove(Sid_t sid)
         m_textureTable.erase(it2);
         return true;
     }
-    else { return false; }
+    else
+    {
+        return false;
+    }
 }
 
 HandleTable_s::Ref_s HandleTable_s::get(Sid_t sid)
@@ -264,9 +264,12 @@ Mesh_s &HandleTable_s::getMesh(Sid_t sid)
 
 static void pushInQueue(std::pmr::vector<aiNode *> &queue, aiNode *node)
 {
-    queue.push_back(node);
+    if (node->mNumMeshes > 0)
+    {
+        queue.push_back(node);
+    }
     for (U32_t i = 0; i < node->mNumChildren; ++i)
-    { //
+    {
         pushInQueue(queue, node->mChildren[i]);
     }
 }
@@ -298,8 +301,7 @@ void HandleTable_s::loadFromObj(Char8_t const *path)
     for (U32_t i = 0; i != scene->mNumMaterials; ++i)
     {
         aiColor3D diffuse;
-        assert(scene->mMaterials[i]->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse) != AI_FAILURE
-                 && "WHAT");
+        assert(scene->mMaterials[i]->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse) != AI_FAILURE && "WHAT");
         materialProperties[i].diffuse.x = diffuse.r;
         materialProperties[i].diffuse.y = diffuse.g;
         materialProperties[i].diffuse.z = diffuse.b;
@@ -339,16 +341,20 @@ void HandleTable_s::loadFromObj(Char8_t const *path)
                 vertex.texCoords[1] = texCoords[i].y;
                 vertex.texCoords[2] = texCoords[i].z;
 
-                vertex.color[0] = aMesh->HasVertexColors(0) ? colors[0][i].r : materialProperties[aMesh->mMaterialIndex].diffuse.r;
-                vertex.color[1] = aMesh->HasVertexColors(0) ? colors[0][i].g : materialProperties[aMesh->mMaterialIndex].diffuse.g;
-                vertex.color[2] = aMesh->HasVertexColors(0) ? colors[0][i].b : materialProperties[aMesh->mMaterialIndex].diffuse.b;
+                vertex.color[0] =
+                  aMesh->HasVertexColors(0) ? colors[0][i].r : materialProperties[aMesh->mMaterialIndex].diffuse.r;
+                vertex.color[1] =
+                  aMesh->HasVertexColors(0) ? colors[0][i].g : materialProperties[aMesh->mMaterialIndex].diffuse.g;
+                vertex.color[2] =
+                  aMesh->HasVertexColors(0) ? colors[0][i].b : materialProperties[aMesh->mMaterialIndex].diffuse.b;
                 vertex.color[3] = aMesh->HasVertexColors(0) ? colors[0][i].a : 1.f;
 
                 if (aMesh->mMaterialIndex < (U32_t)-1)
                 {
                     ai_real shininess;
-                    assert(scene->mMaterials[aMesh->mMaterialIndex]->Get(AI_MATKEY_SHININESS, shininess) != AI_FAILURE
-                           && "WHAT");
+                    assert(
+                      scene->mMaterials[aMesh->mMaterialIndex]->Get(AI_MATKEY_SHININESS, shininess) != AI_FAILURE
+                      && "WHAT");
                     vertex.shininess = shininess;
                 }
                 else
@@ -389,6 +395,26 @@ void HandleTable_s::loadFromObj(Char8_t const *path)
     }
 }
 
+static void setTextureTypePresentInMesh(Mesh_s &mesh, aiTextureType type)
+{
+    switch (type)
+    {
+    case aiTextureType_DIFFUSE:
+        mesh.hasDiffuse = true;
+        break;
+    case aiTextureType_HEIGHT:
+        [[fallthrough]];
+    case aiTextureType_NORMALS:
+        mesh.hasNormal = true;
+        break;
+    case aiTextureType_SPECULAR:
+        mesh.hasSpecular = true;
+        break;
+    default:
+        break;
+    }
+}
+
 void HandleTable_s::loadTextures(Char8_t const *basePath, void const *material, Mesh_s &mesh)
 {
     auto       *aMaterial = reinterpret_cast<aiMaterial const *>(material);
@@ -397,17 +423,22 @@ void HandleTable_s::loadTextures(Char8_t const *basePath, void const *material, 
     U32_t num = 0;
     for (U32_t j = 0; j != 3; ++j)
     {
-        auto const type = types[j];
+        auto type = types[j];
+        if (type == aiTextureType_NORMALS && aMaterial->GetTextureCount(type) == 0)
+        {
+            type = aiTextureType_HEIGHT;
+        }
+
         for (U32_t i = 0; i != aMaterial->GetTextureCount(type); i++)
         {
             aiString path;
             aMaterial->GetTexture(type, i, &path);
 
             // check if texture has been already loaded
-            auto ref = g_handleTable.get(CGE_SID(path.C_Str()));
-            if (ref.sid() != nullSid)
+            if (auto ref = g_handleTable.get(CGE_SID(path.C_Str())); ref.sid() != nullSid)
             {
                 mesh.textures.arr[j] = ref.sid();
+                setTextureTypePresentInMesh(mesh, type);
                 break;
             }
 
@@ -429,26 +460,15 @@ void HandleTable_s::loadTextures(Char8_t const *basePath, void const *material, 
             assert(texWidth != 0);
             auto data = std::shared_ptr<Byte_t>(texData, STBIDeleter{});
 
-            TextureData_s tex{ .data   = data,
-                               .width  = (U32_t)texWidth,
-                               .height = (U32_t)texHeight,
-                               .depth  = 1,
-                               .format = GL_UNSIGNED_BYTE,
-                               .type   = GL_RGB };
+            TextureData_s const tex{ .data   = data,
+                                     .width  = (U32_t)texWidth,
+                                     .height = (U32_t)texHeight,
+                                     .depth  = 1,
+                                     .format = GL_UNSIGNED_BYTE,
+                                     .type   = GL_RGB };
             mesh.textures.arr[j] = CGE_SID(path.C_Str());
             g_handleTable.insertTexture(CGE_SID(path.C_Str()), tex);
-            switch (type)
-            {
-            case aiTextureType_DIFFUSE:
-                mesh.hasDiffuse = true;
-                break;
-            case aiTextureType_NORMALS:
-                mesh.hasNormal = true;
-                break;
-            case aiTextureType_SPECULAR:
-                mesh.hasSpecular = true;
-                break;
-            }
+            setTextureTypePresentInMesh(mesh, type);
 
             // 1 texture per type
             break;
@@ -459,17 +479,35 @@ void HandleTable_s::loadTextures(Char8_t const *basePath, void const *material, 
     mesh.numTextures = num;
 }
 
-Mesh_s &HandleTable_s::Ref_s::asMesh() { return *(Mesh_s *)m_ptr; }
+Mesh_s &HandleTable_s::Ref_s::asMesh()
+{
+    return *(Mesh_s *)m_ptr;
+}
 
-TextureData_s &HandleTable_s::Ref_s::asTexture() { return *(TextureData_s *)m_ptr; }
+TextureData_s &HandleTable_s::Ref_s::asTexture()
+{
+    return *(TextureData_s *)m_ptr;
+}
 
-Mesh_s const &HandleTable_s::Ref_s::asMesh() const { return *(Mesh_s const *)m_ptr; }
+Mesh_s const &HandleTable_s::Ref_s::asMesh() const
+{
+    return *(Mesh_s const *)m_ptr;
+}
 
-TextureData_s const &HandleTable_s::Ref_s::asTexture() const { return *(TextureData_s const *)m_ptr; }
+TextureData_s const &HandleTable_s::Ref_s::asTexture() const
+{
+    return *(TextureData_s const *)m_ptr;
+}
 
-B8_t HandleTable_s::Ref_s::hasValue() const { return m_ptr != nullptr && m_sid != nullSid; }
+B8_t HandleTable_s::Ref_s::hasValue() const
+{
+    return m_ptr != nullptr && m_sid != nullSid;
+}
 
-[[nodiscard]] Sid_t HandleTable_s::Ref_s::sid() const { return m_sid; }
+[[nodiscard]] Sid_t HandleTable_s::Ref_s::sid() const
+{
+    return m_sid;
+}
 
 [[nodiscard]] HandleTable_s::Ref_s const &HandleTable_s::Ref_s::nullRef()
 {

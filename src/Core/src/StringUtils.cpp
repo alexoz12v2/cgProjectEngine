@@ -1,55 +1,66 @@
 #include "StringUtils.h"
 
+#if defined(CGE_DEBUG)
+#include <cstring>
+#include <memory>
+#include <unordered_map>
+#endif
+
+
 namespace cge
 {
 
-
 #if defined(CGE_DEBUG)
-StringIdTable const g_stringIdTable;
-#endif
 
-Sid_t dbg_internString([[maybe_unused]] Char8_t const *str)
+// cannot store char array directly into table as table can get relocated
+static std::unordered_map<U64_t, std::unique_ptr<Char8_t[]>> table;
+static Char8_t const *const                                  errStr = "Error: String Not Found";
+
+Sid_t dbg_internString(Char8_t const *str)
 {
-#if defined(CGE_DEBUG)
-    Sid_t strId = { .id = hashCRC64(str) };
-    auto  table = g_stringIdTable.get();
-
-    using It = std::unordered_map<U64_t, Char8_t const *>::iterator;
-    if (table->empty())
+    Sid_t strId            = { .id = hashCRC64(str) };
+    auto [it, wasInserted] = table.try_emplace(strId.id);
+    if (wasInserted)
     {
-        auto [it1, b] = table->emplace(strId.id, str);
-        strId.pStr    = &it1->second;
-    }
-    else if (It it = table->find(64ULL); it == table->end())
-    {
-        auto [it1, b] = table->emplace(strId.id, str);
-        strId.pStr    = &it1->second;
-    }
-    else { strId.pStr = &it->second; }
-
-    return strId;
-#else
-    return { .id = hashCRC64(str) };
+        it->second = std::make_unique<Char8_t[]>(1024);
+        strcpy(it->second.get(), str);
+// debug print if needed
+#if 0
+        printf("[StringUtils] Interned new String, table has now size: %zu\n", table.size());
+        for (auto const &[num, ptr] : table)
+        {
+            auto const *const str1 = &ptr[0];
+            printf("[StringUtils] \t{ %zu, %s }\n", num, str1);
+        }
 #endif
+        strId.pStr = &it->second[0];
+    }
+    else if (auto it1 = table.find(strId.id); it1 != table.cend())
+    {
+        strId.pStr = &it1->second[0];
+    }
+    else
+    {
+        strId.pStr = errStr;
+    }
+    return strId;
 }
 
 Char8_t const *dbg_lookupString(Sid_t sid)
 {
-#if defined(CGE_DEBUG)
-    auto                  table  = g_stringIdTable.get();
-    Char8_t const static *errStr = "Error: String Not Found";
-
-    Char8_t const *str = "";
-
-    if (sid.pStr == nullptr)
+    if (sid.pStr != nullptr)
     {
-        auto it  = table->find(sid.id);
-        sid.pStr = (it == table->end()) ? &errStr : &it->second;
+        return sid.pStr;
     }
-
-    return *(sid.pStr);
-#else
-    return "";
-#endif
+    else if (auto it = table.find(sid.id); it != table.cend())
+    {
+        sid.pStr = &it->second[0];
+        return sid.pStr;
+    }
+    else
+    {
+        return errStr;
+    }
 }
+#endif
 } // namespace cge

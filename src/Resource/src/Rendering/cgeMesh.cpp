@@ -11,31 +11,30 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <limits>
+#include <numeric>
 
 namespace cge
 {
-AABB computeAABB(const Mesh_s &mesh)
+AABB computeAABB(Mesh_s const &mesh)
 {
-    AABB aabb{ glm::vec3(0.0f), glm::vec3(0.0f) };
-    aabb.mm.min = glm::vec3(std::numeric_limits<float>::max());
-    aabb.mm.max = glm::vec3(std::numeric_limits<float>::min());
+    // Initialize min and max to extreme values
+    AABB aabb{ glm::vec3{ std::numeric_limits<F32_t>::max() }, glm::vec3{ std::numeric_limits<F32_t>::lowest() } };
 
     // Loop through each indexed vertex
-    for (size_t i = 0; i < mesh.indices.size(); ++i)
+    for (const auto &indexList : mesh.indices)
     {
-        for (U32_t j : mesh.indices[i])
+        for (U32_t index : indexList)
         {
-            const auto &vertex = mesh.vertices[j];
+            const glm::vec3 &vertexPos = mesh.vertices[index].pos;
 
             // Update AABB based on vertex position
-            aabb.mm.min = glm::min(aabb.mm.min, vertex.pos);
-            aabb.mm.max = glm::max(aabb.mm.max, vertex.pos);
+            aabb.mm.min = glm::min(aabb.mm.min, vertexPos);
+            aabb.mm.max = glm::max(aabb.mm.max, vertexPos);
         }
     }
 
     return aabb;
 }
-
 void Mesh_s::streamUniforms(MeshUniform_t const &uniforms) const
 {
     static Byte_t uniformData[1024];
@@ -61,6 +60,15 @@ void Mesh_s::streamUniforms(MeshUniform_t const &uniforms) const
 
     U32_t ubo = uniformBuffer.id();
     glBindBufferBase(GL_UNIFORM_BUFFER, outUniforms.blockIdx, ubo);
+}
+
+static B8_t isThereAnyTexture(Textures_t const &textures)
+{
+    return std::accumulate(
+      std::begin(textures.arr),
+      std::end(textures.arr),
+      false,
+      [](B8_t &&accumulator, Sid_t const &current) -> B8_t { return accumulator || current != nullSid; });
 }
 
 void Mesh_s::allocateTexturesToGpu()
@@ -110,30 +118,32 @@ void Mesh_s::allocateTexturesToGpu()
           .wrap        = GL_REPEAT,
           .borderColor = {},
         });
-
-        // TODO error handling with some default texture
     }
 
-    // assign default texture binder function (TODO better)
-    if (!textures.arr.empty())
+    static char const *namesBools[3]{ "hasAlbedoTexture", "hasNormalSampler", "hasShininessSampler" };
+    if (numTextures > 0)
     {
         bindTextures = [](Mesh_s const *mesh)
         {
-            static char const *namesBools[3]{ "hasAlbedoTexture", "hasNormalSampler", "hasShininessSampler" };
-            static char const *namesSamplers[3]{ "albedoSampler", "normalSampler", "shininessSampler" };
+            static char const *namesSamplers[3]{ "albedoSampler", "normalSampler", "specularSampler" };
+            B8_t texturePresentArr[3]{ mesh->hasDiffuse, mesh->hasNormal, mesh->hasSpecular };
             U32_t              fragId = mesh->shaderProgram.id();
 
             for (U32_t i = 0; i != 3; ++i)
             {
-                if ((i == 0 && mesh->hasDiffuse) || (i == 1 && mesh->hasNormal) || (i == 2 && mesh->hasSpecular))
-                {
-                    glActiveTexture(GL_TEXTURE0 + i);
+                glActiveTexture(GL_TEXTURE0 + i);
+                if (texturePresentArr[i]) {
                     glBindTexture(GL_TEXTURE_2D, mesh->uploadedTextures[i].id());
 
-                    // U32_t samplerLoc =
-                    // glGetUniformLocation(fragId, namesSamplers[i]);
-                    // glUniform1i(samplerLoc, 0);
-                    glUniform1i(glGetUniformLocation(fragId, namesBools[i]), true);
+                    // Bind points are declared in the shader, so this isn't necessary
+                    // U32_t samplerLoc = glGetUniformLocation(fragId, namesSamplers[i]);
+                    // glUniform1i(samplerLoc, i);
+                    glUniform1i(glGetUniformLocation(fragId, namesBools[i]), GL_TRUE);
+                }
+                else
+                {
+                    glBindTexture(GL_TEXTURE_2D, 0);
+                    glUniform1i(glGetUniformLocation(fragId, namesBools[i]), GL_FALSE);
                 }
             }
         };
@@ -142,9 +152,11 @@ void Mesh_s::allocateTexturesToGpu()
     { // method used when there are no textures to bind
         bindTextures = [](Mesh_s const *mesh)
         {
-            static char const *namesBools[3]{ "hasAlbedoTexture", "hasNormalSampler", "hasShininessSampler" };
             U32_t              fragId = mesh->shaderProgram.id();
-            for (auto const &n : namesBools) { glUniform1i(glGetUniformLocation(fragId, n), false); }
+            for (auto const &n : namesBools)
+            {
+                glUniform1i(glGetUniformLocation(fragId, n), false);
+            }
         };
     }
 }

@@ -11,7 +11,8 @@ Ni 1.450000
 d 1.000000
 illum 2
 map_Kd TCom_Gore_2K_albedo.png
-map_Ns TCom_Gore_2K_roughness.png
+map_Bump -bm 1.000000 TCom_Gore_2K_normal.png
+map_Ks TCom_Gore_2K_roughness.png
 
 newmtl Material.001
 Ns 250.000000

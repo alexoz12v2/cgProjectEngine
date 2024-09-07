@@ -39,14 +39,6 @@ static F32_t constexpr speedBoost        = 2.f;
 static U32_t constexpr numPowerUpTypes    = std::array{ "speed", "magnet" }.size();
 static U32_t constexpr maxNumSpawnedCoins = 20;
 
-static AABB enlarge(AABB const &box)
-{
-    AABB res{ box };
-    res.mm.max.z = glm::max(box.mm.max.z, 20.f);
-    res.mm.max.y += 10.f;
-    return res;
-}
-
 Player::~Player()
 {
     if (m_init)
@@ -150,8 +142,10 @@ void Player::onTick(F32_t deltaTime)
         // then update position
         m_camera.position.x = disp;
         m_camera.position += displacement;
-        printf("[Player] New Displacement after deltaTime %f <=> %f\n", deltaTime, displacement.y);
         m_velocityIncrement = glm::max(glm::abs(glm::log(static_cast<F32_t>(m_score))), 1.f);
+#if 0
+        printf("[Player] New Displacement after deltaTime %f <=> %f\n", deltaTime, displacement.y);
+#endif
     }
 }
 void Player::stopSwishSound()
@@ -211,7 +205,10 @@ glm::vec3 Player::displacementTick(F32_t deltaTime)
 
     // Calculate the movement direction based on camera's forward vector
     glm::vec3 direction = m_camera.forward;
-    if (direction != glm::vec3(0.F)) { direction = glm::normalize(direction); }
+    if (direction != glm::vec3(0.F))
+    {
+        direction = glm::normalize(direction);
+    }
 
     glm::vec3 const displacement = velocity * direction * deltaTime;
 
@@ -240,25 +237,28 @@ void Player::onKey(I32_t key, I32_t action)
                 m_swishSound = g_soundEngine()->play2D(m_swishSoundSource);
             }
             break;
-        case key::SPACE:
-        {
-            EventArg_t evArg{};
-            evArg.fdata.f32[0] = m_oldPosition[0];
-            evArg.fdata.f32[1] = m_oldPosition[1];
-            evArg.fdata.f32[2] = m_oldPosition[2];
-            evArg.idata.i16[0] = 0;
-            evArg.idata.i16[1] = 1;
-            evArg.idata.i16[2] = 0;
-            g_eventQueue.emit(evShoot, evArg);
-            break;
-        }
         default:
             break;
         }
     }
+
+    if ((action == action::PRESS || action == action::REPEAT) && key == key::SPACE)
+    {
+        EventArg_t evArg{};
+        evArg.fdata.f32[0] = m_oldPosition[0];
+        evArg.fdata.f32[1] = m_oldPosition[1];
+        evArg.fdata.f32[2] = m_oldPosition[2];
+        evArg.idata.i16[0] = 0;
+        evArg.idata.i16[1] = 1;
+        evArg.idata.i16[2] = 0;
+        g_eventQueue.emit(evShoot, evArg);
+    }
 }
 
-AABB Player::boundingBox() const { return m_mesh->box; }
+AABB Player::boundingBox() const
+{
+    return globalSpaceBB(m_sid, m_mesh->box);
+}
 
 glm::mat4 Player::viewTransform() const
 { //
@@ -369,60 +369,91 @@ void ScrollingTerrain::updateTilesFromPosition(glm::vec3 position)
     }
 }
 
-B8_t ScrollingTerrain::handleShoot(Ray const &ray)
+static constexpr B8_t isOverlapping2D(AABB const &box1, AABB const &box2)
 {
+    return box1.mm.max.x >= box2.mm.min.x && box1.mm.min.x <= box2.mm.max.x && box1.mm.max.z >= box2.mm.min.z
+           && box1.mm.min.z <= box2.mm.max.z;
+}
+
+#if 0
+B8_t ScrollingTerrain::handleShoot(Ray const &rayInput)
+{
+    Ray nRay                     = rayInput;
+    nRay.orig.z                  = 0;
     float closestT               = std::numeric_limits<float>::max();
     bool  foundInDestructables   = false;
     Sid_t closestDestructableSid = nullSid;
 
+    printf(
+      "[ScrollingTerrain] Intersecting ray {\n\torigin: %f %f %f\n\tdirection: %f %f %f\n}\n",
+      nRay.orig.x,
+      nRay.orig.y,
+      nRay.orig.z,
+      nRay.dir.x,
+      nRay.dir.y,
+      nRay.dir.z);
     // Check destructables first
     for (auto const &dsid : m_destructables)
     {
-        if (dsid == nullSid) //
+        if (dsid == nullSid)
+        {
             continue;
+        }
 
-        Sid_t const          meshSid = g_scene.getNodeBySid(dsid).getSid();
-        HandleTable_s::Ref_s ref     = g_handleTable.get(meshSid);
-        if (!ref.hasValue()) //
-            continue;
+        Sid_t const   meshSid = g_scene.getNodeBySid(dsid).getSid();
+        Mesh_s const &mesh    = g_handleTable.getMesh(meshSid);
+        AABB          obsBox  = globalSpaceBB(g_scene.getNodeBySid(dsid), mesh.box);
+        obsBox.mm.min.z       = -10.f;
+        obsBox.mm.max.z       = 10.f;
 
-        auto const &mesh   = ref.asMesh();
-        AABB const  obsBox = enlarge(globalSpaceBB(g_scene.getNodeBySid(dsid), mesh.box));
-
-        Hit_t hit = intersect(ray, obsBox);
+        printf(
+          "[ScrollingTerrain] With AABB {\n\tmin: %f %f %f\n\tmax: %f %f %f\n}\n",
+          obsBox.mm.min.x,
+          obsBox.mm.min.y,
+          obsBox.mm.min.z,
+          obsBox.mm.max.x,
+          obsBox.mm.max.y,
+          obsBox.mm.max.z);
+        Hit_t hit = intersect(nRay, obsBox);
         if (hit.isect && hit.t < closestT)
         {
             closestT               = hit.t;
             foundInDestructables   = true;
             closestDestructableSid = dsid;
+            printf("[ScrollingTerrain] found new nearest destructible intersection at distance at %f\n", hit.t);
         }
     }
+    printf("[ScrollingTerrain] Closest hit found in destructible: %s\n", (foundInDestructables ? "true" : "false"));
+    printf("[ScrollingTerrain] Now checking obstacles...\n");
 
     // Check obstacles
     for (auto const &osid : m_obstacles)
     {
-        if (osid == nullSid) //
+        if (osid == nullSid)
+        {
             continue;
+        }
 
-        Sid_t const          meshSid = g_scene.getNodeBySid(osid).getSid();
-        HandleTable_s::Ref_s ref     = g_handleTable.get(meshSid);
-        if (!ref.hasValue()) //
-            continue;
+        Sid_t const   meshSid = g_scene.getNodeBySid(osid).getSid();
+        Mesh_s const &mesh    = g_handleTable.getMesh(meshSid);
+        AABB          obsBox  = globalSpaceBB(g_scene.getNodeBySid(osid), mesh.box);
+        obsBox.mm.min.z       = -10.f;
+        obsBox.mm.max.z       = 10.f;
 
-        auto const &mesh   = ref.asMesh();
-        AABB const  obsBox = enlarge(globalSpaceBB(g_scene.getNodeBySid(osid), mesh.box));
-
-        Hit_t const hit = intersect(ray, obsBox);
+        Hit_t const hit = intersect(nRay, obsBox);
         if (hit.isect && hit.t < closestT)
         {
             closestT             = hit.t;
             foundInDestructables = false; // Closest hit is now from obstacles
+            printf("[ScrollingTerrain] There's a nearer obstacle, no destruct\n");
+            break;
         }
     }
 
     // If the closest intersection was from destructables, set it to nullSid
     if (foundInDestructables)
     {
+        printf("[ScrollingTerrain] destructing one piece\n");
         auto it = std::find(m_destructables.begin(), m_destructables.end(), closestDestructableSid);
         if (it != m_destructables.end())
         {
@@ -433,6 +464,80 @@ B8_t ScrollingTerrain::handleShoot(Ray const &ray)
     }
 
     return false;
+#else
+B8_t ScrollingTerrain::handleShoot(AABB const &playerBox)
+{
+    B8_t  foundDestroyable    = false;
+    F32_t minDistance         = std::numeric_limits<F32_t>::max();
+    Sid_t closestDestructible = nullSid;
+
+    // check all destroyable obstacles
+    for (Sid_t const &sid : m_destructables)
+    {
+        if (sid == nullSid)
+        {
+            continue;
+        }
+
+        SceneNode_s const &node = g_scene.getNodeBySid(sid);
+        AABB const        &box  = globalSpaceBB(node, g_handleTable.getMesh(node.getSid()).box);
+        if (isOverlapping2D(playerBox, box))
+        {
+            glm::vec2 playerCenter2D =
+              (glm::vec2(playerBox.mm.min.x, playerBox.mm.min.y) + glm::vec2(playerBox.mm.max.x, playerBox.mm.max.y))
+              * 0.5f;
+            glm::vec2 boxCenter2D =
+              (glm::vec2(box.mm.min.x, box.mm.min.y) + glm::vec2(box.mm.max.x, box.mm.max.y)) * 0.5f;
+            F32_t distance = glm::length(playerCenter2D - boxCenter2D);
+            assert(distance > 0);
+            if (distance < minDistance)
+            {
+                minDistance         = distance;
+                foundDestroyable    = true;
+                closestDestructible = sid;
+            }
+        }
+    }
+    // check all non-destroyable obstacles
+    for (Sid_t const &sid : m_obstacles)
+    {
+        if (sid == nullSid)
+        {
+            continue;
+        }
+
+        SceneNode_s const &node = g_scene.getNodeBySid(sid);
+        AABB const        &box  = globalSpaceBB(node, g_handleTable.getMesh(node.getSid()).box);
+        if (isOverlapping2D(playerBox, box))
+        {
+            glm::vec2 playerCenter2D =
+              (glm::vec2(playerBox.mm.min.x, playerBox.mm.min.y) + glm::vec2(playerBox.mm.max.x, playerBox.mm.max.y))
+              * 0.5f;
+            glm::vec2 boxCenter2D =
+              (glm::vec2(box.mm.min.x, box.mm.min.y) + glm::vec2(box.mm.max.x, box.mm.max.y)) * 0.5f;
+            F32_t distance = glm::length(playerCenter2D - boxCenter2D);
+            assert(distance > 0);
+            if (distance < minDistance)
+            {
+                foundDestroyable = false;
+                break;
+            }
+        }
+    }
+
+    if (foundDestroyable)
+    {
+        printf("[ScrollingTerrain] destructing one piece\n");
+        auto it = std::find(m_destructables.begin(), m_destructables.end(), closestDestructible);
+        if (it != m_destructables.end())
+        {
+            g_scene.removeNode(*it);
+            *it = nullSid; // Set to nullSid
+        }
+    }
+
+    return foundDestroyable;
+#endif
 }
 
 ScrollingTerrain::ObstacleList const &ScrollingTerrain::getObstacles() const
@@ -531,7 +636,7 @@ void ScrollingTerrain::addPropOfType(U32_t type, glm::mat4 const &pieceTransform
         U32_t const obstacleIdx = g_random.next<U32_t>(0, m_obstacleSetSize - 1);
         Sid_t const sid         = m_obstacleSet[obstacleIdx];
         m_obstacles[m_first]    = g_scene.addNode(sid);
-        g_scene.getNodeBySid(m_obstacles[m_first]).transform(t);
+        g_scene.getNodeBySid(m_obstacles[m_first]).transform(t * glm::scale(glm::mat4{ 1.f }, glm::vec3(9.f)));
     }
     else if (type == 1)
     { // choose a destructable and spawn it
@@ -575,8 +680,8 @@ void ScrollingTerrain::removeCoins(F32_t threshold)
 {
     std::erase_if(
       m_coinMap,
-      [threshold](const auto &positionSidPair)
-      { // if the coin is in the y range of the piece begin removed, then remove it
+      [threshold](
+        const auto &positionSidPair) { // if the coin is in the y range of the piece begin removed, then remove it
           if (positionSidPair.first <= threshold)
           {
               Sid_t sceneSid = positionSidPair.second;
@@ -619,7 +724,6 @@ F32_t ScrollingTerrain::randomLaneOffset() const
     return arr[0];
 }
 
-// TODO: STOPPED WORKING WHYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY
 bool Player::intersectPlayerWith(ScrollingTerrain &terrain)
 {
     AABB const      playerBox{ globalSpaceBB(g_scene.getNodeBySid(m_sid), m_mesh->box) };
@@ -638,11 +742,11 @@ bool Player::intersectPlayerWith(ScrollingTerrain &terrain)
             {
                 auto const &mesh   = ref.asMesh();
                 auto const &box    = mesh.box;
-                auto const  obsBox = enlarge(globalSpaceBB(g_scene.getNodeBySid(pObs), box));
+                auto const  obsBox = globalSpaceBB(g_scene.getNodeBySid(pObs), box);
                 Hit_t const res    = intersect(playerRay, obsBox);
                 if (res.isect && (res.t <= movementDistance && res.p.y > m_oldPosition.y))
                 {
-                    //m_intersected = true;
+                    m_intersected = true;
                     printf("\033[31m[PLAYER] INTERSECTIONSIONSIDOFNSDIOFJ\033[0m\n");
                     return m_intersected;
                 }
@@ -657,7 +761,7 @@ bool Player::intersectPlayerWith(ScrollingTerrain &terrain)
             {
                 auto const &mesh   = ref.asMesh();
                 auto const &box    = mesh.box;
-                auto const  obsBox = enlarge(globalSpaceBB(g_scene.getNodeBySid(pObs), box));
+                auto const  obsBox = globalSpaceBB(g_scene.getNodeBySid(pObs), box);
                 Hit_t const res    = intersect(playerRay, obsBox);
                 if (res.isect && (res.t <= movementDistance && res.p.y > m_oldPosition.y))
                 {
@@ -676,7 +780,7 @@ bool Player::intersectPlayerWith(ScrollingTerrain &terrain)
             if (sceneSid != nullSid)
             {
                 Mesh_s const &mesh = g_handleTable.getMesh(g_scene.getNodeBySid(sceneSid).getSid());
-                AABB const   &box  = enlarge(globalSpaceBB(g_scene.getNodeBySid(sceneSid), mesh.box));
+                AABB const   &box  = globalSpaceBB(g_scene.getNodeBySid(sceneSid), mesh.box);
                 Hit_t const   res  = intersect(playerRay, box);
                 if (res.isect && (res.t <= movementDistance && res.p.y > m_oldPosition.y))
                 { //
