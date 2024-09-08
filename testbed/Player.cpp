@@ -30,9 +30,9 @@ inline F32_t constexpr laneShift     = (F32_t)pieceSize / numLanes;
 
 // player constants
 static F32_t constexpr scoreMultiplier   = 0.1f;
-static F32_t constexpr baseShiftDelay    = 0.15f; // between 0 and 1
-static F32_t constexpr baseVelocity      = 100.f;
-static F32_t constexpr maxBaseVelocity   = 400.f;
+static F32_t constexpr baseShiftDelay    = 0.05f; // between 0 and 1
+static F32_t constexpr baseVelocity      = 200.f;
+static F32_t constexpr maxBaseVelocity   = 800.f;
 static F32_t constexpr invincibilityTime = 7.f;
 static F32_t constexpr speedBoost        = 2.f;
 static glm::vec3 const meshCameraOffset{ 0.f, -10.f, -20.f };
@@ -143,7 +143,9 @@ void Player::onTick(U64_t deltaTimeI)
         // then update position
         m_camera.position.x = disp;
         m_camera.position += displacement;
-        m_velocityIncrement = glm::max(glm::abs(glm::log(static_cast<F32_t>(m_score))), 1.f);
+        F32_t x = glm::log(static_cast<F32_t>(m_score));
+        x *= x;
+        m_velocityIncrement = glm::max(glm::abs(x), 1.f);
 #if 1
         printf("[Player] New Displacement after deltaTime %f <=> %f\n", deltaTimeF, displacement.y);
 #endif
@@ -693,6 +695,9 @@ void ScrollingTerrain::addPowerUp(glm::mat4 const &pieceTransform)
     {
     case 0: // explosive magnet
         m_powerUps[m_first] = g_scene.addNode(m_magnetPowerUp);
+        // fix orientation
+        g_scene.getNodeBySid(m_powerUps[m_first])
+          .transform(glm::rotate(glm::mat4(1), glm::pi<F32_t>(), glm::vec3(0.f, 0.f, 1.f)));
         break;
     case 1: // invincibility rocket
         m_powerUps[m_first] = g_scene.addNode(m_speedPowerUp);
