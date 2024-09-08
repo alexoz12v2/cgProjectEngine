@@ -41,6 +41,83 @@ static void setMXCSR_DAZ_FTZ()
 
 using namespace cge;
 
+#if 1
+class MainTimer
+{
+    static constexpr U32_t timeWindowPower    = 2u;
+    static constexpr U32_t timeWindowCapacity = 1u << timeWindowPower;
+    static constexpr U32_t timeWindowMask     = (timeWindowCapacity - 1);
+    static constexpr U64_t timeUnitsPerSecond = timeUnit64;
+
+  public:
+    MainTimer()
+    {
+        std::fill_n(m_timeWindow.data(), timeWindowCapacity, timeUnitsIn60FPS);
+        reset();
+    }
+
+    void reset()
+    {
+        m_startTime = getCurrentTime();
+    }
+
+    // Returns elapsed time in units of 1/3000 seconds
+    U64_t elapsedTime()
+    {
+        TimePoint currentTime         = getCurrentTime();
+        U64_t     measuredElapsedTime = elapsedTimeUnits(currentTime, m_startTime);
+
+        m_startTime = currentTime; // Update start time for next calculation
+
+#if defined(CGE_DEBUG)
+        // Handle cases where a debugger causes a large pause
+        if (measuredElapsedTime > timeUnit32)
+        {
+            measuredElapsedTime = timeUnitsIn60FPS;
+        }
+#endif
+#undef min
+        // Store the measured time in the circular buffer
+        m_timeWindow[m_timeWindowIndex] = measuredElapsedTime;
+        ++m_timeWindowIndex;
+        m_timeWindowIndex &= timeWindowMask;
+        m_timeWindowSize = glm::min(m_timeWindowSize + 1, timeWindowCapacity);
+
+        // Compute the average elapsed time
+        U64_t totalElapsedTime = 0;
+        for (U32_t i = 0; i != m_timeWindowSize; ++i)
+        {
+            totalElapsedTime += m_timeWindow[i];
+        }
+        U64_t averagedElapsedTime = totalElapsedTime / m_timeWindowSize;
+
+        return averagedElapsedTime;
+    }
+
+  private:
+    using Clock     = std::chrono::high_resolution_clock;
+    using TimePoint = Clock::time_point;
+
+    TimePoint                             m_startTime;
+    std::array<U64_t, timeWindowCapacity> m_timeWindow{};
+    U32_t                                 m_timeWindowIndex = 0;
+    U32_t                                 m_timeWindowSize  = 0;
+
+    // Returns the current time in nanoseconds
+    TimePoint getCurrentTime() const
+    {
+        return Clock::now();
+    }
+
+    // Convert elapsed time from nanoseconds to 1/3000 seconds units
+    U64_t elapsedTimeUnits(const TimePoint &endTime, const TimePoint &startTime) const
+    {
+        auto deltaTimeNano = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count();
+        // Convert nanoseconds to time units (1/3000 seconds)
+        return (deltaTimeNano * timeUnitsPerSecond) / 1'000'000'000ULL;
+    }
+};
+#else
 class MainTimer
 {
     static U32_t constexpr timeWindowPower    = 2u;
@@ -92,7 +169,7 @@ class MainTimer
     U32_t                            m_timeWindowIndex = 0;
     U32_t                            m_timeWindowSize  = 0;
 };
-
+#endif
 I32_t main(I32_t argc, Char8_t **argv)
 {
     setMXCSR_DAZ_FTZ();

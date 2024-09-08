@@ -71,13 +71,11 @@ inline U64_t hiResFrequency()
     CGE_unreachable();
 }
 
-inline U32_t constexpr timeUnit32 = 3000U;
-inline U64_t constexpr timeUnit64 = 3000ULL;
-inline F32_t constexpr oneOver60FPS =
-  0.0166666693985462188720703125F; // in hex 0x3c88888a;
-inline U32_t constexpr timeUnitsIn60FPS = timeUnit32 / 60U; // 50
-inline U32_t constexpr timeScale =
-  timeUnitsIn60FPS / 16.6666693985462188720703125f;
+inline U32_t constexpr timeUnit32       = 3000U;
+inline U64_t constexpr timeUnit64       = 3000ULL;
+inline F32_t constexpr oneOver60FPS     = 0.0166666693985462188720703125F; // in hex 0x3c88888a;
+inline U32_t constexpr timeUnitsIn60FPS = timeUnit32 / 60U;                // 50
+inline U32_t constexpr timeScale        = timeUnitsIn60FPS / 16.6666693985462188720703125f;
 
 /**
  * @fn elaspedTimeUnits.
@@ -87,7 +85,7 @@ inline U32_t constexpr timeScale =
  */
 inline CGE_forceinline U32_t elapsedTimeUnits(U64_t end, U64_t start)
 {
-    // Convert nanoseconds to 1/300 seconds
+    // Convert nanoseconds to 1/timeUnit seconds
     return static_cast<U32_t>((end - start) * timeUnit64 / hiResFrequency());
 }
 

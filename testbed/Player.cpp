@@ -275,7 +275,8 @@ glm::vec3 Player::getCentroid() const
 
 void ScrollingTerrain::init(InitData const &initData)
 {
-    auto const initialMt          = glm::translate(glm::scale(glm::mat4(1.f), glm::vec3(1.f, 1.f, 2.f)), glm::vec3(0.f, 0.f, -5.f));
+    auto const initialMt =
+      glm::translate(glm::scale(glm::mat4(1.f), glm::vec3(1.f, 1.f, 2.f)), glm::vec3(0.f, 0.f, -5.f));
     static U32_t constexpr offset = 1;
 
     // load all available meshes
