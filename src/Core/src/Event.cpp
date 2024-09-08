@@ -1,6 +1,5 @@
 #include "Event.h"
 
-#include <alloca.h>
 #include <cstring>
 #include <tuple>
 
@@ -38,7 +37,7 @@ EErr_t EventQueue_t::emit(Event_t event, EventArg_t eventData)
 static U64_t bytesSid(EventArg_t obj)
 {
     static U64_t constexpr size = sizeof(EventArg_t);
-    Char8_t* memory             = static_cast<decltype(memory)>(alloca(size + 1));
+    Char8_t memory[size + 1];
     std::memcpy(memory, &obj, size);
     memory[size] = '\0';
     return hashCRC64(memory);

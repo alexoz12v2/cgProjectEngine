@@ -7,6 +7,9 @@
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/geometric.hpp>
 
+#undef min
+#undef max
+
 namespace cge
 {
 

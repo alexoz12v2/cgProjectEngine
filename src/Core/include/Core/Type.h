@@ -84,20 +84,23 @@ enum class EErr_t : U32_t
 };
 
 /// @struct TypePack definition
-template<typename... Ts> struct TypePack
+template<typename... Ts>
+struct TypePack
 {
     static U64_t constexpr count = sizeof...(Ts);
 };
 
 /// @struct TypePack Operations
-template<typename T, typename... Ts> struct indexOf
+template<typename T, typename... Ts>
+struct indexOf
 {
     static I32_t constexpr count = 0;
     static_assert(!std::is_same_v<T, T>, "Type not present in TypePack");
 };
 
 /// @struct TypePack Operations
-template<typename T, typename... Ts> struct indexOf<T, TypePack<T, Ts...>>
+template<typename T, typename... Ts>
+struct indexOf<T, TypePack<T, Ts...>>
 {
     static I32_t constexpr count = 0;
 };
@@ -110,7 +113,8 @@ struct indexOf<T, TypePack<U, Ts...>>
 };
 
 /// @struct TypePack Operations
-template<U32_t idx, typename T, typename... Ts> struct at
+template<U32_t idx, typename T, typename... Ts>
+struct at
 {
     static_assert(!std::is_same_v<T, T>, "at requires parameter a TypePack");
 };
@@ -123,7 +127,8 @@ struct at<idx, TypePack<T, Ts...>>
 };
 
 /// @struct TypePack Operations
-template<typename T, typename... Ts> struct at<0, TypePack<T, Ts...>>
+template<typename T, typename... Ts>
+struct at<0, TypePack<T, Ts...>>
 {
     using type = T;
 };
@@ -132,25 +137,25 @@ template<typename T, typename... Ts> struct at<0, TypePack<T, Ts...>>
 // Computing return type of a polymorphic function: We cannot use just
 // std::invoke_result_r, because we want to check at compile time that calling
 // that function for all types in the Pack yields the same type
-template<typename... Ts> struct SameType;
-template<typename T, typename... Ts> struct SameType<T, Ts...>
+template<typename... Ts>
+struct SameType;
+template<typename T, typename... Ts>
+struct SameType<T, Ts...>
 {
     using type = T;
-    static_assert(
-      std::is_same_v<T, Ts...>,
-      "Not all types in pack are the same");
+    static_assert(std::is_same_v<T, Ts...>, "Not all types in pack are the same");
 };
 
-template<typename F, typename... Ts> struct ReturnType
+template<typename F, typename... Ts>
+struct ReturnType
 {
-    using type =
-      typename SameType<typename std::invoke_result_t<F, Ts *>...>::type;
+    using type = typename SameType<typename std::invoke_result_t<F, Ts *>...>::type;
 };
 
-template<typename F, typename... Ts> struct ReturnTypeConst
+template<typename F, typename... Ts>
+struct ReturnTypeConst
 {
-    using type =
-      typename SameType<typename std::invoke_result_t<F, const Ts *>...>::type;
+    using type = typename SameType<typename std::invoke_result_t<F, const Ts *>...>::type;
 };
 
 namespace detail
@@ -175,13 +180,7 @@ namespace detail
         CGE_unreachable();
     }
 
-    template<
-      typename F,
-      typename R,
-      typename T0,
-      typename T1,
-      typename T2,
-      typename... Ts>
+    template<typename F, typename R, typename T0, typename T1, typename T2, typename... Ts>
     R dispatch(F &&func, void const *ptr, I32_t index)
     {
         switch (index)
@@ -200,21 +199,24 @@ namespace detail
  * @Brief pointer to a polymorphic type, whose type id is embedded in the
  * pointer itself
  */
-template<typename... Ts> class TaggedPointer
+template<typename... Ts>
+class TaggedPointer
 {
   public:
     using Types = TypePack<Ts...>;
 
     TaggedPointer() = default;
 
-    template<typename T> TaggedPointer(T *ptr)
+    template<typename T>
+    TaggedPointer(T *ptr)
     {
         U32_t constexpr type = typeIndex<T>();
         U64_t iptr           = reinterpret_cast<U64_t>(ptr);
         bits                 = iptr | ((U64_t)type << tagShift);
     }
 
-    template<typename F> auto dispatch(F &&func) -> decltype(auto)
+    template<typename F>
+    auto dispatch(F &&func) -> decltype(auto)
     {
         using R = typename ReturnType<F, Ts...>::type;
 
@@ -222,7 +224,8 @@ template<typename... Ts> class TaggedPointer
         return detail::dispatch<F, R, Ts...>(func, ptr(), tag() - 1);
     }
 
-    template<typename F> auto dispatch(F &&func) const -> decltype(auto)
+    template<typename F>
+    auto dispatch(F &&func) const -> decltype(auto)
     {
         using R = typename ReturnTypeConst<F, Ts...>::type;
 
@@ -230,7 +233,8 @@ template<typename... Ts> class TaggedPointer
         return detail::dispatch<F, R, Ts...>(func, ptr(), tag() - 1);
     }
 
-    template<typename T> static auto constexpr typeIndex() -> U32_t
+    template<typename T>
+    static auto constexpr typeIndex() -> U32_t
     {
         using Tp = typename std::remove_cv_t<T>;
         if constexpr (std::is_same_v<Tp, std::nullptr_t>)
@@ -239,9 +243,15 @@ template<typename... Ts> class TaggedPointer
             return 1 + indexOf<Tp, Types>::count;
     }
 
-    auto tag() const -> U32_t { return (bits & tagMask) >> tagShift; }
+    auto tag() const -> U32_t
+    {
+        return (bits & tagMask) >> tagShift;
+    }
 
-    auto ptr() -> void * { return reinterpret_cast<void *>(bits & ptrMask); }
+    auto ptr() -> void *
+    {
+        return reinterpret_cast<void *>(bits & ptrMask);
+    }
     auto ptr() const -> void const *
     {
         return reinterpret_cast<void const *>(bits & ptrMask);
@@ -260,12 +270,15 @@ template<typename... Ts> class TaggedPointer
     U64_t bits;
 };
 
-template<typename T> struct RemoveConstPointer;
-template<typename T> struct RemoveConstPointer<T const *>
+template<typename T>
+struct RemoveConstPointer;
+template<typename T>
+struct RemoveConstPointer<T const *>
 {
     using type = T *;
 };
-template<typename T> struct RemoveConstPointer<T *>
+template<typename T>
+struct RemoveConstPointer<T *>
 {
     using type = T *;
 };
@@ -274,11 +287,7 @@ template<typename T> struct RemoveConstPointer<T *>
  * @Brief polymorphic type, stored inline with an index. Dangerous, but could be
  * useful
  */
-template<
-  U64_t freeSpaceSize,
-  U64_t freeSpaceAlignment,
-  B8_t  executeDestructor,
-  typename... Ts>
+template<U64_t freeSpaceSize, U64_t freeSpaceAlignment, B8_t executeDestructor, typename... Ts>
 class TaggedStruct
 {
   public:
@@ -289,9 +298,7 @@ class TaggedStruct
         requires(sizeof(T) <= freeSpaceSize * sizeof(U8_t))
     TaggedStruct(T &&copy) : m_index(typeIndex<T>())
     {
-        std::construct_at(
-          reIerpret_cast<std::remove_reference_t<T> *>(data),
-          std::forward<T>(copy));
+        std::construct_at(reIerpret_cast<std::remove_reference_t<T> *>(data), std::forward<T>(copy));
     }
 
     template<U32_t idx>
@@ -303,8 +310,7 @@ class TaggedStruct
     ~TaggedStruct()
         requires(executeDestructor)
     {
-        auto f = [&]<typename T>(T *ptr)
-        { std::destroy_at(reinterpret_cast<T>(data)); };
+        auto f = [&]<typename T>(T *ptr) { std::destroy_at(reinterpret_cast<T>(data)); };
         dispatch(f);
     }
 
@@ -313,22 +319,24 @@ class TaggedStruct
     = default;
 
 
-    template<typename F> auto dispatch(F &&func) -> decltype(auto)
+    template<typename F>
+    auto dispatch(F &&func) -> decltype(auto)
     {
         using R = typename ReturnType<F, Ts...>::type;
 
         return detail::dispatch<F, R, Ts...>(func, (void *)&data, m_index);
     }
 
-    template<typename F> auto dispatch(F &&func) const -> decltype(auto)
+    template<typename F>
+    auto dispatch(F &&func) const -> decltype(auto)
     {
         using R = typename ReturnTypeConst<F, Ts...>::type;
 
-        return detail::dispatch<F, R, Ts...>(
-          func, (void const *)&data, m_index);
+        return detail::dispatch<F, R, Ts...>(func, (void const *)&data, m_index);
     }
 
-    template<typename T> static auto constexpr typeIndex() -> U32_t
+    template<typename T>
+    static auto constexpr typeIndex() -> U32_t
     {
         using Tp = typename std::remove_cv_t<std::remove_reference_t<T>>;
         if constexpr (std::is_same_v<Tp, std::nullptr_t>)

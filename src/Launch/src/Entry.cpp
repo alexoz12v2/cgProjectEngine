@@ -70,6 +70,7 @@ class MainTimer
             measuredElapsedTime = timeUnitsIn60FPS;
         }
 #endif
+#undef min
         m_timeWindow[m_timeWindowIndex] = measuredElapsedTime;
         ++m_timeWindowIndex;
         m_timeWindowIndex &= timeWindowMask;
@@ -97,7 +98,7 @@ I32_t main(I32_t argc, Char8_t **argv)
     setMXCSR_DAZ_FTZ();
     g_eventQueue.init();
     MainTimer mainTimer;
-    U32_t     elapsedTime  = timeUnitsIn60FPS;
+    U32_t     elapsedTime = timeUnitsIn60FPS;
 
     WindowSpec_t windowSpec{ .title = "window", .width = 600, .height = 480 };
     Window_s     window;
@@ -153,7 +154,7 @@ I32_t main(I32_t argc, Char8_t **argv)
         g_eventQueue.dispatch();
 
         // Update timers
-        elapsedTime  = mainTimer.elapsedTime();
+        elapsedTime = mainTimer.elapsedTime();
     }
 
     for (auto &[sid, moduleCtorPair] : getModuleMap())

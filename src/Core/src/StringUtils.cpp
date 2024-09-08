@@ -13,16 +13,23 @@ namespace cge
 #if defined(CGE_DEBUG)
 
 // cannot store char array directly into table as table can get relocated
-static std::unordered_map<U64_t, std::unique_ptr<Char8_t[]>> table;
-static Char8_t const *const                                  errStr = "Error: String Not Found";
+
+using StringMap                    = std::unordered_map<U64_t, std::unique_ptr<Char8_t[]>>;
+static Char8_t const *const errStr = "Error: String Not Found";
+
+// Avoid static order initialization fiasco (MSVC map implementation)
+StringMap &getTable()
+{
+    static StringMap table;
+    return table;
+}
 
 Sid_t dbg_internString(Char8_t const *str)
 {
     Sid_t strId            = { .id = hashCRC64(str) };
-    auto [it, wasInserted] = table.try_emplace(strId.id);
+    auto [it, wasInserted] = getTable().try_emplace(strId.id, std::make_unique<Char8_t[]>(1024));
     if (wasInserted)
     {
-        it->second = std::make_unique<Char8_t[]>(1024);
         strcpy(it->second.get(), str);
 // debug print if needed
 #if 0
@@ -35,7 +42,7 @@ Sid_t dbg_internString(Char8_t const *str)
 #endif
         strId.pStr = &it->second[0];
     }
-    else if (auto it1 = table.find(strId.id); it1 != table.cend())
+    else if (auto it1 = getTable().find(strId.id); it1 != getTable().cend())
     {
         strId.pStr = &it1->second[0];
     }
@@ -52,7 +59,7 @@ Char8_t const *dbg_lookupString(Sid_t sid)
     {
         return sid.pStr;
     }
-    else if (auto it = table.find(sid.id); it != table.cend())
+    else if (auto it = getTable().find(sid.id); it != getTable().cend())
     {
         sid.pStr = &it->second[0];
         return sid.pStr;
