@@ -4,9 +4,9 @@
 #include "Core/Type.h"
 #include "Core/Utility.h"
 
+#include <glm/ext/matrix_float4x4.hpp>
 #include <irrKlang/ik_ISound.h>
 #include <irrKlang/ik_ISoundSource.h>
-#include <glm/ext/matrix_float4x4.hpp>
 #include <type_traits>
 
 namespace cge
@@ -24,14 +24,21 @@ struct OrnithopterSpec
 class Ornithopter
 {
   public:
+    struct OnTickTs
+    {
+        glm::mat4 playerTransform;
+        glm::mat4 playerTranslate;
+        glm::mat4 cameraTransform;
+    };
+
     explicit Ornithopter(OrnithopterSpec const &spec);
     ~Ornithopter();
 
-    void init(glm::mat4 const &initialTransform);
-    void onTick(U64_t deltaTime, glm::mat4 const &newBodyTransform);
-    void playGun();
-    void playSwish();
-    void stopSwish();
+    void               init(glm::mat4 const &initialTransform);
+    void               onTick(U64_t deltaTime, OnTickTs const &transforms);
+    void               playGun();
+    void               playSwish();
+    void               stopSwish();
     [[nodiscard]] AABB bodyBoundingBox() const;
 
   private:
@@ -45,10 +52,12 @@ class Ornithopter
             Sid_t wingUpL;
             Sid_t wingBottomR;
             Sid_t wingBottomL;
-        } s;
+        };
+        S     s;
         Sid_t arr[5];
         static_assert(std::is_trivial_v<S> && sizeof(s) == sizeof(arr));
-    } m_sids;
+    };
+    U m_sids;
 
     // sound
     irrklang::ISoundSource *m_swishSoundSource{ nullptr };
@@ -56,7 +65,7 @@ class Ornithopter
     irrklang::ISoundSource *m_helicopterSoundSource{ nullptr };
 
     // misc
-    U64_t m_elapsedTime{0ULL};
+    U64_t m_elapsedTime{ 0ULL };
 };
 
 } // namespace cge

@@ -29,17 +29,19 @@ inline U32_t constexpr numLanes      = 3;
 inline F32_t constexpr laneShift     = (F32_t)pieceSize / numLanes;
 
 // player constants
-static F32_t constexpr scoreMultiplier   = 0.1f;
-static F32_t constexpr baseShiftDelay    = 0.05f; // between 0 and 1
-static F32_t constexpr baseVelocity      = 200.f;
-static F32_t constexpr maxBaseVelocity   = 800.f;
-static F32_t constexpr invincibilityTime = 7.f;
-static F32_t constexpr speedBoost        = 2.f;
-static glm::vec3 const meshCameraOffset{ 0.f, -10.f, -20.f };
+inline F32_t constexpr scoreMultiplier   = 0.1f;
+inline F32_t constexpr baseShiftDelay    = 0.05f; // between 0 and 1
+inline F32_t constexpr baseVelocity      = 200.f;
+inline F32_t constexpr maxBaseVelocity   = 800.f;
+inline F32_t constexpr invincibilityTime = 7.f;
+inline F32_t constexpr speedBoost        = 2.f;
+inline glm::vec3 const meshCameraOffset{ 0.f, 20.f, -9.f };
+inline F32_t constexpr maxLeanRotation = 15.f * glm::pi<F32_t>() / 180.f;
+inline glm::vec3 const xAxis{ 1.f, 0.f, 0.f };
 
 // scrolling terrain constants
-static U32_t constexpr numPowerUpTypes    = std::array{ "speed", "magnet" }.size();
-static U32_t constexpr maxNumSpawnedCoins = 20;
+inline U32_t constexpr numPowerUpTypes    = std::array{ "speed", "magnet" }.size();
+inline U32_t constexpr maxNumSpawnedCoins = 20;
 
 Player::~Player()
 {
@@ -96,11 +98,16 @@ void Player::spawn(const Camera_t &view)
     assert(m_invincibleMusicSource && m_bgmSource);
 }
 
+static glm::mat4 computeCameraTransform(Camera_t const &camera)
+{
+    return glm::translate(glm::mat4(1.0f), camera.position);
+}
+
 void Player::onTick(U64_t deltaTimeI)
 {
     F32_t deltaTimeF = static_cast<F32_t>(deltaTimeI) / timeUnit64;
     if (m_invincible)
-    { //
+    {
         m_invincibilityTimer += deltaTimeF;
         printf("[Player] INVINCIBLE, Timer = %f\n", m_invincibilityTimer);
         if (m_invincibilityTimer > invincibilityTime)
@@ -112,7 +119,7 @@ void Player::onTick(U64_t deltaTimeI)
     }
 
     if (m_intersected)
-    { //
+    {
         EventArg_t evData{};
         evData.idata.u64 = m_score;
         g_eventQueue.emit(evGameOver, evData);
@@ -138,15 +145,23 @@ void Player::onTick(U64_t deltaTimeI)
         }
 
         // first apply old position to mesh
+        F32_t     interpolant    = (getVelocity() - baseVelocity) / (maxBaseVelocity - baseVelocity);
+        F32_t     leanAngle      = glm::mix(0.f, maxLeanRotation, interpolant);
+        glm::vec3 cameraDistance = meshCameraOffset;
+        cameraDistance.y         = glm::mix(meshCameraOffset.y, meshCameraOffset.y + 5.f, interpolant);
+        glm::mat4 t              = glm::rotate(glm::mat4(1.f), leanAngle, xAxis);
+        glm::mat4 tr             = glm::translate(glm::mat4(1.f), cameraDistance);
         m_delayedCtor.ornithopter.onTick(
-          deltaTimeI, glm::translate(glm::inverse(m_camera.viewTransform()), meshCameraOffset));
+          deltaTimeI,
+          { .playerTransform = t, .playerTranslate = tr, .cameraTransform = computeCameraTransform(m_camera) });
+
         // then update position
         m_camera.position.x = disp;
         m_camera.position += displacement;
         F32_t x = glm::log(static_cast<F32_t>(m_score));
         x *= x;
         m_velocityIncrement = glm::max(glm::abs(x), 1.f);
-#if 1
+#if 0
         printf("[Player] New Displacement after deltaTime %f <=> %f\n", deltaTimeF, displacement.y);
 #endif
     }
@@ -154,11 +169,11 @@ void Player::onTick(U64_t deltaTimeI)
 void Player::resumeNormalMusic()
 {
     if (m_bgm)
-    { //
+    {
         m_bgm->setIsPaused(false);
     }
     else
-    { //
+    {
         m_bgm = g_soundEngine()->play2D(m_bgmSource, true);
     }
 }
@@ -810,9 +825,4 @@ F32_t Player::getVelocity() const
     return (m_invincible ? speedBoost : 1.f) * glm::min(baseVelocity + m_velocityIncrement, maxBaseVelocity);
 }
 
-Player::U &Player::U::operator=(const Player::U &other)
-{
-    std::copy(std::begin(other.arr), std::end(other.arr), std::begin(arr));
-    return *this;
-}
 } // namespace cge

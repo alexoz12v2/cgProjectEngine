@@ -165,8 +165,12 @@ class Player
     // main components
     union U0
     {
-        U0() {}
-        ~U0() {}
+        U0()
+        {
+        }
+        ~U0()
+        {
+        }
         Ornithopter ornithopter;
     } m_delayedCtor;
     Camera_t m_camera{};
@@ -189,7 +193,6 @@ class Player
         constexpr U()
         {
         }
-        U &operator=(const U &);
         struct S
         {
             EventDataSidPair keyListener;

@@ -30,8 +30,10 @@ class SceneNode_s
 
     void setSid(Sid_t sid);
     void transform(glm::mat4 const &t);
+    void rightMul(glm::mat4 const &t);
     void setTransform(glm::mat4 const &t);
-    void translate(const glm::vec3 &disp);
+    void translate(glm::vec3 const &disp);
+    void rotate(F32_t radians, glm::vec3 const &rotationAxis);
 
   private:
     Sid_t     m_sid; // sid of the mesh

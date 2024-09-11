@@ -32,28 +32,37 @@ void SceneNode_s::setSid(Sid_t sid)
 }
 
 void SceneNode_s::transform(glm::mat4 const &t)
-{ //
+{
     m_transform = t * m_transform;
 }
 
+void SceneNode_s::rightMul(glm::mat4 const &t) {
+    m_transform *= t;
+}
+
 void SceneNode_s::setTransform(const glm::mat4 &t)
-{ //
+{
     m_transform = t;
 }
 void SceneNode_s::translate(const glm::vec3 &disp)
-{ //
+{
     m_transform[3].x += disp.x;
     m_transform[3].y += disp.y;
     m_transform[3].z += disp.z;
 }
 
+void SceneNode_s::rotate(F32_t radians, glm::vec3 const &rotationAxis)
+{
+    m_transform = glm::rotate(m_transform, radians, rotationAxis);
+}
+
 SceneNode_s &Scene_s::getNodeBySid(Sid_t sid)
-{ //
+{
     return m_nodeMap.at(sid);
 }
 
 SceneNode_s const &Scene_s::getNodeBySid(Sid_t sid) const
-{ //
+{
     return m_nodeMap.at(sid);
 }
 
