@@ -6,7 +6,12 @@
 #include "Launch/Entry.h"
 #include "Render/Renderer2d.h"
 
+#include <fstream>
+#include <nlohmann/json.hpp>
+
 CGE_DECLARE_MODULE(cge, MenuModule, "MenuModule");
+
+static nlohmann::json json;
 
 namespace cge
 {
@@ -42,6 +47,17 @@ void MenuModule::onInit()
       evMouseButtonPressed, mouseButtonCallback<MenuModule>, listenerData);
 
     m_bopSource = g_soundEngine()->addSoundSourceFromFile("../assets/bop.mp3");
+
+    std::ifstream file{ "../assets/saves.json" };
+    if (file)
+    { //
+        json = nlohmann::json::parse(file);
+    }
+    else
+    { //
+        std::vector<U64_t> empty;
+        json = nlohmann::json::object({ { "bestScore", empty } });
+    }
 
     m_init = true;
 }

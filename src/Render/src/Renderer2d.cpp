@@ -424,4 +424,9 @@ void Renderer2D::renderText(
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
+glm::ivec2 Renderer2D::letterSize() const
+{
+    return m_characterMap.at('O').size;
+}
+
 } // namespace cge

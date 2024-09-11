@@ -30,7 +30,7 @@ inline F32_t constexpr laneShift     = (F32_t)pieceSize / numLanes;
 
 // player constants
 inline F32_t constexpr scoreMultiplier   = 0.1f;
-inline F32_t constexpr baseShiftDelay    = 0.05f; // between 0 and 1
+inline F32_t constexpr baseShiftDelay    = 0.01f; // between 0 and 1
 inline F32_t constexpr baseVelocity      = 200.f;
 inline F32_t constexpr maxBaseVelocity   = 800.f;
 inline F32_t constexpr invincibilityTime = 7.f;
@@ -736,6 +736,43 @@ F32_t ScrollingTerrain::randomLaneOffset() const
     std::array<F32_t, 3> arr = { -laneShift, 0, laneShift };
     std::ranges::shuffle(arr, g_random.getGen());
     return arr[0];
+}
+void ScrollingTerrain::onTick(U64_t deltaTime)
+{
+    static F32_t constexpr maxDisplacement  = 0.01f;
+    static F32_t constexpr frequency        = 5.f * glm::pi<F32_t>() * 0.5f;
+    static F32_t constexpr radiansPerSecond = 120.f * glm::pi<F32_t>() / 180.f;
+    m_elapsedTime += deltaTime;
+
+    // rotate by a bit all coins
+    for (auto const &[pos, coin] : m_coinMap)
+    {
+        if (coin == nullSid)
+        {
+            continue;
+        }
+        auto     &node = g_scene.getNodeBySid(coin);
+        glm::mat4 p    = node.getTransform();
+        g_scene.getNodeBySid(coin).setTransform(
+          p * glm::rotate(glm::mat4(1.f), deltaTime * radiansPerSecond / timeUnit64, glm::vec3(0.f, 0.f, 1.f)));
+    }
+
+    // move up and down by a bit all power-ups
+    for (Sid_t const &sid : m_powerUps)
+    {
+        if (sid == nullSid)
+        {
+            continue;
+        }
+        auto &node = g_scene.getNodeBySid(sid);
+        auto t = node.getTransform();
+        F32_t disp = maxDisplacement * glm::sin(frequency * m_elapsedTime / timeUnit64);
+        t *= glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, disp));
+        while (t[3].z > 1.f) {
+            t[3].z += 0.1f;
+        }
+        node.setTransform(t);
+    }
 }
 
 bool Player::intersectPlayerWith(ScrollingTerrain &terrain)

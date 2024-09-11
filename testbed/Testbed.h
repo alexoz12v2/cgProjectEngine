@@ -45,6 +45,7 @@ class TestbedModule : public IModule
   private:
     glm::ivec2 m_framebufferSize{ g_focusedWindow()->getFramebufferSize() };
     Player     m_player;
+    U32_t      m_letterSize;
 
     // terrain data
     ScrollingTerrain m_scrollingTerrain;

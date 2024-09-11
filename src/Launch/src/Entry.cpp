@@ -175,13 +175,16 @@ I32_t main(I32_t argc, Char8_t **argv)
     setMXCSR_DAZ_FTZ();
     g_eventQueue.init();
     MainTimer mainTimer;
-    U32_t     elapsedTime = timeUnitsIn60FPS;
+    U64_t     elapsedTime = timeUnitsIn60FPS;
 
     WindowSpec_t windowSpec{ .title = "window", .width = 600, .height = 480 };
     Window_s     window;
     window.init(windowSpec);
 
     g_focusedWindow.setFocusedWindow(&window);
+
+    g_renderer2D.init();
+    window.emitFramebufferSize();
 
     // construct startup module
     getModuleMap().at(g_startupModule).ctor();
@@ -190,8 +193,6 @@ I32_t main(I32_t argc, Char8_t **argv)
     getModuleMap().at(g_startupModule).pModule->onInit();
 
     g_renderer.init();
-    g_renderer2D.init();
-    window.emitFramebufferSize();
     g_eventQueue.dispatch();
 
     while (!window.shouldClose() && !getModuleMap().at(g_startupModule).pModule->taggedForDestruction())

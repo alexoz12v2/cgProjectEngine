@@ -56,6 +56,7 @@ class ScrollingTerrain
     B8_t handleShoot(AABB const &playerBox);
 #endif
 
+    void                onTick(U64_t deltaTime);
     ObstacleList const &getObstacles() const;
     ObstacleList const &getDestructables() const;
     PowerupList const  &getPowerUps() const;
@@ -115,6 +116,8 @@ class ScrollingTerrain
     Sid_t                               m_coin{ nullSid };
     Sid_t                               m_magnetPowerUp{ nullSid };
     Sid_t                               m_speedPowerUp{ nullSid };
+
+    U64_t m_elapsedTime{ 0 };
 
     U32_t m_pieceSetSize{ 0 };
     U32_t m_obstacleSetSize{ 0 };

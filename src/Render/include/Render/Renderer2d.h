@@ -35,6 +35,8 @@ class Renderer2D
 
     void onFramebufferSize(I32_t width, I32_t height);
 
+    glm::ivec2 letterSize() const;
+
   private:
     void prepare(GpuProgram_s const &) const;
 

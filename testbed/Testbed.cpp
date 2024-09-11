@@ -31,7 +31,16 @@
 #include <vector>
 
 CGE_DECLARE_STARTUP_MODULE(cge, TestbedModule, "TestbedModule");
-// TODO scene and world not global. Also refactor them, they suck
+
+// TODOs:
+// - camera shaking
+// - malus speed no invincibility
+// - invincibility timer rendered
+// - renderer2D.renderRectangle({.position, .size})
+// - UI
+// - 2x main menu renderings
+// - handle an array of best scores in json file and display them in the extras menu
+// ? difficulty
 
 namespace cge
 {
@@ -159,10 +168,12 @@ void TestbedModule::onInit()
     }
     else
     { //
-        json = nlohmann::json::object({ { "bestScore", 0ULL } });
+        std::vector<U64_t> empty;
+        json = nlohmann::json::object({ { "bestScore", empty } });
     }
 
-    m_init = true;
+    m_letterSize = g_renderer2D.letterSize().x;
+    m_init       = true;
     IModule::onInit();
 }
 
@@ -206,7 +217,7 @@ void TestbedModule::onFramebufferSize(I32_t width, I32_t height)
 void TestbedModule::onGameOver(U64_t score)
 {
     printf("\033[33m[Testbed] onGameOver Called\033[0m\n");
-    U64_t curr = json["bestScore"].template get<U64_t>();
+    U64_t curr = json["bestScore"].get<U64_t>();
     if (score > curr)
     { //
         json["bestScore"] = score;
@@ -242,6 +253,7 @@ void TestbedModule::onTick(U64_t deltaTime)
 
     m_scrollingTerrain.updateTilesFromPosition(center);
     m_player.onTick(deltaTime);
+    m_scrollingTerrain.onTick(deltaTime);
     m_player.intersectPlayerWith(m_scrollingTerrain);
 
     getBackgroundRenderer().renderBackground(m_player.getCamera(), aspectRatio(), CLIPDISTANCE, RENDERDISTANCE);
@@ -252,22 +264,28 @@ void TestbedModule::onTick(U64_t deltaTime)
       camera.forward);
 
     std::pmr::string str{ getMemoryPool() };
-
-    str.append("Best Score: ");
-    str.append(std::to_string(json["bestScore"].get<U64_t>()));
-    g_renderer2D.renderText(str.c_str(), glm::vec3(25.0f, 25.0f, 1.0f), glm::vec3(0.5, 0.8f, 0.2f));
+    F32_t            scale = glm::mix(1.f, 0.34f, glm::clamp(10.f * m_letterSize / m_framebufferSize.y, 0.01f, 1.f));
 
     str.clear();
     str.append("velocity: ");
     str.append(std::to_string(m_player.getVelocity()));
-    g_renderer2D.renderText(str.c_str(), { 0.1f, 0.8f, 1.f }, { 0.3f, 0.3f, 0.3f });
+    g_renderer2D.renderText(str.c_str(), { 0.1f, 0.8f, scale }, { 0.3f, 0.3f, 0.3f });
 
     str.clear();
     str.append(std::to_string(m_player.getCurrentScore()));
-    glm::vec3 const xyScale{ m_framebufferSize.x / 1.95f, m_framebufferSize.y / 1.2f, 1.f };
-    glm::vec3 const color{ 0.2f, 0.2f, 0.2f };
+    glm::vec3 const xyScale{ m_framebufferSize.x * 0.85f, m_framebufferSize.y / 1.2f, scale };
+    glm::vec3 const color{ 0.9f };
+
+    g_renderer2D.renderButton({ .position{ m_framebufferSize.x * 0.85f, m_framebufferSize.y / 1.2f },
+                                .size{ m_letterSize * 1.1f, m_letterSize * 10 / scale },
+                                .borderColor{ 0.f },
+                                .borderWidth = 0.f,
+                                .backgroundColor{ 0.5f },
+                                .text = "",
+                                .textColor{ 0.f } });
     g_renderer2D.renderText(str.c_str(), xyScale, color);
 }
+
 
 [[nodiscard]] F32_t TestbedModule::aspectRatio() const
 {
