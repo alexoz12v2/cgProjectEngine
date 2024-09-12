@@ -258,7 +258,7 @@ HandleTable_s::Ref_s HandleTable_s::get(Sid_t sid)
 }
 
 Mesh_s &HandleTable_s::getMesh(Sid_t sid)
-{ //
+{
     return m_meshTable.at(sid);
 }
 
@@ -453,7 +453,6 @@ void HandleTable_s::loadTextures(Char8_t const *basePath, void const *material, 
             completePath = completePath.substr(0, pos) + '/';
             completePath += path.C_Str();
 
-            // TODO not handling RGBA
             Byte_t *texData =
               reinterpret_cast<Byte_t *>(stbi_load(completePath.c_str(), &texWidth, &texHeight, &texChannelCnt, 3));
 
@@ -464,8 +463,8 @@ void HandleTable_s::loadTextures(Char8_t const *basePath, void const *material, 
                                      .width  = (U32_t)texWidth,
                                      .height = (U32_t)texHeight,
                                      .depth  = 1,
-                                     .format = GL_UNSIGNED_BYTE,
-                                     .type   = GL_RGB };
+                                     .format = GL_RGB,
+                                     .type   = GL_UNSIGNED_BYTE};
             mesh.textures.arr[j] = CGE_SID(path.C_Str());
             g_handleTable.insertTexture(CGE_SID(path.C_Str()), tex);
             setTextureTypePresentInMesh(mesh, type);
@@ -477,6 +476,10 @@ void HandleTable_s::loadTextures(Char8_t const *basePath, void const *material, 
     }
 
     mesh.numTextures = num;
+}
+TextureData_s &HandleTable_s::getTexture(Sid_t sid)
+{
+    return m_textureTable.at(sid);
 }
 
 Mesh_s &HandleTable_s::Ref_s::asMesh()

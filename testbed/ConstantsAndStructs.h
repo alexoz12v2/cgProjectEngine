@@ -8,22 +8,9 @@
 namespace cge
 {
 
-struct HitInfo_t
-{
-    alignas(float) bool present; // std430
-    glm::vec3 position;
-    glm::vec3 normal;
-};
-
-struct Extent2D
-{
-    unsigned x;
-    unsigned y;
-};
-
-inline F32_t constexpr CLIPDISTANCE   = 0.05F;
-inline F32_t constexpr RENDERDISTANCE = 500.F;
-inline F32_t constexpr FOV            = 45.F;
+inline F32_t constexpr CLIPDISTANCE   = 5.f;
+inline F32_t constexpr RENDERDISTANCE = 500.f;
+inline F32_t constexpr FOV            = 90.f;
 
 inline Event_t constexpr evGameOver{ .m_id = "GAME OVER"_sid };
 inline Event_t constexpr evShoot{ .m_id = "SHOOT"_sid };

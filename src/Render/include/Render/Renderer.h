@@ -33,7 +33,6 @@ class Renderer_s
       glm::vec3        eye) const;
     void clear() const;
 
-    // TODO configuration program
     void renderCube() const;
 
     void onFramebufferSize(I32_t width, I32_t height);
@@ -46,14 +45,12 @@ class Renderer_s
 extern Renderer_s g_renderer;
 
 class BackgroundRenderer
-{ //
+{
   public:
     void init(unsigned char *image, I32_t width, I32_t height);
     void renderBackground(
       Camera_t const &camera,
-      F32_t           aspectRatio,
-      F32_t           clipDistance,
-      F32_t           renderDistance) const;
+      glm::mat4 const &proj) const;
 
   private:
     Texture_s    m_cubeBackground;

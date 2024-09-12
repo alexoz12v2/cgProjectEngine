@@ -28,6 +28,7 @@ EErr_t Texture_s::allocate(TextureSpec_t const &spec)
     {
         using enum cge::ETexture_t;
     case e1D:
+        assert(false);
         m_ndims = 1;
         break;
     case e2D:
@@ -38,6 +39,7 @@ EErr_t Texture_s::allocate(TextureSpec_t const &spec)
         m_ndims = 2;
         break;
     case e3D:
+        assert(false);
         m_ndims = 3;
         break;
     }
@@ -205,6 +207,10 @@ U32_t Texture_s::numLevels(U32_t width, U32_t height)
     ++biggest;
 
     return biggest;
+}
+glm::uvec3 Texture_s::extent() const
+{
+    return glm::uvec3(m_width, m_height, m_depth);
 }
 
 Sampler_s::Sampler_s() { GL_CHECK(glGenSamplers(1, &m_id)); }

@@ -40,7 +40,9 @@ CGE_DECLARE_STARTUP_MODULE(cge, TestbedModule, "TestbedModule");
 // - UI
 // - 2x main menu renderings
 // - handle an array of best scores in json file and display them in the extras menu
+// - background renderer no getter
 // ? difficulty
+// - depth buffer is not properly used by 3D scene
 
 namespace cge
 {
@@ -182,7 +184,7 @@ void TestbedModule::onKey(I32_t key, I32_t action)
     if (action == action::PRESS)
     {
         if (key == key::ESCAPE)
-        { //
+        {
             onGameOver(m_player.getCurrentScore());
         }
     }
@@ -217,14 +219,13 @@ void TestbedModule::onFramebufferSize(I32_t width, I32_t height)
 void TestbedModule::onGameOver(U64_t score)
 {
     printf("\033[33m[Testbed] onGameOver Called\033[0m\n");
-    U64_t curr = json["bestScore"].get<U64_t>();
-    if (score > curr)
-    { //
-        json["bestScore"] = score;
-    }
-
-    std::ofstream file{ "../assets/saves.json", std::ios::out | std::ios::trunc };
-    file << json.dump();
+    //U64_t curr = json["bestScore"].get<U64_t>();
+    //if (score > curr)
+    //{ //
+    //    json["bestScore"] = score;
+    //}
+    //std::ofstream file{ "../assets/saves.json", std::ios::out | std::ios::trunc };
+    //file << json.dump();
     switchToModule(CGE_SID("MenuModule"));
 }
 
@@ -250,18 +251,21 @@ void TestbedModule::onTick(U64_t deltaTime)
     auto const p      = m_player.lastDisplacement();
     auto const camera = m_player.getCamera();
     auto const center = m_player.getCentroid();
+    auto const proj = glm::perspective(glm::radians(FOV), aspectRatio(), CLIPDISTANCE, RENDERDISTANCE);
 
     m_scrollingTerrain.updateTilesFromPosition(center);
     m_player.onTick(deltaTime);
     m_scrollingTerrain.onTick(deltaTime);
     m_player.intersectPlayerWith(m_scrollingTerrain);
 
-    getBackgroundRenderer().renderBackground(m_player.getCamera(), aspectRatio(), CLIPDISTANCE, RENDERDISTANCE);
+    getBackgroundRenderer().renderBackground(m_player.getCamera(), proj);
     g_renderer.renderScene(
       g_scene,
       camera.viewTransform(),
-      glm::perspective(FOV, aspectRatio(), CLIPDISTANCE, RENDERDISTANCE),
+      proj,
       camera.forward);
+
+    glClear(GL_DEPTH_BUFFER_BIT);
 
     std::pmr::string str{ getMemoryPool() };
     F32_t            scale = glm::mix(1.f, 0.34f, glm::clamp(10.f * m_letterSize / m_framebufferSize.y, 0.01f, 1.f));

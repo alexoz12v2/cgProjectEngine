@@ -108,8 +108,8 @@ void Mesh_s::allocateTexturesToGpu()
                                .height = texData.height,
                                .depth  = 1,
                                .layer  = 0,
-                               .format = GL_RGB,
-                               .type   = GL_UNSIGNED_BYTE });
+                               .format = texData.format,
+                               .type   = texData.type });
         texture.defaultSamplerParams({
           .minFilter   = GL_LINEAR_MIPMAP_LINEAR,
           .magFilter   = GL_LINEAR,

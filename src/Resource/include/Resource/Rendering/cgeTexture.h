@@ -98,6 +98,8 @@ class Texture_s
 
     static U32_t bindFromType(ETexture_t type);
 
+    glm::uvec3 extent() const;
+
   private:
     Buffer_s m_pixelUnpack;
     U32_t    m_id = 0;

@@ -56,6 +56,7 @@ class HandleTable_s
     B8_t                 remove(Sid_t sid);
     HandleTable_s::Ref_s get(Sid_t sid);
     Mesh_s              &getMesh(Sid_t sid);
+    TextureData_s       &getTexture(Sid_t sid);
 
     void loadFromObj(Char8_t const *path);
 

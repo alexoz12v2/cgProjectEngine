@@ -183,16 +183,16 @@ I32_t main(I32_t argc, Char8_t **argv)
 
     g_focusedWindow.setFocusedWindow(&window);
 
+    g_renderer.init();
     g_renderer2D.init();
     window.emitFramebufferSize();
 
     // construct startup module
     getModuleMap().at(g_startupModule).ctor();
 
-    ModuleInitParams const params{};
+    UntypedData128 const params{};
     getModuleMap().at(g_startupModule).pModule->onInit();
 
-    g_renderer.init();
     g_eventQueue.dispatch();
 
     while (!window.shouldClose() && !getModuleMap().at(g_startupModule).pModule->taggedForDestruction())

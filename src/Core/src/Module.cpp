@@ -12,14 +12,20 @@ void IModule::tagForDestruction()
     m_taggedForDestruction = true;
 }
 
-IModule::IModule(Sid_t id) : m_id(id) { moduleInitOnce.try_emplace(m_id, false); }
+IModule::IModule(Sid_t id) : m_id(id)
+{
+    moduleInitOnce.try_emplace(m_id, false);
+}
 
 void IModule::onInit()
 { //
     moduleInitOnce.at(m_id) = true;
 }
 
-bool IModule::taggedForDestruction() const { return m_taggedForDestruction; }
+bool IModule::taggedForDestruction() const
+{
+    return m_taggedForDestruction;
+}
 
 void IModule::switchToModule(Sid_t moduleSid)
 { //
@@ -31,9 +37,15 @@ bool IModule::initializedOnce() const
     return moduleInitOnce.at(m_id);
 }
 
-Sid_t IModule::moduleSwitched() const { return m_nextModule; }
+Sid_t IModule::moduleSwitched() const
+{
+    return m_nextModule;
+}
 
-void IModule::resetSwitchModule() { m_nextModule = nullSid; }
+void IModule::resetSwitchModule()
+{
+    m_nextModule = nullSid;
+}
 
 
 std::pmr::unsynchronized_pool_resource *getMemoryPool()
@@ -57,5 +69,40 @@ std::pmr::monotonic_buffer_resource *getscratchBuffer()
     static std::pmr::monotonic_buffer_resource g_scratchBuffer{ scratchBuffer, bufferSize };
     return &g_scratchBuffer;
 }
+
+GlobalStore::GlobalStore() : m_map(getMemoryPool())
+{
+}
+
+UntypedData128 GlobalStore::consume(Sid_t const &sid)
+{
+    UntypedData128 res{};
+    auto const     it = m_map.find(sid);
+    if (it != m_map.cend())
+    {
+        res = it->second;
+        m_map.erase(sid);
+    }
+    else
+    {
+        printf("[GlobalStore] didn't find element to consume with sid %zu\n", sid.id);
+        assert(false);
+    }
+
+    return res;
+}
+
+void GlobalStore::put(Sid_t const &sid, UntypedData128 const &data)
+{
+    auto const &[it, wasInserted] = m_map.try_emplace(sid, data);
+    if (!wasInserted)
+    {
+        printf("[GlobalStore] overwriting value with sid %zu\n", sid.id);
+        m_map.erase(sid);
+        m_map.try_emplace(sid, data);
+    }
+}
+
+GlobalStore g_globalStore;
 
 } // namespace cge

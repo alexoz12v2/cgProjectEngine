@@ -258,6 +258,8 @@ void BackgroundRenderer::init(unsigned char *image, I32_t width, I32_t height)
     {
         assert(false);
     }
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
 
     Texture_s background;
     background.bind(ETexture_t::e2D);
@@ -360,10 +362,8 @@ void BackgroundRenderer::init(unsigned char *image, I32_t width, I32_t height)
 
 void BackgroundRenderer::renderBackground(
   Camera_t const &camera,
-  F32_t           aspectRatio,
-  F32_t           clipDistance,
-  F32_t           renderDistance) const
-{ //
+  glm::mat4 const &proj) const
+{
     glDisable(GL_CULL_FACE);
     glDisable(GL_BLEND);
     glDisable(GL_DEPTH_TEST);
@@ -371,18 +371,14 @@ void BackgroundRenderer::renderBackground(
     m_backgrProgram.bind();
     glm::mat4 rotationMatrix = glm::lookAt(glm::vec3(0.F), camera.forward, camera.up);
 
-    glUniformMatrix4fv(glGetUniformLocation(m_backgrProgram.id(), "view"), 1, GL_FALSE, &rotationMatrix[0][0]);
-    F32_t ratio = aspectRatio;
-    ratio       = ratio >= 1.f ? ratio : 1.f;
-    auto proj   = glm::perspective(45.F, ratio, clipDistance, renderDistance);
-    glUniformMatrix4fv(glGetUniformLocation(m_backgrProgram.id(), "projection"), 1, GL_FALSE, &proj[0][0]);
-    glUniform3fv(glGetUniformLocation(m_backgrProgram.id(), "cameraPos"), 1, &camera.position[0]);
+    glUniformMatrix4fv(glGetUniformLocation(m_backgrProgram.id(), "view"), 1, GL_FALSE, glm::value_ptr(rotationMatrix));
+    glUniformMatrix4fv(glGetUniformLocation(m_backgrProgram.id(), "projection"), 1, GL_FALSE, glm::value_ptr(proj));
 
     g_renderer.renderCube();
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
     glDepthMask(GL_TRUE);
     glEnable(GL_CULL_FACE);
 }
-
 
 } // namespace cge
