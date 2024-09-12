@@ -518,7 +518,7 @@ void Renderer2D::renderTexture(const TextureSpec &spec)
 
     // prepare render settings and projection matrix
     prepare(m_delayedCtor.s.textureProgram);
-    glUniform1f(glGetUniformLocation(m_delayedCtor.s.textureProgram.id(), "depth"), 0.9f);
+    glUniform1f(glGetUniformLocation(m_delayedCtor.s.textureProgram.id(), "depth"), spec.depth);
 
     // bind texture, with lazy uploading to GPU
     auto it = m_textureMap.find(spec.texture);
@@ -566,22 +566,7 @@ void Renderer2D::renderTexture(const TextureSpec &spec)
         }
         break;
     case ETextureRenderMode::ConstantRatioNoStretching:
-        if (texAspectRatio > windowAspectRatio)
-        {
-            // Texture is wider relative to the window
-            F32_t newWidth = m_windowSize.y * texAspectRatio;
-            F32_t xOffset  = (m_windowSize.x - newWidth) / 2.0f;
-            xLeft += xOffset;
-            xRight -= xOffset;
-        }
-        else
-        {
-            // Texture is taller relative to the window
-            F32_t newHeight = m_windowSize.x / texAspectRatio;
-            F32_t yOffset   = (m_windowSize.y - newHeight) / 2.0f;
-            yBottom += yOffset;
-            yTop -= yOffset;
-        }
+        yTop = yBottom + spec.size.y * m_windowSize.y / texAspectRatio * windowAspectRatio;
 
         // Update vertex positions based on the new dimensions
         vertices[0] = { xLeft, yTop, 0.f, 1.f };

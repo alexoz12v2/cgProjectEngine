@@ -43,6 +43,7 @@ struct TextureSpec
     glm::vec2          size;
     Sid_t              texture;
     ETextureRenderMode renderMode;
+    F32_t              depth;
 };
 
 class Renderer2D

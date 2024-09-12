@@ -122,6 +122,18 @@ void MenuModule::onInit()
             .depth  = 1,
             .format = GL_RGBA,
             .type   = GL_UNSIGNED_BYTE });
+
+        auto *tex1 = reinterpret_cast<Byte_t *>(
+          stbi_load("../assets/dune_run.png", &texWidth, &texHeight, &texChannelCnt, STBI_rgb_alpha));
+        std::shared_ptr<Byte_t> ddata(tex1, STBIDeleter{});
+        g_handleTable.insertTexture(
+          CGE_SID("DUNE RUN"),
+          { .data{ ddata },
+            .width  = static_cast<U32_t>(texWidth),
+            .height = static_cast<U32_t>(texHeight),
+            .depth  = 1,
+            .format = GL_RGBA,
+            .type   = GL_UNSIGNED_BYTE });
     }
 
     IModule::onInit();
@@ -133,7 +145,13 @@ void MenuModule::onTick(U64_t deltaTime)
     g_renderer2D.renderTexture({ .position{ 0.f, 0.f },
                                  .size{ 1.f, 1.f },
                                  .texture{ CGE_SID("MENU") },
-                                 .renderMode = ETextureRenderMode::ConstantSizeNoStretching });
+                                 .renderMode = ETextureRenderMode::ConstantSizeNoStretching,
+                                 .depth      = 0.9f });
+    g_renderer2D.renderTexture({ .position{ 0.7f, 0.1f },
+                                 .size{ 0.2f, 0.2f },
+                                 .texture{ CGE_SID("DUNE RUN") },
+                                 .renderMode = ETextureRenderMode::ConstantRatioNoStretching,
+                                 .depth      = 0.8f });
     for (const auto &button : buttons)
     {
         g_renderer2D.renderButton(button);
