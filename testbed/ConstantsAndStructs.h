@@ -12,6 +12,10 @@ inline Event_t constexpr evGameOver{ .m_id = "GAME OVER"_sid };
 inline Event_t constexpr evShoot{ .m_id = "SHOOT"_sid };
 inline Event_t constexpr evMagnetAcquired{ .m_id = "MAGNET POWERUP"_sid };
 inline Event_t constexpr evSpeedAcquired{ .m_id = "SPEED POWERUP"_sid };
+inline Event_t constexpr evDownAcquired{ .m_id = "DOWN POWERDOWN"_sid };
+
+template <typename T>
+concept PowerDownListeneer = requires(T t) { t.onPowerDown(); };
 
 template<typename T>
 concept GameOverListener = requires(T t, U64_t i) { t.onGameOver(i); };
@@ -24,6 +28,11 @@ concept MagnetAcquiredListener = requires(T t) { t.onMagnetAcquired(); };
 
 template<typename T>
 concept SpeedAcquiredListener = requires(T t) { t.onSpeedAcquired(); };
+
+template <PowerDownListeneer T> void powerDownCallback(EventArg_t eventData, EventArg_t listenerData) {
+    auto *self = (T *)listenerData.idata.p;
+    self->onPowerDown();
+}
 
 template<GameOverListener T> void gameOverCallback(EventArg_t eventData, EventArg_t listenerData)
 {

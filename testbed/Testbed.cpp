@@ -35,9 +35,7 @@ CGE_DECLARE_STARTUP_MODULE(cge, TestbedModule, "TestbedModule");
 
 // TODOs:
 // - camera shaking
-// - malus speed no invincibility
 // - draw from gimp guide
-// - 2x main menu renderings
 // ? difficulty
 
 namespace cge
@@ -51,7 +49,7 @@ inline Char8_t const constexpr *const mainMenuText = "Main Menu";
 inline F32_t constexpr CLIPDISTANCE   = 5.f;
 inline F32_t constexpr RENDERDISTANCE = 500.f;
 inline F32_t constexpr startFOV       = 60.f;
-inline F32_t constexpr maxFOV         = 90.f;
+inline F32_t constexpr maxFOV         = 120.f;
 inline F32_t constexpr baseFovDelay   = 0.00001f;
 
 inline ButtonSpec const mainMenuButton{
@@ -157,7 +155,8 @@ void TestbedModule::onInit()
                               .destructables = destructables,
                               .magnetPowerUp = magnet,
                               .coin          = coin,
-                              .speed         = speed });
+                              .speed         = speed,
+                              .down          = down });
 
 
     // setup player
@@ -288,9 +287,11 @@ void TestbedModule::onTick(U64_t deltaTime)
         m_player.intersectPlayerWith(m_scrollingTerrain);
 
         F32_t startVelocity = m_player.getVelocity();
-        m_targetFov         = glm::mix(
-          startFOV, maxFOV, (m_player.getVelocity() - startVelocity) / (m_player.getMaxVelocity() - startVelocity));
-        m_fov = glm::mix(m_fov, m_targetFov, 1.f - glm::pow(baseFovDelay, deltaTimeF));
+        F32_t logInterpolation =
+          std::log((m_player.getVelocity() - startVelocity) / (m_player.getMaxVelocity() - startVelocity) + 1)
+          / std::log(2);
+        m_targetFov = glm::mix(startFOV, maxFOV, logInterpolation);
+        m_fov       = glm::mix(m_fov, m_targetFov, 1.f - glm::pow(baseFovDelay, deltaTimeF));
     }
 
     // Rendering
@@ -335,10 +336,22 @@ void TestbedModule::onTick(U64_t deltaTime)
                                 .text = str.c_str(),
                                 .textColor{ 0.9f } });
 
-    if (F32_t time = m_player.remainingInvincibleTime(); time > 0.f)
+    if (F32_t time = m_player.remainingInvincibleTime(); time > 0.f && m_gameState == EGameState::eDefault)
     {
         str.clear();
         str.append("Remaining Invincibility Time: ");
+        str.append(std::to_string(time));
+        F32_t xSize = g_renderer2D.letterSize().x * str.size();
+        F32_t ySize = g_renderer2D.letterSize().y;
+        F32_t s     = glm::min(0.8f * m_framebufferSize.x / xSize, 0.1f * m_framebufferSize.y / ySize);
+        g_renderer2D.renderText(
+          str.c_str(), { 0.05f * m_framebufferSize.x, 0.9f * m_framebufferSize.y, s }, glm::vec3{ 0.3f });
+    }
+
+    if (F32_t time = m_player.remainingMalusTime(); time > 0.f && m_gameState == EGameState::eDefault)
+    {
+        str.clear();
+        str.append("Remaining Malus Time: ");
         str.append(std::to_string(time));
         F32_t xSize = g_renderer2D.letterSize().x * str.size();
         F32_t ySize = g_renderer2D.letterSize().y;

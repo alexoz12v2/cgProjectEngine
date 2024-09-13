@@ -76,6 +76,8 @@ void Player::spawn(const Camera_t &view)
     m_listeners.s.keyListener = g_eventQueue.addListener(evKeyPressed, KeyCallback<Player>, listenerData);
     m_listeners.s.speedAcquiredListener =
       g_eventQueue.addListener(evSpeedAcquired, speedAcquiredCallback<Player>, listenerData);
+    m_listeners.s.downAcquiredListener =
+      g_eventQueue.addListener(evDownAcquired, powerDownCallback<Player>, listenerData);
 
     OrnithopterSpec const spec{
         .body        = CGE_SID("Body"),
@@ -118,9 +120,18 @@ void Player::onTick(U64_t deltaTimeI)
         printf("[Player] INVINCIBLE, Timer = %f\n", m_invincibilityTimer);
         if (m_invincibilityTimer > invincibilityTime)
         {
+            m_invincibilityTimer = -1.f;
             stopInvincibleMusic();
             resumeNormalMusic();
             m_invincible = false;
+        }
+    }
+    if (m_invincibilityTimer >= 0.f)
+    {
+        m_invincibilityTimer += deltaTimeF;
+        if (m_invincibilityTimer > invincibilityTime)
+        {
+            m_invincibilityTimer = -1.f;
         }
     }
 
@@ -317,6 +328,7 @@ void ScrollingTerrain::init(InitData const &initData)
     m_coin          = initData.coin;
     m_magnetPowerUp = initData.magnetPowerUp;
     m_speedPowerUp  = initData.speed;
+    m_powerDown     = initData.down;
 
     // spawn initial platforms
     for (U32_t index = 0; index != numPieces; ++index)
@@ -361,17 +373,28 @@ void ScrollingTerrain::updateTilesFromPosition(glm::vec3 position)
             m_powerUps[m_first] = nullSid;
         }
 
-        // add new obstacles or powerup in the moved piece
-        // take a number from 0 to 100. 0 - 30 -> empty, 31 - 98 -> obstacle, 99 - 100 -> powerup
-        U32_t const num = g_random.next<U32_t>(0, 100);
-        if (num > 30)
+        // remove powerdown (if any) from the moved piece
+        if (m_powerDowns[m_first] != nullSid)
         {
-            if (num < 99)
-            { //
+            g_scene.removeNode(m_powerDowns[m_first]);
+            m_powerDowns[m_first] = nullSid;
+        }
+
+        // add new obstacles or powerup in the moved piece
+        // take a number from 0 to 100. 0 - 27 -> empty, 28 - 94 -> obstacle, 95 - 98 -> down, 99 - 100 -> powerup
+        U32_t const num = g_random.next<U32_t>(0, 100);
+        if (num > 27)
+        {
+            if (num < 95)
+            {
                 addPropOfType(g_random.next<U32_t>(0, 1), pieceTransform);
             }
+            else if (num < 99)
+            {
+                addPowerDown(pieceTransform);
+            }
             else
-            { //
+            {
                 addPowerUp(pieceTransform);
             }
         }
@@ -397,96 +420,6 @@ static constexpr B8_t isOverlapping2D(AABB const &box1, AABB const &box2)
            && box1.mm.min.z <= box2.mm.max.z;
 }
 
-#if 0
-B8_t ScrollingTerrain::handleShoot(Ray const &rayInput)
-{
-    Ray nRay                     = rayInput;
-    nRay.orig.z                  = 0;
-    float closestT               = std::numeric_limits<float>::max();
-    bool  foundInDestructables   = false;
-    Sid_t closestDestructableSid = nullSid;
-
-    printf(
-      "[ScrollingTerrain] Intersecting ray {\n\torigin: %f %f %f\n\tdirection: %f %f %f\n}\n",
-      nRay.orig.x,
-      nRay.orig.y,
-      nRay.orig.z,
-      nRay.dir.x,
-      nRay.dir.y,
-      nRay.dir.z);
-    // Check destructables first
-    for (auto const &dsid : m_destructables)
-    {
-        if (dsid == nullSid)
-        {
-            continue;
-        }
-
-        Sid_t const   meshSid = g_scene.getNodeBySid(dsid).getSid();
-        Mesh_s const &mesh    = g_handleTable.getMesh(meshSid);
-        AABB          obsBox  = globalSpaceBB(g_scene.getNodeBySid(dsid), mesh.box);
-        obsBox.mm.min.z       = -10.f;
-        obsBox.mm.max.z       = 10.f;
-
-        printf(
-          "[ScrollingTerrain] With AABB {\n\tmin: %f %f %f\n\tmax: %f %f %f\n}\n",
-          obsBox.mm.min.x,
-          obsBox.mm.min.y,
-          obsBox.mm.min.z,
-          obsBox.mm.max.x,
-          obsBox.mm.max.y,
-          obsBox.mm.max.z);
-        Hit_t hit = intersect(nRay, obsBox);
-        if (hit.isect && hit.t < closestT)
-        {
-            closestT               = hit.t;
-            foundInDestructables   = true;
-            closestDestructableSid = dsid;
-            printf("[ScrollingTerrain] found new nearest destructible intersection at distance at %f\n", hit.t);
-        }
-    }
-    printf("[ScrollingTerrain] Closest hit found in destructible: %s\n", (foundInDestructables ? "true" : "false"));
-    printf("[ScrollingTerrain] Now checking obstacles...\n");
-
-    // Check obstacles
-    for (auto const &osid : m_obstacles)
-    {
-        if (osid == nullSid)
-        {
-            continue;
-        }
-
-        Sid_t const   meshSid = g_scene.getNodeBySid(osid).getSid();
-        Mesh_s const &mesh    = g_handleTable.getMesh(meshSid);
-        AABB          obsBox  = globalSpaceBB(g_scene.getNodeBySid(osid), mesh.box);
-        obsBox.mm.min.z       = -10.f;
-        obsBox.mm.max.z       = 10.f;
-
-        Hit_t const hit = intersect(nRay, obsBox);
-        if (hit.isect && hit.t < closestT)
-        {
-            closestT             = hit.t;
-            foundInDestructables = false; // Closest hit is now from obstacles
-            printf("[ScrollingTerrain] There's a nearer obstacle, no destruct\n");
-            break;
-        }
-    }
-
-    // If the closest intersection was from destructables, set it to nullSid
-    if (foundInDestructables)
-    {
-        printf("[ScrollingTerrain] destructing one piece\n");
-        auto it = std::find(m_destructables.begin(), m_destructables.end(), closestDestructableSid);
-        if (it != m_destructables.end())
-        {
-            g_scene.removeNode(*it);
-            *it = nullSid; // Set to nullSid
-        }
-        return true;
-    }
-
-    return false;
-#else
 B8_t ScrollingTerrain::handleShoot(AABB const &playerBox)
 {
     B8_t  foundDestroyable    = false;
@@ -559,7 +492,6 @@ B8_t ScrollingTerrain::handleShoot(AABB const &playerBox)
     }
 
     return foundDestroyable;
-#endif
 }
 
 ScrollingTerrain::ObstacleList const &ScrollingTerrain::getObstacles() const
@@ -785,6 +717,44 @@ void ScrollingTerrain::onTick(U64_t deltaTime)
         }
         node.setTransform(t);
     }
+
+    for (Sid_t const &sid : m_powerDowns)
+    {
+        if (sid == nullSid)
+        {
+            continue;
+        }
+        auto &node = g_scene.getNodeBySid(sid);
+        auto  t    = node.getTransform();
+        F32_t disp = maxDisplacement * glm::sin(frequency * m_elapsedTime / timeUnit64);
+        t *= glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, disp));
+        while (t[3].z > 1.f)
+        {
+            t[3].z += 0.1f;
+        }
+        node.setTransform(t);
+    }
+}
+void ScrollingTerrain::addPowerDown(const glm::mat4 &pieceTransform)
+{
+    glm::mat4 const t{ propDisplacementTransformFromOldPiece(pieceTransform) };
+    m_powerDowns[m_first] = g_scene.addNode(m_powerDown);
+    g_scene.getNodeBySid(m_powerDowns[m_first]).transform(t);
+}
+
+ScrollingTerrain::PowerdownList const &ScrollingTerrain::getPowerDowns() const
+{
+    return m_powerDowns;
+}
+
+void ScrollingTerrain::powerDownAcquired(U32_t index)
+{
+    // make sure that check for powerup or down is made once when one is acquired (refreshed on tile refresh)
+    m_shouldCheckPowerUp = false;
+    g_scene.removeNode(m_powerDowns[index]);
+    m_powerDowns[index] = nullSid;
+    EventArg_t eventArg{};
+    g_eventQueue.emit(evDownAcquired, eventArg);
 }
 
 bool Player::intersectPlayerWith(ScrollingTerrain &terrain)
@@ -850,9 +820,27 @@ bool Player::intersectPlayerWith(ScrollingTerrain &terrain)
                 AABB const   &box  = globalSpaceBB(g_scene.getNodeBySid(sceneSid), mesh.box);
                 Hit_t const   res  = intersect(playerRay, box);
                 if (res.isect && (res.t <= movementDistance && res.p.y > m_oldPosition.y))
-                { //
+                {
                     terrain.powerUpAcquired(index);
                     printf("[Player] POWER UP UP UP\n");
+                    return false;
+                }
+            }
+            ++index;
+        }
+
+        index = 0;
+        for (Sid_t const &sceneSid : terrain.getPowerDowns())
+        {
+            if (sceneSid != nullSid)
+            {
+                Mesh_s const &mesh = g_handleTable.getMesh(g_scene.getNodeBySid(sceneSid).getSid());
+                AABB const   &box  = globalSpaceBB(g_scene.getNodeBySid(sceneSid), mesh.box);
+                Hit_t const   res  = intersect(playerRay, box);
+                if (res.isect && (res.t <= movementDistance && res.p.y > m_oldPosition.y))
+                {
+                    terrain.powerDownAcquired(index);
+                    printf("[Player] POWER DOWN DOWN DOWN\n");
                     return false;
                 }
             }
@@ -875,7 +863,8 @@ U64_t Player::getCurrentScore() const
 
 F32_t Player::getVelocity() const
 {
-    return (m_invincible ? speedBoost : 1.f) * glm::min(baseVelocity + m_velocityIncrement, maxBaseVelocity);
+    B8_t cond = m_invincibilityTimer > 0 && m_invincibilityTimer < invincibilityTime;
+    return (cond ? speedBoost : 1.f) * glm::min(baseVelocity + m_velocityIncrement, maxBaseVelocity);
 }
 
 F32_t Player::remainingInvincibleTime() const
@@ -899,6 +888,19 @@ F32_t Player::getStartVelocity() const
 F32_t Player::getMaxVelocity() const
 {
     return maxBaseVelocity * speedBoost;
+}
+
+void Player::onPowerDown()
+{
+    m_invincibilityTimer = 0.f;
+}
+F32_t Player::remainingMalusTime() const
+{
+    if (!m_invincible && m_invincibilityTimer > 0.f)
+    {
+        return invincibilityTime - m_invincibilityTimer;
+    }
+    return -1.f;
 }
 
 } // namespace cge

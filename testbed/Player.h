@@ -33,10 +33,11 @@ class ScrollingTerrain
     static U32_t constexpr maxPieces        = 4;
 
   public:
-    using ObstacleList = std::array<Sid_t, numPieces>;
-    using PieceList    = std::array<Sid_t, numPieces>;
-    using PowerupList  = std::array<Sid_t, numPieces>;
-    using CoinMap      = std::pmr::unordered_map<U32_t, Sid_t>;
+    using ObstacleList  = std::array<Sid_t, numPieces>;
+    using PieceList     = std::array<Sid_t, numPieces>;
+    using PowerupList   = std::array<Sid_t, numPieces>;
+    using PowerdownList = std::array<Sid_t, numPieces>;
+    using CoinMap       = std::pmr::unordered_map<U32_t, Sid_t>;
     struct InitData
     {
         std::span<Sid_t> pieces;
@@ -45,6 +46,7 @@ class ScrollingTerrain
         Sid_t            magnetPowerUp;
         Sid_t            coin;
         Sid_t            speed;
+        Sid_t            down;
     };
 
   public:
@@ -56,16 +58,18 @@ class ScrollingTerrain
     B8_t handleShoot(AABB const &playerBox);
 #endif
 
-    void                onTick(U64_t deltaTime);
-    ObstacleList const &getObstacles() const;
-    ObstacleList const &getDestructables() const;
-    PowerupList const  &getPowerUps() const;
-    CoinMap const      &getCoinMap() const;
-    B8_t                shouldCheckForPowerUps() const;
-    void                removeCoin(CoinMap::iterator const &it);
-    void                removeCoin(CoinMap::const_iterator const &it);
-    void                powerUpAcquired(U32_t index);
-    U32_t               removeAllCoins();
+    void                 onTick(U64_t deltaTime);
+    ObstacleList const  &getObstacles() const;
+    ObstacleList const  &getDestructables() const;
+    PowerupList const   &getPowerUps() const;
+    PowerdownList const &getPowerDowns() const;
+    CoinMap const       &getCoinMap() const;
+    B8_t                 shouldCheckForPowerUps() const;
+    void                 removeCoin(CoinMap::iterator const &it);
+    void                 removeCoin(CoinMap::const_iterator const &it);
+    void                 powerUpAcquired(U32_t index);
+    void                 powerDownAcquired(U32_t index);
+    U32_t                removeAllCoins();
 
   private:
     Sid_t selectRandomPiece() const;
@@ -76,6 +80,7 @@ class ScrollingTerrain
     void      addCoins(F32_t);
     void      removeCoins(F32_t);
     void      addPowerUp(glm::mat4 const &pieceTransform);
+    void      addPowerDown(glm::mat4 const &pieceTransform);
     glm::mat4 propDisplacementTransformFromOldPiece(glm::mat4 const &pieceTransform) const;
     F32_t     randomLaneOffset() const;
 
@@ -95,10 +100,11 @@ class ScrollingTerrain
   private:
     // the front is the furthest piece backwards, hence the first to be moved
     // and swapped with the back
-    PieceList    m_pieces{ nullSid };
-    ObstacleList m_obstacles{ nullSid };
-    ObstacleList m_destructables{ nullSid };
-    PowerupList  m_powerUps{ nullSid };
+    PieceList     m_pieces{ nullSid };
+    ObstacleList  m_obstacles{ nullSid };
+    ObstacleList  m_destructables{ nullSid };
+    PowerupList   m_powerUps{ nullSid };
+    PowerdownList m_powerDowns{ nullSid };
 
     // map from approximated y position -> scene sid of the coin
     CoinMap m_coinMap{ getMemoryPool() };
@@ -116,6 +122,7 @@ class ScrollingTerrain
     Sid_t                               m_coin{ nullSid };
     Sid_t                               m_magnetPowerUp{ nullSid };
     Sid_t                               m_speedPowerUp{ nullSid };
+    Sid_t                               m_powerDown{ nullSid };
 
     U64_t m_elapsedTime{ 0 };
 
@@ -142,6 +149,7 @@ class Player
     void onKey(I32_t key, I32_t action);
     void onTick(U64_t deltaTime);
     void onSpeedAcquired();
+    void onPowerDown();
 
     [[nodiscard]] AABB      boundingBox() const;
     [[nodiscard]] glm::mat4 viewTransform() const;
@@ -157,7 +165,8 @@ class Player
     bool                intersectPlayerWith(ScrollingTerrain &terrain);
     void                incrementScore(U32_t increment, U32_t numCoins = 1);
     [[nodiscard]] U64_t getCurrentScore() const;
-    F32_t               remainingInvincibleTime() const ;
+    F32_t               remainingInvincibleTime() const;
+    F32_t               remainingMalusTime() const;
     void                kill();
 
   private:
@@ -207,13 +216,14 @@ class Player
         {
             EventDataSidPair keyListener;
             EventDataSidPair speedAcquiredListener;
+            EventDataSidPair downAcquiredListener;
         };
         S                               s;
-        std::array<EventDataSidPair, 2> arr;
+        std::array<EventDataSidPair, 3> arr;
         static_assert(std::is_standard_layout_v<S> && sizeof(S) == sizeof(decltype(arr)), "implementation failed");
     };
     U     m_listeners{};
-    F32_t m_invincibilityTimer{ 0 };
+    F32_t m_invincibilityTimer{ -1.f };
     B8_t  m_invincible{ false };
     B8_t  m_ornithopterAlive = false;
 
