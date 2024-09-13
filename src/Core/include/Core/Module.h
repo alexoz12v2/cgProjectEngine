@@ -18,6 +18,10 @@ union UntypedData128
     I32_t                i32[4];
     I16_t                i16[8];
     I8_t                 i8[16];
+    U64_t                u64[2];
+    U32_t                u32[4];
+    U16_t                u16[8];
+    U8_t                 u8[16];
 };
 static_assert(sizeof(UntypedData128) == 16);
 
@@ -53,14 +57,15 @@ class GlobalStore
 
     // the caller is responsible to eventually free untypedData.p pointers
     UntypedData128 consume(Sid_t const &sid);
-    void put(Sid_t const &sid, UntypedData128 const &data);
+    B8_t           contains(Sid_t const &sid) const;
+    void           put(Sid_t const &sid, UntypedData128 const &data);
 
   private:
     std::pmr::unordered_map<Sid_t, UntypedData128> m_map;
 };
 
 std::pmr::unsynchronized_pool_resource *getMemoryPool();
-std::pmr::monotonic_buffer_resource    *getscratchBuffer();
-extern GlobalStore g_globalStore;
+std::pmr::monotonic_buffer_resource    *getScratchBuffer();
+extern GlobalStore                      g_globalStore;
 
 } // namespace cge

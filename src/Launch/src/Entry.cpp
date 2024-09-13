@@ -177,7 +177,7 @@ I32_t main(I32_t argc, Char8_t **argv)
     MainTimer mainTimer;
     U64_t     elapsedTime = timeUnitsIn60FPS;
 
-    WindowSpec_t windowSpec{ .title = "window", .width = 600, .height = 480 };
+    WindowSpec_t const windowSpec{ .title = "Dune Run", .width = 600, .height = 480 };
     Window_s     window;
     window.init(windowSpec);
 

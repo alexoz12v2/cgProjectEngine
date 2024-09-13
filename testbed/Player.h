@@ -148,6 +148,8 @@ class Player
     [[nodiscard]] Camera_t  getCamera() const;
     [[nodiscard]] glm::vec3 getCentroid() const;
     [[nodiscard]] F32_t     getVelocity() const;
+    [[nodiscard]] F32_t     getStartVelocity() const;
+    [[nodiscard]] F32_t     getMaxVelocity() const;
 
     // TODO remove
     [[nodiscard]] glm::vec3 lastDisplacement() const;
@@ -155,6 +157,8 @@ class Player
     bool                intersectPlayerWith(ScrollingTerrain &terrain);
     void                incrementScore(U32_t increment, U32_t numCoins = 1);
     [[nodiscard]] U64_t getCurrentScore() const;
+    F32_t               remainingInvincibleTime() const ;
+    void                kill();
 
   private:
     static U8_t constexpr LANE_LEFT   = 1u << 2; // 0000'0100
@@ -163,6 +167,8 @@ class Player
 
   private:
     glm::vec3 displacementTick(F32_t deltaTime);
+    void      stopInvincibleMusic();
+    void      resumeNormalMusic();
 
   private:
     // main components
@@ -175,7 +181,8 @@ class Player
         {
         }
         Ornithopter ornithopter;
-    } m_delayedCtor;
+    };
+    U0       m_delayedCtor;
     Camera_t m_camera{};
     U64_t    m_score{ 0 };
     B8_t     m_init{ false };
@@ -208,6 +215,7 @@ class Player
     U     m_listeners{};
     F32_t m_invincibilityTimer{ 0 };
     B8_t  m_invincible{ false };
+    B8_t  m_ornithopterAlive = false;
 
     // sound data
     irrklang::ISoundSource *m_bgmSource{ nullptr };
@@ -215,8 +223,6 @@ class Player
 
     irrklang::ISoundSource *m_invincibleMusicSource{ nullptr };
     irrklang::ISound       *m_invincibleMusic{ nullptr };
-    void                    stopInvincibleMusic();
-    void                    resumeNormalMusic();
 };
 
 } // namespace cge

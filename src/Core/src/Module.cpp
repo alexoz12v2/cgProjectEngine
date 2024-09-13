@@ -62,7 +62,7 @@ std::pmr::unsynchronized_pool_resource *getMemoryPool()
     return &g_memoryPool;
 }
 
-std::pmr::monotonic_buffer_resource *getscratchBuffer()
+std::pmr::monotonic_buffer_resource *getScratchBuffer()
 {
     static U32_t constexpr bufferSize = 4096;
     static unsigned char                       scratchBuffer[bufferSize * bufferSize];
@@ -101,6 +101,10 @@ void GlobalStore::put(Sid_t const &sid, UntypedData128 const &data)
         m_map.erase(sid);
         m_map.try_emplace(sid, data);
     }
+}
+B8_t GlobalStore::contains(const Sid_t &sid) const
+{
+    return m_map.contains(sid);
 }
 
 GlobalStore g_globalStore;

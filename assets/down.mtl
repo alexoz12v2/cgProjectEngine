@@ -1,0 +1,12 @@
+# Blender 4.2.0 MTL File: 'meshes.blend'
+# www.blender.org
+
+newmtl SpeedMat
+Ns 497.666077
+Ka 0.676364 0.676364 0.676364
+Kd 1.000000 0.390706 0.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 14.199999
+d 1.000000
+illum 3

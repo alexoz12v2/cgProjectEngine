@@ -14,7 +14,9 @@ namespace cge
 class MenuModule : public IModule
 {
   public:
-    MenuModule(Sid_t id) : IModule(id) {}
+    MenuModule(Sid_t id) : IModule(id)
+    {
+    }
     MenuModule(MenuModule const &other)                = delete;
     MenuModule &operator=(MenuModule const &other)     = delete;
     MenuModule(MenuModule &&other)                     = delete;
@@ -30,12 +32,23 @@ class MenuModule : public IModule
 
   private:
     void buttonPressed(Sid_t buttonSid);
+    void deserializeScoresFromFile();
+    void serializeScoresToFile();
 
   private:
     // main data
+    std::pmr::vector<U64_t> m_scores{10, getMemoryPool()};
     glm::ivec2 m_framebufferSize{ g_focusedWindow()->getFramebufferSize() };
     glm::vec2  m_mousePosition{ 0.f, 0.f };
     B8_t       m_init{ false };
+
+    // selected menu
+    enum class EMenuScreen
+    {
+        eMain = 0,
+        eExtras
+    };
+    EMenuScreen m_menuScreen{EMenuScreen::eMain};
 
     // event data
     union
@@ -46,7 +59,7 @@ class MenuModule : public IModule
             EventDataSidPair mouseMovementListener;
             EventDataSidPair mouseButtonListener;
         };
-        S s;
+        S                               s;
         std::array<EventDataSidPair, 3> arr;
         static_assert(std::is_standard_layout_v<S> && sizeof(S) == sizeof(decltype(arr)), "implementation failed");
     } m_listeners{};
@@ -54,6 +67,7 @@ class MenuModule : public IModule
     // sound data
     irrklang::ISoundSource *m_bopSource{ nullptr };
     irrklang::ISound       *m_bop{ nullptr };
+    F32_t                   aspectRatio() const;
 };
 
 } // namespace cge

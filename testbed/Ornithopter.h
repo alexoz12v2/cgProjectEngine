@@ -39,6 +39,7 @@ class Ornithopter
     void               playGun();
     void               playSwish();
     void               stopSwish();
+    void               stopAllSounds();
     [[nodiscard]] AABB bodyBoundingBox() const;
 
   private:

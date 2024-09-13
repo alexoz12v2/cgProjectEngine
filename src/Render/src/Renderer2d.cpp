@@ -223,7 +223,7 @@ void Renderer2D::onFramebufferSize(I32_t width, I32_t height)
 bool Renderer2D::fillCharaterMap(U32_t points)
 {
     FT_Face face;
-    if (FT_New_Face(reinterpret_cast<FT_Library>(m_freeType), "../assets/comic.ttf", 0, &face))
+    if (FT_New_Face(reinterpret_cast<FT_Library>(m_freeType), "../assets/mobyb.ttf", 0, &face))
     {
         printf("[Renderer2D] ERROR: Failed to load Comic Sans Font\n");
         return true;
@@ -292,8 +292,9 @@ bool Renderer2D::fillCharaterMap(U32_t points)
 
 void Renderer2D::renderButton(ButtonSpec const &specs) const
 {
-    if (specs.position.x <= 0 || specs.position.y <= 0 || specs.size.x <= 0 || specs.size.y <= 0)
+    if (specs.position.x < 0 || specs.position.y < 0 || specs.size.x <= 0 || specs.size.y <= 0)
     {
+        assert(false);
         return;
     }
     const std::string_view str{ specs.text };
@@ -346,12 +347,13 @@ void Renderer2D::renderButton(ButtonSpec const &specs) const
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    Character const &c = m_characterMap.at('O');
-    auto const  sizeRatioVec{ specs.size * (1.f - specs.borderWidth) * static_cast<decltype(specs.size)>(m_windowSize)
-                             / (static_cast<decltype(specs.size)>(c.size) * glm::vec2(str.size(), 1)) };
-    F32_t const sizeRatio = fmin(sizeRatioVec.x, sizeRatioVec.y);
+    F32_t ySize = letterSize().y;
+    F32_t xSize = letterSize().x * str.size();
+
+    glm::vec2 const sizeRatioVec{ specs.size.x / xSize * m_windowSize.x, specs.size.y / ySize * m_windowSize.y };
+    F32_t const     sizeRatio = glm::min(sizeRatioVec.x, sizeRatioVec.y);
     glm::vec3 const xyScale{ specs.position.x * (1.f + specs.borderWidth) * m_windowSize.x,
-                             (specs.position.y + specs.size.y * 0.5f) * m_windowSize.y - c.size.y * sizeRatio / 2,
+                             (specs.position.y + specs.size.y * 0.5f) * m_windowSize.y - ySize * sizeRatio / 2,
                              sizeRatio };
 
     if (!str.empty())
@@ -412,7 +414,7 @@ void Renderer2D::renderText(Char8_t const *text, glm::vec3 xyScale, glm::vec3 co
 
     // activate corresponding render state
     glUniform3f(glGetUniformLocation(m_delayedCtor.s.textProgram.id(), "textColor"), color.x, color.y, color.z);
-    glUniform1f(glGetUniformLocation(m_delayedCtor.s.textProgram.id(), "depth"), 0.4f);
+    glUniform1f(glGetUniformLocation(m_delayedCtor.s.textProgram.id(), "depth"), 0.f);
 
     glBindVertexArray(m_textVAO);
     glBindBuffer(GL_ARRAY_BUFFER, m_textVBO);
@@ -453,7 +455,8 @@ void Renderer2D::renderText(Char8_t const *text, glm::vec3 xyScale, glm::vec3 co
 
 glm::ivec2 Renderer2D::letterSize() const
 {
-    return m_characterMap.at('O').size;
+    Character const &c = m_characterMap.at('O');
+    return glm::ivec2{ c.advance  >> 6 };
 }
 
 void Renderer2D::renderRectangle(const RectangleSpec &spec) const
@@ -566,7 +569,14 @@ void Renderer2D::renderTexture(const TextureSpec &spec)
         }
         break;
     case ETextureRenderMode::ConstantRatioNoStretching:
-        yTop = yBottom + spec.size.y * m_windowSize.y / texAspectRatio * windowAspectRatio;
+        if (windowAspectRatio < texAspectRatio)
+        {
+            yTop = yBottom + spec.size.y * m_windowSize.y / texAspectRatio * windowAspectRatio;
+        }
+        else
+        {
+            xRight = xLeft + spec.size.x * m_windowSize.x * texAspectRatio / windowAspectRatio;
+        }
 
         // Update vertex positions based on the new dimensions
         vertices[0] = { xLeft, yTop, 0.f, 1.f };

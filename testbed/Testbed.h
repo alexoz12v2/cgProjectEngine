@@ -16,9 +16,7 @@ namespace cge
 class TestbedModule : public IModule
 {
   public:
-    explicit TestbedModule(Sid_t id) : IModule(id)
-    {
-    }
+    explicit TestbedModule(Sid_t id);
     TestbedModule(TestbedModule const &other)                = delete;
     TestbedModule &operator=(TestbedModule const &other)     = delete;
     TestbedModule(TestbedModule &&other)                     = delete;
@@ -43,9 +41,18 @@ class TestbedModule : public IModule
     B8_t isAnyCoinClicked(glm::vec2 const &clickPos);
 
   private:
+    enum class EGameState {
+        eDefault = 0,
+        eDead
+    };
+
     glm::ivec2 m_framebufferSize{ g_focusedWindow()->getFramebufferSize() };
     Player     m_player;
-    U32_t      m_letterSize;
+    U32_t      m_letterSize = 0;
+    EGameState m_gameState = EGameState::eDefault;
+    F32_t      m_fov;
+    F32_t      m_targetFov;
+    U32_t      m_numCoins = 0;
 
     // terrain data
     ScrollingTerrain m_scrollingTerrain;

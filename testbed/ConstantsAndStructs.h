@@ -8,10 +8,6 @@
 namespace cge
 {
 
-inline F32_t constexpr CLIPDISTANCE   = 5.f;
-inline F32_t constexpr RENDERDISTANCE = 500.f;
-inline F32_t constexpr FOV            = 90.f;
-
 inline Event_t constexpr evGameOver{ .m_id = "GAME OVER"_sid };
 inline Event_t constexpr evShoot{ .m_id = "SHOOT"_sid };
 inline Event_t constexpr evMagnetAcquired{ .m_id = "MAGNET POWERUP"_sid };

@@ -27,6 +27,15 @@ Ornithopter::Ornithopter(OrnithopterSpec const &spec)
 
 Ornithopter::~Ornithopter()
 {
+    stopAllSounds();
+
+    for (Sid_t const &sid : m_sids.arr)
+    {
+        g_scene.removeNode(sid);
+    }
+}
+void Ornithopter::stopAllSounds()
+{
     for (irrklang::ISoundSource *source : { m_swishSoundSource, m_gunSoundSource, m_helicopterSoundSource })
     {
         if (source)
@@ -34,11 +43,6 @@ Ornithopter::~Ornithopter()
             g_soundEngine()->stopAllSoundsOfSoundSource(source);
             g_soundEngine()->removeSoundSource(source);
         }
-    }
-
-    for (Sid_t const &sid : m_sids.arr)
-    {
-        g_scene.removeNode(sid);
     }
 }
 

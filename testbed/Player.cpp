@@ -91,9 +91,10 @@ void Player::spawn(const Camera_t &view)
 
     m_invincibleMusicSource = g_soundEngine()->addSoundSourceFromFile("../assets/invincible.mp3");
 
-    m_bgmSource = g_soundEngine()->addSoundSourceFromFile("../assets/bgm0.mp3");
-    m_bgm       = g_soundEngine()->play2D(m_bgmSource, true);
-    m_init      = true;
+    m_bgmSource        = g_soundEngine()->addSoundSourceFromFile("../assets/bgm0.mp3");
+    m_bgm              = g_soundEngine()->play2D(m_bgmSource, true);
+    m_init             = true;
+    m_ornithopterAlive = true;
 
     assert(m_invincibleMusicSource && m_bgmSource);
 }
@@ -105,6 +106,11 @@ static glm::mat4 computeCameraTransform(Camera_t const &camera)
 
 void Player::onTick(U64_t deltaTimeI)
 {
+    if (!m_ornithopterAlive)
+    {
+        return;
+    }
+
     F32_t deltaTimeF = static_cast<F32_t>(deltaTimeI) / timeUnit64;
     if (m_invincible)
     {
@@ -145,7 +151,7 @@ void Player::onTick(U64_t deltaTimeI)
         }
 
         // first apply old position to mesh
-        F32_t     interpolant    = (getVelocity() - baseVelocity) / (maxBaseVelocity - baseVelocity);
+        F32_t     interpolant    = 0.01f; //(getVelocity() - baseVelocity) / (maxBaseVelocity - baseVelocity);
         F32_t     leanAngle      = glm::mix(0.f, maxLeanRotation, interpolant);
         glm::vec3 cameraDistance = meshCameraOffset;
         cameraDistance.y         = glm::mix(meshCameraOffset.y, meshCameraOffset.y + 5.f, interpolant);
@@ -226,6 +232,11 @@ glm::vec3 Player::displacementTick(F32_t deltaTime)
 
 void Player::onKey(I32_t key, I32_t action)
 {
+    if (!m_ornithopterAlive)
+    {
+        return;
+    }
+
     if (action == action::PRESS)
     {
         switch (key)
@@ -765,10 +776,11 @@ void ScrollingTerrain::onTick(U64_t deltaTime)
             continue;
         }
         auto &node = g_scene.getNodeBySid(sid);
-        auto t = node.getTransform();
+        auto  t    = node.getTransform();
         F32_t disp = maxDisplacement * glm::sin(frequency * m_elapsedTime / timeUnit64);
         t *= glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, disp));
-        while (t[3].z > 1.f) {
+        while (t[3].z > 1.f)
+        {
             t[3].z += 0.1f;
         }
         node.setTransform(t);
@@ -777,6 +789,10 @@ void ScrollingTerrain::onTick(U64_t deltaTime)
 
 bool Player::intersectPlayerWith(ScrollingTerrain &terrain)
 {
+    if (!m_ornithopterAlive)
+    {
+        return false;
+    }
     AABB const      playerBox{ boundingBox() };
     glm::vec3 const newPosition{ centroid(playerBox) };
     Ray const       playerRay{ m_oldPosition, newPosition - m_oldPosition };
@@ -848,18 +864,41 @@ bool Player::intersectPlayerWith(ScrollingTerrain &terrain)
 }
 
 void Player::incrementScore(U32_t increment, U32_t numCoins)
-{ //
+{
     m_score += static_cast<U64_t>(increment) * numCoins;
 }
 
 U64_t Player::getCurrentScore() const
-{ // getter
+{
     return m_score;
 }
 
 F32_t Player::getVelocity() const
-{ //
+{
     return (m_invincible ? speedBoost : 1.f) * glm::min(baseVelocity + m_velocityIncrement, maxBaseVelocity);
+}
+
+F32_t Player::remainingInvincibleTime() const
+{
+    if (!m_invincible)
+    {
+        return -1.f;
+    }
+
+    return invincibilityTime - m_invincibilityTimer;
+}
+void Player::kill()
+{
+    m_delayedCtor.ornithopter.stopAllSounds();
+    m_ornithopterAlive = false;
+}
+F32_t Player::getStartVelocity() const
+{
+    return baseVelocity;
+}
+F32_t Player::getMaxVelocity() const
+{
+    return maxBaseVelocity * speedBoost;
 }
 
 } // namespace cge
