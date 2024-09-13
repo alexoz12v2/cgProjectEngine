@@ -218,7 +218,7 @@ void MenuModule::onTick(U64_t deltaTime)
 
         glm::vec3 xyScale{ (rectPos.x + extrasScreenRectBorderSizePerc * extrasScreenRectSize.x) * m_framebufferSize.x,
                            yStart * m_framebufferSize.y,
-                           glm::min(ySize * m_framebufferSize.y / charSize, xSize / charSize) };
+                           glm::min(ySize * m_framebufferSize.y / charSize, 0.9f * extrasScreenRectSize.x * m_framebufferSize.x / xSize) };
         std::pmr::string strBuf{ getMemoryPool() };
 
         U32_t space = 1;

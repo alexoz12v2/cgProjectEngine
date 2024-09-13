@@ -124,6 +124,7 @@ void TestbedModule::onInit()
         g_handleTable.loadFromObj("../assets/magnet.obj");
         g_handleTable.loadFromObj("../assets/coin.obj");
         g_handleTable.loadFromObj("../assets/speed.obj");
+        g_handleTable.loadFromObj("../assets/down.obj");
     }
 
     // add light to the scene
@@ -150,6 +151,7 @@ void TestbedModule::onInit()
     Sid_t                   magnet{ CGE_SID("Magnet") };
     Sid_t                   coin{ CGE_SID("Coin") };
     Sid_t                   speed{ CGE_SID("Speed") };
+    Sid_t                   down{ CGE_SID("Down") };
     m_scrollingTerrain.init({ .pieces        = pieces,
                               .obstacles     = obstacles,
                               .destructables = destructables,
