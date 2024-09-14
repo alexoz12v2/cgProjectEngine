@@ -3,6 +3,7 @@
 #include "Core/Event.h"
 #include "Core/Random.h"
 #include "Core/StringUtils.h"
+#include "Core/TimeUtils.h"
 #include "Core/Type.h"
 #include "Ornithopter.h"
 #include "Render/Renderer.h"
@@ -27,10 +28,27 @@ inline F32_t constexpr coinPositionIncrement = static_cast<F32_t>(pieceSize * 5)
 class ScrollingTerrain
 {
   private:
-    static U32_t constexpr numPieces        = 10;
-    static U32_t constexpr maxDestructables = 4;
-    static U32_t constexpr maxObstacles     = 4;
-    static U32_t constexpr maxPieces        = 4;
+    static U32_t constexpr numPieces                  = 10;
+    static U32_t constexpr maxDestructables           = 4;
+    static U32_t constexpr maxObstacles               = 4;
+    static U32_t constexpr maxPieces                  = 4;
+    static F32_t constexpr timeToMaxDifficultySeconds = 120.f;
+
+    static U32_t constexpr finalEmptyPieceProbability   = 27;
+    static U32_t constexpr initialEmptyPieceProbability = 32;
+    static_assert(finalEmptyPieceProbability < initialEmptyPieceProbability);
+
+    static U32_t constexpr finalObstacleProbability   = 69;
+    static U32_t constexpr initialObstacleProbability = 46;
+    static_assert(finalObstacleProbability > initialObstacleProbability);
+
+    static U32_t constexpr finalMalusProbability   = 3;
+    static U32_t constexpr initialMalusProbability = 15;
+    static_assert(finalMalusProbability < initialMalusProbability);
+
+    static U32_t constexpr finalPowerUpProbability   = 1;
+    static U32_t constexpr initialPowerUpProbability = 7;
+    static_assert(finalPowerUpProbability < initialPowerUpProbability);
 
   public:
     using ObstacleList  = std::array<Sid_t, numPieces>;
@@ -70,6 +88,7 @@ class ScrollingTerrain
     void                 powerUpAcquired(U32_t index);
     void                 powerDownAcquired(U32_t index);
     U32_t                removeAllCoins();
+    void                 adjustProbabilities(U64_t deltaTime);
 
   private:
     Sid_t selectRandomPiece() const;
@@ -125,6 +144,14 @@ class ScrollingTerrain
     Sid_t                               m_powerDown{ nullSid };
 
     U64_t m_elapsedTime{ 0 };
+    U64_t m_timeToMaxDifficulty{ static_cast<U64_t>(timeToMaxDifficultySeconds * timeUnit64) };
+    U32_t m_totalProbability{ 100 };
+
+    F64_t m_emptyPieceProbability{ initialEmptyPieceProbability };
+    F64_t m_obstacleProbability{ initialObstacleProbability };
+    F64_t m_malusProbability{ initialMalusProbability };
+    F64_t m_powerUpProbability{ initialPowerUpProbability };
+    B8_t  m_finalProbabilityReached = false;
 
     U32_t m_pieceSetSize{ 0 };
     U32_t m_obstacleSetSize{ 0 };

@@ -381,15 +381,20 @@ void ScrollingTerrain::updateTilesFromPosition(glm::vec3 position)
         }
 
         // add new obstacles or powerup in the moved piece
+        // when at max difficulty:
         // take a number from 0 to 100. 0 - 27 -> empty, 28 - 94 -> obstacle, 95 - 98 -> down, 99 - 100 -> powerup
-        U32_t const num = g_random.next<U32_t>(0, 100);
-        if (num > 27)
+        U32_t threshold0 = m_emptyPieceProbability;
+        U32_t threshold1 = m_obstacleProbability + threshold0;
+        U32_t threshold2 = m_malusProbability + threshold1;
+
+        U32_t const num = g_random.next<U32_t>(0, m_totalProbability);
+        if (num > threshold0)
         {
-            if (num < 95)
+            if (num < threshold1)
             {
                 addPropOfType(g_random.next<U32_t>(0, 1), pieceTransform);
             }
-            else if (num < 99)
+            else if (num < threshold2)
             {
                 addPowerDown(pieceTransform);
             }
@@ -734,6 +739,8 @@ void ScrollingTerrain::onTick(U64_t deltaTime)
         }
         node.setTransform(t);
     }
+
+    adjustProbabilities(deltaTime);
 }
 void ScrollingTerrain::addPowerDown(const glm::mat4 &pieceTransform)
 {
@@ -755,6 +762,73 @@ void ScrollingTerrain::powerDownAcquired(U32_t index)
     m_powerDowns[index] = nullSid;
     EventArg_t eventArg{};
     g_eventQueue.emit(evDownAcquired, eventArg);
+}
+
+void ScrollingTerrain::adjustProbabilities(U64_t deltaTime)
+{
+    F64_t deltaTimeF = static_cast<F64_t>(deltaTime) / timeUnit64;
+    printf(
+      "[ScrollingTerrain] emptyPiece: %f, obstacle: %f, malus: %f, powerup: %f\n",
+      m_emptyPieceProbability,
+      m_obstacleProbability,
+      m_malusProbability,
+      m_powerUpProbability);
+    // Calculate the interpolation factor
+    F64_t t = std::min(1.0, deltaTimeF / m_timeToMaxDifficulty);
+
+    if (!m_finalProbabilityReached)
+    {
+        // Interpolating probabilities
+        B8_t nothingChanged = true;
+        if (m_emptyPieceProbability >= finalEmptyPieceProbability)
+        {
+            m_emptyPieceProbability -= t * (initialEmptyPieceProbability - finalEmptyPieceProbability);
+            nothingChanged = false;
+        }
+        else
+        {
+            m_emptyPieceProbability = finalEmptyPieceProbability;
+        }
+
+        if (m_obstacleProbability <= finalObstacleProbability)
+        {
+            m_obstacleProbability += t * (finalObstacleProbability - initialObstacleProbability);
+            nothingChanged = false;
+        }
+        else
+        {
+            m_obstacleProbability = finalObstacleProbability;
+        }
+
+        if (m_malusProbability >= finalMalusProbability)
+        {
+            m_malusProbability -= t * (initialMalusProbability - finalMalusProbability);
+            nothingChanged = false;
+        }
+        else
+        {
+            m_malusProbability = finalMalusProbability;
+        }
+
+        if (m_powerUpProbability >= finalPowerUpProbability)
+        {
+            m_powerUpProbability -= t * (initialPowerUpProbability - finalPowerUpProbability);
+            nothingChanged = false;
+        }
+        else
+        {
+            m_powerUpProbability = finalPowerUpProbability;
+        }
+
+        if (nothingChanged)
+        {
+            m_finalProbabilityReached = true;
+        }
+
+        // Calculate the total probability
+        m_totalProbability =
+          glm::ceil(m_emptyPieceProbability + m_obstacleProbability + m_malusProbability + m_powerUpProbability);
+    }
 }
 
 bool Player::intersectPlayerWith(ScrollingTerrain &terrain)

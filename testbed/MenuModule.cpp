@@ -13,7 +13,7 @@
 #include <nlohmann/json.hpp>
 #include <stb/stb_image.h>
 
-CGE_DECLARE_MODULE(cge, MenuModule, "MenuModule");
+CGE_DECLARE_STARTUP_MODULE(cge, MenuModule, "MenuModule");
 
 namespace cge
 {
@@ -146,7 +146,7 @@ void MenuModule::onInit()
         U64_t score = g_globalStore.consume(CGE_SID("score")).u64[0];
         // Check if the vector is not full or the new score is larger than the smallest score
         if (m_scores.size() < 10 || score > m_scores.back())
-        {   // Insert the new score in the correct position to maintain descending order
+        { // Insert the new score in the correct position to maintain descending order
             auto it = std::lower_bound(m_scores.begin(), m_scores.end(), score, std::less<U64_t>());
 
             // Insert the new score at the position found
@@ -166,6 +166,7 @@ void MenuModule::onInit()
         loadTexture(CGE_SID("MENU"), "../assets/menu.png");
         loadTexture(CGE_SID("EXTRAS"), "../assets/extras.png");
         loadTexture(CGE_SID("DUNE RUN"), "../assets/dune_run.png");
+        loadTexture(CGE_SID("KEYBOARD"), "../assets/keyboard.png");
     }
 
     IModule::onInit();
@@ -184,11 +185,16 @@ void MenuModule::onTick(U64_t deltaTime)
                                      .texture{ CGE_SID("MENU") },
                                      .renderMode = ETextureRenderMode::ConstantSizeNoStretching,
                                      .depth      = 0.9f });
-        g_renderer2D.renderTexture({ .position{ 0.57f, 0.57f },
-                                     .size{ 0.4f, 0.4f },
+        g_renderer2D.renderTexture({ .position{ 0.6f, 0.61f },
+                                     .size{ 0.39f, 0.38f },
                                      .texture{ CGE_SID("DUNE RUN") },
                                      .renderMode = ETextureRenderMode::ConstantRatioNoStretching,
                                      .depth      = 0.8f });
+        g_renderer2D.renderTexture({ .position{ 0.6f, 0.01f },
+                                     .size{ 0.39f, 0.5f },
+                                     .texture{ CGE_SID("KEYBOARD") },
+                                     .renderMode = ETextureRenderMode::ConstantRatioNoStretching,
+                                     .depth      = 0.2f });
         for (auto const &button : mainScreenButtons)
         {
             g_renderer2D.renderButton(button);
@@ -218,17 +224,19 @@ void MenuModule::onTick(U64_t deltaTime)
 
         glm::vec3 xyScale{ (rectPos.x + extrasScreenRectBorderSizePerc * extrasScreenRectSize.x) * m_framebufferSize.x,
                            yStart * m_framebufferSize.y,
-                           glm::min(ySize * m_framebufferSize.y / charSize, 0.9f * extrasScreenRectSize.x * m_framebufferSize.x / xSize) };
+                           glm::min(
+                             ySize * m_framebufferSize.y / charSize,
+                             0.9f * extrasScreenRectSize.x * m_framebufferSize.x / xSize) };
         std::pmr::string strBuf{ getMemoryPool() };
 
-        U32_t space = 1;
+        B8_t first = true;
         for (U32_t i = 10; i != 0; --i)
         {
             strBuf.clear();
             strBuf.append(std::to_string(i));
             strBuf.append(1, ':');
-            strBuf.append(space, ' ');
-            space             = 2;
+            strBuf.append(first ? " " : "  ");
+            first             = false;
             U32_t       index = 10 - i;
             std::string score = m_scores.size() > index ? std::to_string(m_scores[index]) : "empty";
             strBuf.append(score);

@@ -53,6 +53,7 @@ class TestbedModule : public IModule
     F32_t      m_fov;
     F32_t      m_targetFov;
     U32_t      m_numCoins = 0;
+    U64_t      m_elapsedTime = 0;
 
     // terrain data
     ScrollingTerrain m_scrollingTerrain;
@@ -83,6 +84,7 @@ class TestbedModule : public IModule
     // sound
     irrklang::ISoundSource *m_coinPickedSource{ nullptr };
     irrklang::ISoundSource *m_woodBreakSource{ nullptr };
+    void                    shakeCamera(U64_t deltaTime);
 };
 
 } // namespace cge

@@ -31,11 +31,9 @@
 #include <fstream>
 #include <vector>
 
-CGE_DECLARE_STARTUP_MODULE(cge, TestbedModule, "TestbedModule");
+CGE_DECLARE_MODULE(cge, TestbedModule, "TestbedModule");
 
 // TODOs:
-// - camera shaking
-// - draw from gimp guide
 // ? difficulty
 
 namespace cge
@@ -272,6 +270,8 @@ static glm::vec2 proportions(U32_t length, F32_t base = 0.01f)
 
 void TestbedModule::onTick(U64_t deltaTime)
 {
+    m_elapsedTime += deltaTime;
+
     // Game Tick
     F32_t const deltaTimeF = deltaTime / timeUnit64;
     auto const  p          = m_player.lastDisplacement();
@@ -286,12 +286,12 @@ void TestbedModule::onTick(U64_t deltaTime)
         m_scrollingTerrain.onTick(deltaTime);
         m_player.intersectPlayerWith(m_scrollingTerrain);
 
-        F32_t startVelocity = m_player.getVelocity();
-        F32_t logInterpolation =
-          std::log((m_player.getVelocity() - startVelocity) / (m_player.getMaxVelocity() - startVelocity) + 1)
-          / std::log(2);
-        m_targetFov = glm::mix(startFOV, maxFOV, logInterpolation);
+        F32_t startVelocity = m_player.getStartVelocity();
+        F32_t interpolation = (m_player.getVelocity() - startVelocity) / (m_player.getMaxVelocity() - startVelocity);
+        m_targetFov = glm::mix(startFOV, maxFOV, interpolation);
         m_fov       = glm::mix(m_fov, m_targetFov, 1.f - glm::pow(baseFovDelay, deltaTimeF));
+
+        shakeCamera(deltaTime);
     }
 
     // Rendering
@@ -412,6 +412,32 @@ B8_t TestbedModule::isAnyCoinClicked(glm::vec2 const &clickPos)
     }
 
     return false;
+}
+void TestbedModule::shakeCamera(U64_t deltaTime)
+{
+    F32_t elapsedTimeF = m_elapsedTime / timeUnit64;
+    // Compute how far the FOV is from the startFov
+    float fovDifference = std::abs(m_fov - startFOV);
+
+    // If there's no difference, no shake
+    if (fovDifference < 0.01f)
+        return;
+
+    // Maximum shake intensity (tune this value as needed)
+    float maxShakeIntensity = 0.5f; // Scale factor for shake
+
+    // Skew factor for sine function to make shake feel more chaotic
+    float skewFactor = 1.5f;
+
+    // Calculate shake amount using a skewed sine function
+    float shakeRight = std::sin(elapsedTimeF * skewFactor) * fovDifference * maxShakeIntensity;
+    float shakeUp = std::sin(elapsedTimeF * skewFactor * 0.9f + 1.0f) * fovDifference * maxShakeIntensity;
+
+    // Apply shake to the camera's position (or direction) based on the right and up vectors
+    glm::vec3 shakeOffset = shakeRight * m_player.getCamera().right + shakeUp * m_player.getCamera().up;
+
+    // Option 1: Modify camera's position (camera shaking back and forth
+    m_player.getCamera().position += shakeOffset;
 }
 
 } // namespace cge
