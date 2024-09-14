@@ -58,7 +58,7 @@ inline std::array<ButtonSpec, numMainButtons> const mainScreenButtons{
     }
 };
 
-inline std::array<ButtonSpec, numExtrasButtons> extrasScreenButtons{
+inline static std::array<ButtonSpec, numExtrasButtons> extrasScreenButtons{
     // ----------------------------------------------------------------
     ButtonSpec{
       .position{ 0.7f, 0.1f },
@@ -103,18 +103,17 @@ MenuModule::~MenuModule()
 {
     if (m_init)
     {
+        serializeScoresToFile();
         for (auto const &pair : m_listeners.arr)
         {
             g_eventQueue.removeListener(pair);
         }
 
-        if (m_bop)
-        {
-            m_bop->stop();
-            m_bop->drop();
-        }
-
+        m_bop = nullptr;
+        g_soundEngine()->stopAllSoundsOfSoundSource(m_bopSource);
+        g_soundEngine()->stopAllSoundsOfSoundSource(m_musicSource);
         g_soundEngine()->removeSoundSource(m_bopSource);
+        g_soundEngine()->removeSoundSource(m_musicSource);
     }
 }
 
@@ -148,7 +147,8 @@ void MenuModule::onInit()
     m_listeners.s.mouseButtonListener =
       g_eventQueue.addListener(evMouseButtonPressed, mouseButtonCallback<MenuModule>, listenerData);
 
-    m_bopSource = g_soundEngine()->addSoundSourceFromFile("../assets/bop.mp3");
+    m_bopSource   = g_soundEngine()->addSoundSourceFromFile("../assets/bop.mp3");
+    m_musicSource = g_soundEngine()->addSoundSourceFromFile("../assets/main_menu.mp3");
 
     deserializeScoresFromFile();
     if (g_globalStore.contains(CGE_SID("score")))
@@ -179,6 +179,7 @@ void MenuModule::onInit()
         loadTexture(CGE_SID("KEYBOARD"), "../assets/keyboard.png");
     }
 
+    g_soundEngine()->play2D(m_musicSource, true);
     IModule::onInit();
     m_init = true;
 }
@@ -203,9 +204,6 @@ static EDifficulty incrementDifficulty(EDifficulty currentDifficulty)
     {
     case EDifficulty::eEasy:
         return EDifficulty::eNormal;
-    case EDifficulty::eNormal:
-        return EDifficulty::eHard;
-    case EDifficulty::eHard:
     default:
         return EDifficulty::eHard; // Saturate at eHard
     }
@@ -216,9 +214,6 @@ static EDifficulty decrementDifficulty(EDifficulty currentDifficulty)
     {
     case EDifficulty::eHard:
         return EDifficulty::eNormal;
-    case EDifficulty::eNormal:
-        return EDifficulty::eEasy;
-    case EDifficulty::eEasy:
     default:
         return EDifficulty::eEasy; // Saturate at eEasy
     }
@@ -404,7 +399,6 @@ void MenuModule::buttonPressed(Sid_t buttonSid, bool isDifficulty, I32_t key)
             m_menuScreen = EMenuScreen::eExtras;
             break;
         case CGE_CONSTEXPR_SID(mainScreen_EXIT).id:
-            serializeScoresToFile();
             tagForDestruction();
             break;
         default:
@@ -483,7 +477,11 @@ void MenuModule::deserializeScoresFromFile()
         m_scores.clear();
     }
 
-    if (json.contains(jsonDifficultyKey) && json[jsonDifficultyKey].is_number_unsigned())
+    if (g_globalStore.contains(CGE_SID("DIFFICULTY")))
+    {
+        m_difficulty = static_cast<EDifficulty>(g_globalStore.consume(CGE_SID("DIFFICULTY")).u32[0]);
+    }
+    else if (json.contains(jsonDifficultyKey) && json[jsonDifficultyKey].is_number_unsigned())
     {
         auto const &item = json[jsonDifficultyKey];
         m_difficulty     = static_cast<EDifficulty>(item.get<U32_t>());

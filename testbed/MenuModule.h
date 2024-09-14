@@ -32,9 +32,10 @@ class MenuModule : public IModule
     void onMouseButton(I32_t key, I32_t action);
 
   private:
-    void buttonPressed(Sid_t buttonSid, B8_t isDifficulty, I32_t key);
-    void deserializeScoresFromFile();
-    void serializeScoresToFile();
+    void  buttonPressed(Sid_t buttonSid, B8_t isDifficulty, I32_t key);
+    void  deserializeScoresFromFile();
+    void  serializeScoresToFile();
+    F32_t aspectRatio() const;
 
   private:
     // main data
@@ -69,7 +70,8 @@ class MenuModule : public IModule
     // sound data
     irrklang::ISoundSource *m_bopSource{ nullptr };
     irrklang::ISound       *m_bop{ nullptr };
-    F32_t                   aspectRatio() const;
+
+    irrklang::ISoundSource *m_musicSource{ nullptr };
 };
 
 } // namespace cge

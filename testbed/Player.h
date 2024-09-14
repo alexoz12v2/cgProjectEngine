@@ -40,15 +40,15 @@ class ScrollingTerrain
     static_assert(finalEmptyPieceProbability < initialEmptyPieceProbability);
 
     static U32_t constexpr finalObstacleProbability   = 69;
-    static U32_t constexpr initialObstacleProbability = 46;
+    static U32_t constexpr initialObstacleProbability = 62;
     static_assert(finalObstacleProbability > initialObstacleProbability);
 
     static U32_t constexpr finalMalusProbability   = 3;
-    static U32_t constexpr initialMalusProbability = 15;
+    static U32_t constexpr initialMalusProbability = 5;
     static_assert(finalMalusProbability < initialMalusProbability);
 
     static U32_t constexpr finalPowerUpProbability   = 1;
-    static U32_t constexpr initialPowerUpProbability = 7;
+    static U32_t constexpr initialPowerUpProbability = 2;
     static_assert(finalPowerUpProbability < initialPowerUpProbability);
 
   public:

@@ -75,6 +75,7 @@ TestbedModule::~TestbedModule()
             g_eventQueue.removeListener(pair);
         }
 
+        g_soundEngine()->removeSoundSource(m_magnetPickedSource);
         g_soundEngine()->removeSoundSource(m_coinPickedSource);
         g_soundEngine()->removeSoundSource(m_woodBreakSource);
     }
@@ -158,9 +159,14 @@ void TestbedModule::onInit()
 
     // try reading difficulty to initialize acceleration
     EDifficulty difficulty;
-    if (g_globalStore.contains(CGE_SID("DIFFICULTY"))) {
-        difficulty = static_cast<EDifficulty>(g_globalStore.consume(CGE_SID("DIFFICULTY")).u32[0]);
-    } else {
+    if (g_globalStore.contains(CGE_SID("DIFFICULTY")))
+    {
+        UntypedData128 data = g_globalStore.consume(CGE_SID("DIFFICULTY"));
+        difficulty          = static_cast<EDifficulty>(data.u32[0]);
+        g_globalStore.put(CGE_SID("DIFFICULTY"), data);
+    }
+    else
+    {
         difficulty = EDifficulty::eNormal;
     }
 
@@ -181,8 +187,9 @@ void TestbedModule::onInit()
     stbi_image_free(image);
 
     // sound
-    m_coinPickedSource = g_soundEngine()->addSoundSourceFromFile("../assets/coin-picked.mp3");
-    m_woodBreakSource  = g_soundEngine()->addSoundSourceFromFile("../assets/wood-break.mp3");
+    m_coinPickedSource   = g_soundEngine()->addSoundSourceFromFile("../assets/coin-picked.mp3");
+    m_woodBreakSource    = g_soundEngine()->addSoundSourceFromFile("../assets/wood-break.mp3");
+    m_magnetPickedSource = g_soundEngine()->addSoundSourceFromFile("../assets/magnet-picked.mp3");
     assert(m_coinPickedSource && m_woodBreakSource);
 
     m_letterSize = g_renderer2D.letterSize().x;
@@ -264,6 +271,7 @@ void TestbedModule::onShoot(Ray const &ray)
 
 void TestbedModule::onMagnetAcquired()
 {
+    g_soundEngine()->play2D(m_magnetPickedSource);
     U32_t numCoins = m_scrollingTerrain.removeAllCoins();
     m_player.incrementScore(coinBonusScore, numCoins);
     m_numCoins += numCoins;
@@ -295,8 +303,8 @@ void TestbedModule::onTick(U64_t deltaTime)
 
         F32_t startVelocity = m_player.getStartVelocity();
         F32_t interpolation = (m_player.getVelocity() - startVelocity) / (m_player.getMaxVelocity() - startVelocity);
-        m_targetFov = glm::mix(startFOV, maxFOV, interpolation);
-        m_fov       = glm::mix(m_fov, m_targetFov, 1.f - glm::pow(baseFovDelay, deltaTimeF));
+        m_targetFov         = glm::mix(startFOV, maxFOV, interpolation);
+        m_fov               = glm::mix(m_fov, m_targetFov, 1.f - glm::pow(baseFovDelay, deltaTimeF));
 
         shakeCamera(deltaTime);
     }
@@ -438,7 +446,7 @@ void TestbedModule::shakeCamera(U64_t deltaTime)
 
     // Calculate shake amount using a skewed sine function
     float shakeRight = std::sin(elapsedTimeF * skewFactor) * fovDifference * maxShakeIntensity;
-    float shakeUp = std::sin(elapsedTimeF * skewFactor * 0.9f + 1.0f) * fovDifference * maxShakeIntensity;
+    float shakeUp    = std::sin(elapsedTimeF * skewFactor * 0.9f + 1.0f) * fovDifference * maxShakeIntensity;
 
     // Apply shake to the camera's position (or direction) based on the right and up vectors
     glm::vec3 shakeOffset = shakeRight * m_player.getCamera().right + shakeUp * m_player.getCamera().up;

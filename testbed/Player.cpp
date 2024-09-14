@@ -285,7 +285,7 @@ void Player::onKey(I32_t key, I32_t action)
         }
     }
 
-    if ((action == action::PRESS || action == action::REPEAT) && key == key::SPACE)
+    if ((action == action::PRESS) && key == key::SPACE)
     {
         m_delayedCtor.ornithopter.playGun();
         EventArg_t evArg{};
@@ -779,12 +779,7 @@ void ScrollingTerrain::powerDownAcquired(U32_t index)
 void ScrollingTerrain::adjustProbabilities(U64_t deltaTime)
 {
     F64_t deltaTimeF = static_cast<F64_t>(deltaTime) / timeUnit64;
-    printf(
-      "[ScrollingTerrain] emptyPiece: %f, obstacle: %f, malus: %f, powerup: %f\n",
-      m_emptyPieceProbability,
-      m_obstacleProbability,
-      m_malusProbability,
-      m_powerUpProbability);
+
     // Calculate the interpolation factor
     F64_t t = std::min(1.0, deltaTimeF / m_timeToMaxDifficulty);
 

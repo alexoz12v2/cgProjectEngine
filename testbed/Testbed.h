@@ -39,6 +39,7 @@ class TestbedModule : public IModule
 
     // Assuming clickPos is in normalized device coordinates [-1, 1], with origin at center
     B8_t isAnyCoinClicked(glm::vec2 const &clickPos);
+    void shakeCamera(U64_t deltaTime);
 
   private:
     enum class EGameState {
@@ -84,7 +85,7 @@ class TestbedModule : public IModule
     // sound
     irrklang::ISoundSource *m_coinPickedSource{ nullptr };
     irrklang::ISoundSource *m_woodBreakSource{ nullptr };
-    void                    shakeCamera(U64_t deltaTime);
+    irrklang::ISoundSource *m_magnetPickedSource{ nullptr };
 };
 
 } // namespace cge

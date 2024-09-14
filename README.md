@@ -1,27 +1,18 @@
 ## Guida 
 # Installazione dei Software
 
-Per Visual Studio, software che include un IDE, Generatore per CMake, Compilatore C++ MSVC, e Linker
+Per Visual Studio
 - Navigare su https://visualstudio.microsoft.com/downloads/ e scaricare Visual Studio 17 2022 Community
 - Aperto l'installer di Visual Studio, selezionare i workload "C++ Desktop Application Development", "C++ Game Development"
-- Aprire Visual Studio e installare il plugin "SonarLint"
+- Aprire Visual Studio e installare il plugin "SonarLint" (opzionale)
 
 Aprire il terminale e digitare i seguenti comandi
 - winget install git
 - winget install CMake
-- winget install Chocolatey
-
-Aprire Powershell come amministratore e digitare i seguenti comandi
-- choco install Doxygen -y
-- choco install graphviz -y
-- choco install cppcheck -y
-- choco install ccache -y
-- choco install clang-format -y
-- choco install clang-tidy -y
-
-Navigare nella directory nella quale la repository deve essere contenuta e digitare 
 
 # Clonare la repository in locale
+
+Navigare nella directory nella quale la repository deve essere contenuta e digitare 
 
 - git clone https://github.com/alexoz12v2/cgProjectEngine.git
 
@@ -39,8 +30,6 @@ Per buildare il progetto, digitare i seguenti comandi dalla project root directo
 
 dove <Configurazione> una tra le configurazioni contenute nel file CMakePresets.json, ad esempio "Debug"
 
-## Struttura della Repository
-
-## Creazione di un Modulo 
-
-## Naming Conventions
+Dopo aver buildato il progetto la prima volta, sara' possibile farlo attraverso Visual Studio per le volte successive.
+Ricordarsi, dopo aver buildato tutto, di spostare i necessari DLL/SO files nella cartella dell'eseguibile (build/testbed/Debug per Windows),
+che si trovano in external/irrKlang/lib/${piattforma utilizzata}
