@@ -100,4 +100,10 @@ inline FixedString<str.len + 2 + numDigits(std::numeric_limits<U64_t>::max())> f
     return res;
 }
 
+enum class EDifficulty : U32_t {
+    eNormal = 0,
+    eEasy = 1,
+    eHard = 2
+};
+
 } // namespace cge

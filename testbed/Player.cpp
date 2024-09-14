@@ -69,7 +69,7 @@ Player::~Player()
     }
 }
 
-void Player::spawn(const Camera_t &view)
+void Player::spawn(const Camera_t &view, EDifficulty difficulty)
 {
     EventArg_t listenerData{};
     listenerData.idata.p      = reinterpret_cast<Byte_t *>(this);
@@ -97,6 +97,18 @@ void Player::spawn(const Camera_t &view)
     m_bgm              = g_soundEngine()->play2D(m_bgmSource, true);
     m_init             = true;
     m_ornithopterAlive = true;
+
+    switch (difficulty) {
+    case EDifficulty::eEasy:
+        m_difficultyMultiplier = 1.f;
+        break;
+    case EDifficulty::eNormal:
+        m_difficultyMultiplier = 1.3f;
+        break;
+    case EDifficulty::eHard:
+        m_difficultyMultiplier = 1.8f;
+        break;
+    }
 
     assert(m_invincibleMusicSource && m_bgmSource);
 }
@@ -177,7 +189,7 @@ void Player::onTick(U64_t deltaTimeI)
         m_camera.position += displacement;
         F32_t x = glm::log(static_cast<F32_t>(m_score));
         x *= x;
-        m_velocityIncrement = glm::max(glm::abs(x), 1.f);
+        m_velocityIncrement = m_difficultyMultiplier * glm::max(glm::abs(x), 1.f);
 #if 0
         printf("[Player] New Displacement after deltaTime %f <=> %f\n", deltaTimeF, displacement.y);
 #endif

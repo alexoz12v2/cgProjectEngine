@@ -156,6 +156,13 @@ void TestbedModule::onInit()
                               .speed         = speed,
                               .down          = down });
 
+    // try reading difficulty to initialize acceleration
+    EDifficulty difficulty;
+    if (g_globalStore.contains(CGE_SID("DIFFICULTY"))) {
+        difficulty = static_cast<EDifficulty>(g_globalStore.consume(CGE_SID("DIFFICULTY")).u32[0]);
+    } else {
+        difficulty = EDifficulty::eNormal;
+    }
 
     // setup player
     Camera_t camera{};
@@ -163,7 +170,7 @@ void TestbedModule::onInit()
     camera.right    = glm::vec3(1.f, 0.f, 0.f);
     camera.up       = glm::vec3(0.f, 0.f, 1.f);
     camera.forward  = glm::vec3(0.f, 1.f, 0.f);
-    m_player.spawn(camera);
+    m_player.spawn(camera, difficulty);
 
     // background, terrain, terrain collisions
     stbi_set_flip_vertically_on_load(true);

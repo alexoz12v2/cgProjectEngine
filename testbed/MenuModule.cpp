@@ -20,7 +20,7 @@ namespace cge
 
 // -- constants --
 inline U32_t constexpr numMainButtons   = 3;
-inline U32_t constexpr numExtrasButtons = 1;
+inline U32_t constexpr numExtrasButtons = 2;
 
 inline Char8_t constexpr const *const mainScreen_START     = "START";
 inline Char8_t constexpr const *const mainScreen_EXTRAS    = "EXTRAS";
@@ -58,7 +58,7 @@ inline std::array<ButtonSpec, numMainButtons> const mainScreenButtons{
     }
 };
 
-inline std::array<ButtonSpec, numExtrasButtons> const extrasScreenButtons{
+inline std::array<ButtonSpec, numExtrasButtons> extrasScreenButtons{
     // ----------------------------------------------------------------
     ButtonSpec{
       .position{ 0.7f, 0.1f },
@@ -67,6 +67,15 @@ inline std::array<ButtonSpec, numExtrasButtons> const extrasScreenButtons{
       .borderWidth = 0.02f,
       .backgroundColor{ 0.2f },
       .text = extrasScreen_GO_BACK,
+      .textColor{ 0.7f },
+    },
+    {
+      .position{ 0.67f, 0.7f },
+      .size{ 0.3f, 0.12f },
+      .borderColor{ 0.5098f, 0.45098f, 0.294118f },
+      .borderWidth = 0.02f,
+      .backgroundColor{ 0.2f },
+      .text = "",
       .textColor{ 0.7f },
     }
 };
@@ -77,8 +86,9 @@ inline F32_t constexpr extrasScreenRectLineLeading    = 0.02f;
 inline U32_t constexpr numLines                       = 11; // 1 line for "Best Scores" followed by the top ten scores
 inline U32_t constexpr maxNumCharInLine               = 13;
 
-inline Char8_t const constexpr *const jsonScoresKey = "bestScores";
-inline Char8_t const constexpr *const jsonSavePath  = "../assets/saves.json";
+inline Char8_t const constexpr *const jsonScoresKey     = "bestScores";
+inline Char8_t const constexpr *const jsonDifficultyKey = "difficulty";
+inline Char8_t const constexpr *const jsonSavePath      = "../assets/saves.json";
 
 // -- the rest of the code --
 struct STBIDeleter
@@ -173,6 +183,47 @@ void MenuModule::onInit()
     m_init = true;
 }
 
+static char const *difficultyToString(EDifficulty difficulty)
+{
+    switch (difficulty)
+    {
+    case EDifficulty::eNormal:
+        return "Normal";
+    case EDifficulty::eEasy:
+        return "Escargot";
+    case EDifficulty::eHard:
+        return "I am Speed";
+    default:
+        assert(false);
+    }
+}
+static EDifficulty incrementDifficulty(EDifficulty currentDifficulty)
+{
+    switch (currentDifficulty)
+    {
+    case EDifficulty::eEasy:
+        return EDifficulty::eNormal;
+    case EDifficulty::eNormal:
+        return EDifficulty::eHard;
+    case EDifficulty::eHard:
+    default:
+        return EDifficulty::eHard; // Saturate at eHard
+    }
+}
+static EDifficulty decrementDifficulty(EDifficulty currentDifficulty)
+{
+    switch (currentDifficulty)
+    {
+    case EDifficulty::eHard:
+        return EDifficulty::eNormal;
+    case EDifficulty::eNormal:
+        return EDifficulty::eEasy;
+    case EDifficulty::eEasy:
+    default:
+        return EDifficulty::eEasy; // Saturate at eEasy
+    }
+}
+
 void MenuModule::onTick(U64_t deltaTime)
 {
     F32_t ratio = aspectRatio();
@@ -203,16 +254,27 @@ void MenuModule::onTick(U64_t deltaTime)
     }
     case EMenuScreen::eExtras:
     {
-        glm::vec2 const rectPos{ (ratio > 1.f ? 0.02f : 0.05f), (ratio > 1.f ? 0.05f : 0.02f) };
+        std::pmr::string strBuf{ getMemoryPool() };
+        glm::vec2 const  rectPos{ (ratio > 1.f ? 0.02f : 0.05f), (ratio > 1.f ? 0.05f : 0.02f) };
         g_renderer2D.renderTexture({ .position{ 0.f, 0.f },
                                      .size{ 1.f, 1.f },
                                      .texture{ CGE_SID("EXTRAS") },
                                      .renderMode = ETextureRenderMode::ConstantSizeNoStretching,
                                      .depth      = 0.9f });
         g_renderer2D.renderRectangle({ .position{ rectPos }, .size{ extrasScreenRectSize }, .color{ 0.5f } });
-        for (auto const &button : extrasScreenButtons)
+        U32_t index = 0;
+        for (auto &button : extrasScreenButtons)
         {
+            if (index == 1)
+            {
+                strBuf.clear();
+                strBuf.append("Difficulty: ");
+                strBuf.append(difficultyToString(m_difficulty));
+                button.text = strBuf.c_str();
+            }
             g_renderer2D.renderButton(button);
+            strBuf.clear();
+            ++index;
         }
 
         F32_t yBorder    = extrasScreenRectBorderSizePerc * extrasScreenRectSize.y;
@@ -227,7 +289,6 @@ void MenuModule::onTick(U64_t deltaTime)
                            glm::min(
                              ySize * m_framebufferSize.y / charSize,
                              0.9f * extrasScreenRectSize.x * m_framebufferSize.x / xSize) };
-        std::pmr::string strBuf{ getMemoryPool() };
 
         B8_t first = true;
         for (U32_t i = 10; i != 0; --i)
@@ -285,6 +346,7 @@ void MenuModule::onMouseButton(I32_t key, I32_t action)
         break;
     }
 
+    U32_t index = 0;
     for (auto it = beg; it != end; ++it)
     {
         assert(it);
@@ -302,14 +364,28 @@ void MenuModule::onMouseButton(I32_t key, I32_t action)
         {
             printf("[MenuModule] pressed button \"%s\"\n", button.text);
             m_bop = g_soundEngine()->play2D(m_bopSource);
-            buttonPressed(CGE_SID(button.text));
+            buttonPressed(CGE_SID(button.text), beg == std::begin(extrasScreenButtons) && index == 1, key);
             break;
         }
+        ++index;
     }
 }
 
-void MenuModule::buttonPressed(Sid_t buttonSid)
+void MenuModule::buttonPressed(Sid_t buttonSid, bool isDifficulty, I32_t key)
 {
+    if (isDifficulty)
+    {
+        if (key == button::LMB)
+        {
+            m_difficulty = incrementDifficulty(m_difficulty);
+        }
+        else if (key == button::RMB)
+        {
+            m_difficulty = decrementDifficulty(m_difficulty);
+        }
+        return;
+    }
+
     switch (m_menuScreen)
     {
     case EMenuScreen::eMain:
@@ -317,8 +393,13 @@ void MenuModule::buttonPressed(Sid_t buttonSid)
         switch (buttonSid.id)
         {
         case CGE_CONSTEXPR_SID(mainScreen_START).id:
+        {
+            UntypedData128 data{};
+            data.u32[0] = static_cast<std::underlying_type_t<EDifficulty>>(m_difficulty);
+            g_globalStore.put(CGE_SID("DIFFICULTY"), data);
             switchToModule(CGE_SID("TestbedModule"));
             break;
+        }
         case CGE_CONSTEXPR_SID(mainScreen_EXTRAS).id:
             m_menuScreen = EMenuScreen::eExtras;
             break;
@@ -401,12 +482,19 @@ void MenuModule::deserializeScoresFromFile()
     {
         m_scores.clear();
     }
+
+    if (json.contains(jsonDifficultyKey) && json[jsonDifficultyKey].is_number_unsigned())
+    {
+        auto const &item = json[jsonDifficultyKey];
+        m_difficulty     = static_cast<EDifficulty>(item.get<U32_t>());
+    }
 }
 
 void MenuModule::serializeScoresToFile()
 {
     nlohmann::json json;
-    json[jsonScoresKey] = m_scores;
+    json[jsonScoresKey]     = m_scores;
+    json[jsonDifficultyKey] = static_cast<std::underlying_type_t<EDifficulty>>(m_difficulty);
 
     std::ofstream file{ jsonSavePath };
     if (file)

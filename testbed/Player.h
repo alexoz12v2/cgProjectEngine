@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ConstantsAndStructs.h"
 #include "Core/Event.h"
 #include "Core/Random.h"
 #include "Core/StringUtils.h"
@@ -171,7 +172,7 @@ class Player
     ~Player();
 
   public:
-    void spawn(Camera_t const &view);
+    void spawn(Camera_t const &view, EDifficulty difficulty);
 
     void onKey(I32_t key, I32_t action);
     void onTick(U64_t deltaTime);
@@ -232,6 +233,7 @@ class Player
     F32_t     m_targetXPos{ 0.f };
     F32_t     m_velocityIncrement{ 1.f };
     glm::vec3 m_lastDisplacement{};
+    F32_t     m_difficultyMultiplier = 1.f;
 
     // event data
     union U

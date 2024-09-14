@@ -6,6 +6,7 @@
 #include "Render/Renderer2d.h"
 #include "Render/Window.h"
 
+#include "ConstantsAndStructs.h"
 #include "SoundEngine.h"
 
 namespace cge
@@ -31,7 +32,7 @@ class MenuModule : public IModule
     void onMouseButton(I32_t key, I32_t action);
 
   private:
-    void buttonPressed(Sid_t buttonSid);
+    void buttonPressed(Sid_t buttonSid, B8_t isDifficulty, I32_t key);
     void deserializeScoresFromFile();
     void serializeScoresToFile();
 
@@ -41,6 +42,7 @@ class MenuModule : public IModule
     glm::ivec2 m_framebufferSize{ g_focusedWindow()->getFramebufferSize() };
     glm::vec2  m_mousePosition{ 0.f, 0.f };
     B8_t       m_init{ false };
+    EDifficulty m_difficulty{EDifficulty::eNormal};
 
     // selected menu
     enum class EMenuScreen
