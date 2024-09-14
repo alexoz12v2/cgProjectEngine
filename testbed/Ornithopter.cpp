@@ -12,8 +12,8 @@
 namespace cge
 {
 // ornithopter constants
-inline F32_t constexpr halfLimitAngle       = 5.f * glm::pi<F32_t>() / 180.f;
-inline F32_t constexpr rotationFrequency    = 100.f * glm::pi<F32_t>() * 0.5f;
+inline F32_t const halfLimitAngle           = 5.f * glm::pi<F32_t>() / 180.f;
+inline F32_t const rotationFrequency        = 100.f * glm::pi<F32_t>() * 0.5f;
 inline F32_t constexpr negativeRotationSkew = 0.2f;
 
 Ornithopter::Ornithopter(OrnithopterSpec const &spec)
@@ -79,8 +79,8 @@ void Ornithopter::onTick(U64_t deltaTime, OnTickTs const &transforms)
             continue;
         }
 
-        SceneNode_s &node = g_scene.getNodeBySid(sid);
-        F32_t radians = halfLimitAngle * glm::sin(rotationFrequency * m_elapsedTime / timeUnit64);
+        SceneNode_s &node    = g_scene.getNodeBySid(sid);
+        F32_t        radians = halfLimitAngle * glm::sin(rotationFrequency * m_elapsedTime / timeUnit64);
         if (radians < 0.f)
         {
             radians *= negativeRotationSkew;
@@ -94,7 +94,8 @@ void Ornithopter::onTick(U64_t deltaTime, OnTickTs const &transforms)
     // TODO: shifting animation?
     for (Sid_t const &sid : m_sids.arr)
     {
-        g_scene.getNodeBySid(sid).rightMul(transforms.playerTransform * glm::rotate(glm::mat4(1.f), glm::half_pi<F32_t>(), glm::vec3(1.f, 0.f, 0.f)));
+        g_scene.getNodeBySid(sid).rightMul(
+          transforms.playerTransform * glm::rotate(glm::mat4(1.f), glm::half_pi<F32_t>(), glm::vec3(1.f, 0.f, 0.f)));
         g_scene.getNodeBySid(sid).transform(transforms.cameraTransform * transforms.playerTranslate);
     }
 }

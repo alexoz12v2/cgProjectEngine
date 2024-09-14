@@ -36,7 +36,7 @@ inline F32_t constexpr maxBaseVelocity   = 800.f;
 inline F32_t constexpr invincibilityTime = 7.f;
 inline F32_t constexpr speedBoost        = 2.f;
 inline glm::vec3 const meshCameraOffset{ 0.f, 20.f, -9.f };
-inline F32_t constexpr maxLeanRotation = 15.f * glm::pi<F32_t>() / 180.f;
+inline F32_t const     maxLeanRotation = 15.f * glm::pi<F32_t>() / 180.f;
 inline glm::vec3 const xAxis{ 1.f, 0.f, 0.f };
 
 // scrolling terrain constants
@@ -98,7 +98,8 @@ void Player::spawn(const Camera_t &view, EDifficulty difficulty)
     m_init             = true;
     m_ornithopterAlive = true;
 
-    switch (difficulty) {
+    switch (difficulty)
+    {
     case EDifficulty::eEasy:
         m_difficultyMultiplier = 1.f;
         break;
@@ -699,9 +700,9 @@ F32_t ScrollingTerrain::randomLaneOffset() const
 }
 void ScrollingTerrain::onTick(U64_t deltaTime)
 {
-    static F32_t constexpr maxDisplacement  = 0.01f;
-    static F32_t constexpr frequency        = 5.f * glm::pi<F32_t>() * 0.5f;
-    static F32_t constexpr radiansPerSecond = 120.f * glm::pi<F32_t>() / 180.f;
+    static F32_t constexpr maxDisplacement = 0.01f;
+    static F32_t const frequency           = 5.f * glm::pi<F32_t>() * 0.5f;
+    static F32_t const radiansPerSecond    = 120.f * glm::pi<F32_t>() / 180.f;
     m_elapsedTime += deltaTime;
 
     // rotate by a bit all coins

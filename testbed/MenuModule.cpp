@@ -34,27 +34,27 @@ inline std::array<ButtonSpec, numMainButtons> const mainScreenButtons{
       .size{ 0.2f, 0.1f },
       .borderColor{ 0.5098f, 0.45098f, 0.294118f },
       .borderWidth = 0.02f,
-      .backgroundColor{ 0.2f },
+      .backgroundColor{ 0.2f, 0.2f, 0.2f },
       .text = mainScreen_START,
-      .textColor{ 0.7f },
+      .textColor{ 0.7f, 0.7f, 0.7f },
     },
     {
       .position{ 0.05f, 0.5f },
       .size{ 0.2f, 0.1f },
       .borderColor{ 0.5098f, 0.45098f, 0.294118f },
       .borderWidth = 0.02f,
-      .backgroundColor{ 0.2f },
+      .backgroundColor{ 0.2f, 0.2f, 0.2f },
       .text = mainScreen_EXTRAS,
-      .textColor{ 0.7f },
+      .textColor{ 0.7f, 0.7f, 0.7f },
     },
     {
       .position{ 0.05f, 0.3f },
       .size{ 0.2f, 0.1f },
       .borderColor{ 0.5098f, 0.45098f, 0.294118f },
       .borderWidth = 0.02f,
-      .backgroundColor{ 0.2f },
+      .backgroundColor{ 0.2f, 0.2f, 0.2f },
       .text = mainScreen_EXIT,
-      .textColor{ 0.7f },
+      .textColor{ 0.7f, 0.7f, 0.7f },
     }
 };
 
@@ -65,22 +65,22 @@ inline static std::array<ButtonSpec, numExtrasButtons> extrasScreenButtons{
       .size{ 0.2f, 0.1f },
       .borderColor{ 0.5098f, 0.45098f, 0.294118f },
       .borderWidth = 0.02f,
-      .backgroundColor{ 0.2f },
+      .backgroundColor{ 0.2f, 0.2f, 0.2f },
       .text = extrasScreen_GO_BACK,
-      .textColor{ 0.7f },
+      .textColor{ 0.7f, 0.7f, 0.7f },
     },
     {
       .position{ 0.67f, 0.7f },
       .size{ 0.3f, 0.12f },
       .borderColor{ 0.5098f, 0.45098f, 0.294118f },
       .borderWidth = 0.02f,
-      .backgroundColor{ 0.2f },
+      .backgroundColor{ 0.2f, 0.2f, 0.2f },
       .text = "",
-      .textColor{ 0.7f },
+      .textColor{ 0.7f, 0.7f, 0.7f },
     }
 };
 
-inline glm::vec2 constexpr extrasScreenRectSize{ 0.4f, 0.9f };
+inline glm::vec2 const extrasScreenRectSize{ 0.4f, 0.9f };
 inline F32_t constexpr extrasScreenRectBorderSizePerc = 0.05f;
 inline F32_t constexpr extrasScreenRectLineLeading    = 0.02f;
 inline U32_t constexpr numLines                       = 11; // 1 line for "Best Scores" followed by the top ten scores
@@ -157,7 +157,7 @@ void MenuModule::onInit()
         // Check if the vector is not full or the new score is larger than the smallest score
         if (m_scores.size() < 10 || score > m_scores.back())
         { // Insert the new score in the correct position to maintain descending order
-            auto it = std::lower_bound(m_scores.begin(), m_scores.end(), score, std::less<U64_t>());
+            auto it = std::lower_bound(m_scores.begin(), m_scores.end(), score, std::greater<U64_t>());
 
             // Insert the new score at the position found
             m_scores.insert(it, score);
@@ -256,7 +256,8 @@ void MenuModule::onTick(U64_t deltaTime)
                                      .texture{ CGE_SID("EXTRAS") },
                                      .renderMode = ETextureRenderMode::ConstantSizeNoStretching,
                                      .depth      = 0.9f });
-        g_renderer2D.renderRectangle({ .position{ rectPos }, .size{ extrasScreenRectSize }, .color{ 0.5f } });
+        g_renderer2D.renderRectangle(
+          { .position{ rectPos }, .size{ extrasScreenRectSize }, .color{ 0.5f, 0.5f, 0.5f, 0.5f } });
         U32_t index = 0;
         for (auto &button : extrasScreenButtons)
         {
@@ -293,7 +294,7 @@ void MenuModule::onTick(U64_t deltaTime)
             strBuf.append(1, ':');
             strBuf.append(first ? " " : "  ");
             first             = false;
-            U32_t       index = 10 - i;
+            U32_t       index = i - 1;
             std::string score = m_scores.size() > index ? std::to_string(m_scores[index]) : "empty";
             strBuf.append(score);
 
@@ -326,18 +327,18 @@ void MenuModule::onMouseButton(I32_t key, I32_t action)
     }
 
     printf("[MenuModule] position: \n\t%f\n\t%f\n", m_mousePosition.x, m_mousePosition.y);
-    decltype(std::begin(mainScreenButtons)) beg = nullptr;
-    decltype(std::end(mainScreenButtons))   end = nullptr;
+    decltype(mainScreenButtons)::value_type const *beg = nullptr;
+    decltype(mainScreenButtons)::value_type const *end = nullptr;
 
     switch (m_menuScreen)
     {
     case EMenuScreen::eMain:
-        beg = std::begin(mainScreenButtons);
-        end = std::end(mainScreenButtons);
+        beg = std::addressof(*std::begin(mainScreenButtons));
+        end = std::addressof(*std::begin(mainScreenButtons)) + mainScreenButtons.size();
         break;
     case EMenuScreen::eExtras:
-        beg = std::begin(extrasScreenButtons);
-        end = std::end(extrasScreenButtons);
+        beg = std::addressof(*std::begin(extrasScreenButtons));
+        end = std::addressof(*std::begin(extrasScreenButtons)) + extrasScreenButtons.size();
         break;
     }
 
@@ -359,7 +360,8 @@ void MenuModule::onMouseButton(I32_t key, I32_t action)
         {
             printf("[MenuModule] pressed button \"%s\"\n", button.text);
             m_bop = g_soundEngine()->play2D(m_bopSource);
-            buttonPressed(CGE_SID(button.text), beg == std::begin(extrasScreenButtons) && index == 1, key);
+            buttonPressed(
+              CGE_SID(button.text), beg == std::addressof(*std::begin(extrasScreenButtons)) && index == 1, key);
             break;
         }
         ++index;
@@ -464,7 +466,7 @@ void MenuModule::deserializeScoresFromFile()
             }
         }
 
-        std::ranges::sort(tempScores, std::less<U64_t>());
+        std::ranges::sort(tempScores, std::greater<U64_t>());
         if (tempScores.size() > numLines - 1)
         {
             tempScores.resize(numLines - 1);

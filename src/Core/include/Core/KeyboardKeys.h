@@ -71,6 +71,7 @@ namespace key
     inline I32_t constexpr WORLD_1{ 161 };      /* non-US #1 */
     inline I32_t constexpr WORLD_2{ 162 };      /* non-US #2 */
 
+#undef DELETE
     /* Function keys */
     inline I32_t constexpr ESCAPE{ 256 };
     inline I32_t constexpr ENTER{ 257 };
