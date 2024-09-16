@@ -55,9 +55,9 @@ inline ButtonSpec const mainMenuButton{
     .size{ 0.35f, 0.23f },
     .borderColor{ 0.5098f, 0.45098f, 0.294118f },
     .borderWidth = 0.02f,
-    .backgroundColor{ 0.2f },
+    .backgroundColor{ 0.2f, 0.2f, 0.2f },
     .text = mainMenuText,
-    .textColor{ 0.7f },
+    .textColor{ 0.7f, 0.7f, 0.7f },
 };
 
 // -- the rest of the code --
@@ -323,33 +323,33 @@ void TestbedModule::onTick(U64_t deltaTime)
     str.resize(str.size() - 4);
     g_renderer2D.renderButton({ .position{ 0.0f, 0.04f },
                                 .size{ 0.35f, 0.07f },
-                                .borderColor{ 0.5f },
+                                .borderColor{ 0.5f, 0.5f, 0.5f },
                                 .borderWidth = 0.01f,
-                                .backgroundColor{ 0.5f },
+                                .backgroundColor{ 0.5f, 0.5f, 0.5f },
                                 .text = str.c_str(),
-                                .textColor{ 0.9f } });
+                                .textColor{ 0.9f, 0.9f, 0.9f } });
 
     str.clear();
     str.append("Coins: ");
     str.append(std::to_string(m_numCoins));
     g_renderer2D.renderButton({ .position{ 0.8f, 0.8f },
                                 .size{ 0.2f, 0.07f },
-                                .borderColor{ 0.5f },
+                                .borderColor{ 0.5f, 0.5f, 0.5f },
                                 .borderWidth = 0.01f,
-                                .backgroundColor{ 0.5f },
+                                .backgroundColor{ 0.5f, 0.5f, 0.5f },
                                 .text = str.c_str(),
-                                .textColor{ 0.9f } });
+                                .textColor{ 0.9f, 0.9f, 0.9f } });
 
     str.clear();
     str.append("Score: ");
     str.append(std::to_string(m_player.getCurrentScore()));
     g_renderer2D.renderButton({ .position{ 0.8f, 0.8f + 0.07f },
                                 .size{ 0.2f, 0.07f },
-                                .borderColor{ 0.5f },
+                                .borderColor{ 0.5f, 0.5f, 0.5f },
                                 .borderWidth = 0.01f,
-                                .backgroundColor{ 0.5f },
+                                .backgroundColor{ 0.5f, 0.5f, 0.5f },
                                 .text = str.c_str(),
-                                .textColor{ 0.9f } });
+                                .textColor{ 0.9f, 0.9f, 0.9f } });
 
     if (F32_t time = m_player.remainingInvincibleTime(); time > 0.f && m_gameState == EGameState::eDefault)
     {
